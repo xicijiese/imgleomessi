@@ -2,9 +2,14 @@
 
 ## 2026-08-25
 
+### Added
+
+- 新增 `docs/project/development-progress.md`，记录项目阶段、MVP 范围、开发进度、下一步计划和待确认问题。
+
 ### Changed
 
 - 将 Laravel 默认语言、回退语言和 Faker 语言设置为 `zh_CN`，Filament 后台默认显示简体中文。
+- 确认第一版 MVP 只做图库核心闭环，评论、VIP、微信小程序、OCR、相似图去重和以图搜图暂不进入第一版。
 
 ## 2026-08-24
 
