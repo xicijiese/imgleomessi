@@ -18,6 +18,7 @@
 
 - 技术架构从 `Blade/Livewire 起步` 调整为 `Laravel + Inertia.js + Vue 3 + TypeScript + Tailwind CSS + Filament`。
 - 明确后台第一版即使用 Filament，不使用 Naive UI / Arco Design 自建后台。
+- 通过 `npm audit fix` 更新前端锁文件，将 npm 审计告警降为 0。
 
 ### Verified
 
