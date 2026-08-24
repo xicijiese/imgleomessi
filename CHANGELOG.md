@@ -8,6 +8,7 @@
 
 ### Changed
 
+- 将 `docs/project/development-progress.md` 升级为项目路线图与开发进度的唯一主入口，补充全项目阶段路线图。
 - 将 Laravel 默认语言、回退语言和 Faker 语言设置为 `zh_CN`，Filament 后台默认显示简体中文。
 - 确认第一版 MVP 只做图库核心闭环，评论、VIP、微信小程序、OCR、相似图去重和以图搜图暂不进入第一版。
 
