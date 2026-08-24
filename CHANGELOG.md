@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-25
+
+### Changed
+
+- 将 Laravel 默认语言、回退语言和 Faker 语言设置为 `zh_CN`，Filament 后台默认显示简体中文。
+
 ## 2026-08-24
 
 ### Added
