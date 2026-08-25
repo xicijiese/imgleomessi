@@ -115,7 +115,8 @@ Phase 1 必须支持“批量上传到相册”。
 相册封面规则：
 
 - 管理员或编辑可以为相册手动选择封面图。
-- 如果没有手动选择封面图，系统默认从相册内图片中随机选择一张作为封面展示。
+- 手动封面只能选择该相册内的 `published` 已发布图片。
+- 如果没有手动选择封面图，系统默认从相册内 `published` 已发布图片中随机选择一张作为封面展示。
 - 随机封面只用于展示兜底，不写死为手动封面；后续相册图片变化时可以重新随机展示。
 
 相册发布状态规则：
@@ -201,7 +202,7 @@ Phase 1 必须支持“批量上传到相册”。
 | title | varchar | 相册名 |
 | slug | varchar unique | URL 标识 |
 | description | text nullable | 描述 |
-| cover_photo_id | fk photos nullable | 手动选择的封面图；为空时默认随机使用相册内一张图片作为封面 |
+| cover_photo_id | fk photos nullable | 手动选择的封面图；只能选择相册内已发布图片；为空时默认随机使用相册内一张已发布图片作为封面 |
 | sort_order | int | 排序 |
 | status | enum | `draft` 草稿、`published` 已发布、`hidden` 隐藏 |
 | published_at | datetime nullable | 发布时间 |
