@@ -95,6 +95,14 @@ Phase 1 必须支持“批量上传到相册”。
 
 相册内图片的分类不在批量整理页面中单独编辑，分类由相册统一决定。
 
+图片发布状态规则：
+
+- 批量上传或单独上传后的新图片，默认进入 `draft` 草稿/待整理状态。
+- 草稿/待整理图片不在前台公开展示。
+- 管理员或编辑在批量整理页面或图片编辑页点击发布后，图片立即进入 `published` 已发布状态。
+- 图片发布时写入 `published_at`。
+- 已发布图片对前台用户可见。
+
 ## 1. 用户与权限
 
 ### users
@@ -143,7 +151,7 @@ Phase 1 必须支持“批量上传到相册”。
 | match_id | fk matches nullable | 比赛 |
 | source_id | fk sources nullable | 来源 |
 | copyright_status | enum | `unknown`、`public_reference`、`official_public`、`user_submitted`、`restricted`、`takedown` |
-| review_status | enum | `draft`、`pending`、`published`、`rejected`、`archived` |
+| review_status | enum | `draft` 草稿/待整理、`published` 已发布、`archived` 已归档 |
 | analysis_status | enum | `pending`、`processing`、`done`、`failed` |
 | width / height | int nullable | 尺寸 |
 | mime_type | varchar | MIME |
