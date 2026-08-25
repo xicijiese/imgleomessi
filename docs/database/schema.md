@@ -112,6 +112,12 @@ Phase 1 必须支持“批量上传到相册”。
 - 管理员或编辑发布前可以修改标题，也可以不修改；如果人为清空标题，后台不允许保存。
 - 系统生成的存储文件名不提供后台手动修改入口。
 
+相册封面规则：
+
+- 管理员或编辑可以为相册手动选择封面图。
+- 如果没有手动选择封面图，系统默认从相册内图片中随机选择一张作为封面展示。
+- 随机封面只用于展示兜底，不写死为手动封面；后续相册图片变化时可以重新随机展示。
+
 ## 1. 用户与权限
 
 ### users
@@ -187,7 +193,7 @@ Phase 1 必须支持“批量上传到相册”。
 | title | varchar | 相册名 |
 | slug | varchar unique | URL 标识 |
 | description | text nullable | 描述 |
-| cover_photo_id | fk photos nullable | 封面图 |
+| cover_photo_id | fk photos nullable | 手动选择的封面图；为空时默认随机使用相册内一张图片作为封面 |
 | sort_order | int | 排序 |
 | visibility | enum | `public`、`hidden` |
 | created_at / updated_at | timestamps | 时间戳 |
