@@ -9,7 +9,8 @@
 Phase 1 只落图库核心表，用于完成图片录入、管理、浏览和基础检索闭环：
 
 - `photos`
-- `albums`
+- `categories`
+- `photo_category`
 - `tags`
 - `photo_tag`
 - `teams`
@@ -30,6 +31,17 @@ Phase 1 暂不创建以下后续功能表：
 - `processing_jobs`
 
 `users` 表使用 Laravel/Fortify 当前已生成的基础结构。角色、手机号、支持者有效期、用户状态等字段会在权限或会员阶段再扩展。
+
+## Phase 1 分类模型决策
+
+Phase 1 采用“主分类 + 子分类 + 多标签”模型。
+
+- 主分类：`categories.parent_id = null`，例如 `球队`、`赛事`、`年份`、`场景`、`图片类型`。
+- 子分类：`categories.parent_id = 主分类 ID`，例如 `阿根廷国家队`、`世界杯`、`2022年`、`球场内`、`社媒图`。
+- 图片分类关系：一张图片可以关联多个子分类，通过 `photo_category` 实现。
+- 标签：用于描述更细粒度的信息，例如 `进球`、`庆祝`、`高清`、`捧杯`，通过 `photo_tag` 实现。
+
+前台可以把主分类渲染为筛选分组，把子分类渲染为筛选按钮，体验上符合“分类 + 标签”的理解。
 
 ## 1. 用户与权限
 
@@ -71,7 +83,6 @@ Phase 1 暂不创建以下后续功能表：
 | uuid | char(36) unique | 外部引用 ID |
 | title | varchar | 图片标题 |
 | description | text nullable | 图片说明 |
-| album_id | fk albums nullable | 所属主相册 |
 | taken_at | datetime nullable | 拍摄时间 |
 | event_date | date nullable | 事件日期 |
 | career_stage | varchar nullable | 生涯阶段 |
@@ -97,20 +108,25 @@ Phase 1 暂不创建以下后续功能表：
 | published_at | datetime nullable | 发布时间 |
 | created_at / updated_at | timestamps | 时间戳 |
 
-### albums
+### categories
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| id | bigint pk | 相册 ID |
-| parent_id | fk albums nullable | 父相册 |
-| type | enum | `event`、`topic`、`career_stage`、`collection` |
-| title | varchar | 相册名 |
-| slug | varchar unique | URL 标识 |
+| id | bigint pk | 分类 ID |
+| parent_id | fk categories nullable | 父分类；为空表示主分类，不为空表示子分类 |
+| name | varchar | 分类名 |
+| slug | varchar | URL 标识，同一父分类下唯一 |
 | description | text nullable | 描述 |
-| event_date | date nullable | 事件日期 |
-| cover_photo_id | fk photos nullable | 封面图 |
+| cover_photo_id | fk photos nullable | 分类封面图 |
 | sort_order | int | 排序 |
 | visibility | enum | `public`、`hidden` |
+
+### photo_category
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| photo_id | fk photos | 图片 |
+| category_id | fk categories | 分类 |
 
 ### tags
 
@@ -204,7 +220,7 @@ Phase 1 暂不创建以下后续功能表：
 | id | bigint pk | 评论 ID |
 | user_id | fk users | 用户 |
 | photo_id | fk photos nullable | 图片 |
-| album_id | fk albums nullable | 相册 |
+| category_id | fk categories nullable | 分类 |
 | parent_id | fk comments nullable | 回复 |
 | content | text | 内容 |
 | status | enum | `pending`、`published`、`rejected`、`deleted` |
@@ -271,10 +287,12 @@ Phase 1 暂不创建以下后续功能表：
 ## 8. 索引建议
 
 - `photos(review_status, event_date)`
-- `photos(album_id, review_status)`
+- `photo_category(photo_id, category_id)` 唯一索引
+- `photo_category(category_id, photo_id)`
 - `photos(team_id, competition_id, event_date)`
 - `photos(sha256)`
-- `albums(slug)`
+- `categories(parent_id, slug)` 唯一索引
+- `categories(parent_id, sort_order)`
 - `tags(name)`
 - `comments(photo_id, status, created_at)`
 - `likes(user_id, target_type, target_id)` 唯一索引
