@@ -56,6 +56,22 @@ Phase 1 采用“相册/专题 + 7 个必选主分类 + 子分类 + 多标签”
 
 前台可以把主分类渲染为筛选分组，把子分类渲染为筛选按钮，体验上符合“分类 + 标签”的理解。相册用于专题浏览和批量上传，标签用于补充不是每张图片必定包含的细节。
 
+## Phase 1 重复上传与相似图规则
+
+Phase 1 上传流程不做重复图片检测，也不阻止疑似重复图片入库。
+
+- 不根据文件名判断重复。
+- 不根据上传人判断重复。
+- 不根据标题判断重复。
+- 不在上传时做 `sha256` 拦截。
+- 不在上传时做感知哈希检测。
+- 不在上传时做相似图检测。
+- 同一视觉图片如果被多次上传，默认视为多条独立图片记录。
+- 同一视觉图片如果上传到不同相册，各自跟随所在相册的分类，各自维护标题、说明和标签。
+- 相似图去重只作为后续后台管理能力，用于管理员日后筛选、比对、合并、删除或保留相似图片。
+
+`photos.sha256`、`photos.perceptual_hash`、`photos.similar_group_id` 在 Phase 1 中只作为后续能力预留字段，不作为上传拦截条件。
+
 ## 1. 用户与权限
 
 ### users
@@ -112,9 +128,9 @@ Phase 1 采用“相册/专题 + 7 个必选主分类 + 子分类 + 多标签”
 | original_key | varchar | COS 原图 Key |
 | display_key | varchar nullable | COS 展示图 Key |
 | thumbnail_key | varchar nullable | COS 缩略图 Key |
-| sha256 | char(64) nullable index | 完全去重 |
-| perceptual_hash | varchar nullable index | 自建感知哈希，可选 |
-| similar_group_id | fk similar_groups nullable | 相似图组 |
+| sha256 | char(64) nullable index | 文件哈希，Phase 1 仅预留，不用于上传拦截 |
+| perceptual_hash | varchar nullable index | 感知哈希，后续相似图管理预留 |
+| similar_group_id | fk similar_groups nullable | 相似图组，后续后台治理预留 |
 | quality_score | decimal nullable | 质量评分 |
 | is_featured | boolean | 是否推荐 |
 | uploaded_by | fk users | 上传者 |
