@@ -83,13 +83,13 @@ Phase 1 必须支持“批量上传到相册”。
 3. 在相册中批量上传多张图片。
 4. 系统为新图片自动写入相册关系和相册分类。
 5. 上传完成后进入批量整理页面。
-6. 管理员或编辑逐图快速补充标题、说明、标签和发布状态。
+6. 管理员或编辑逐图快速补充标题、说明、标签和发布状态；图片说明可以为空。
 7. 一次保存本批次整理结果。
 
 批量整理页面至少支持编辑：
 
 - 图片标题。
-- 图片说明。
+- 图片说明，可为空。
 - 图片标签。
 - 发布状态。
 
@@ -151,7 +151,7 @@ Phase 1 必须支持“批量上传到相册”。
 | id | bigint pk | 图片 ID |
 | uuid | char(36) unique | 外部引用 ID |
 | title | varchar | 图片标题 |
-| description | text nullable | 图片说明 |
+| description | text nullable | 图片说明，可为空；用于补充背景、考古线索、来源备注等长文本 |
 | original_filename | varchar nullable | 用户上传时的原始文件名，用于追溯 |
 | stored_filename | varchar | 系统重命名后的文件名，格式为 `YYYYMMDD-HHmmss-6位随机码.原扩展名` |
 | taken_at | datetime nullable | 拍摄时间 |
