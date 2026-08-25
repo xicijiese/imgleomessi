@@ -118,6 +118,13 @@ Phase 1 必须支持“批量上传到相册”。
 - 如果没有手动选择封面图，系统默认从相册内图片中随机选择一张作为封面展示。
 - 随机封面只用于展示兜底，不写死为手动封面；后续相册图片变化时可以重新随机展示。
 
+相册发布状态规则：
+
+- 新建相册默认进入 `draft` 草稿状态，用于先上传和整理图片。
+- 只有 `published` 已发布相册在前台公开展示。
+- `hidden` 隐藏状态用于临时下架或不希望前台展示的相册。
+- 相册发布时写入 `published_at`。
+
 ## 1. 用户与权限
 
 ### users
@@ -195,7 +202,8 @@ Phase 1 必须支持“批量上传到相册”。
 | description | text nullable | 描述 |
 | cover_photo_id | fk photos nullable | 手动选择的封面图；为空时默认随机使用相册内一张图片作为封面 |
 | sort_order | int | 排序 |
-| visibility | enum | `public`、`hidden` |
+| status | enum | `draft` 草稿、`published` 已发布、`hidden` 隐藏 |
+| published_at | datetime nullable | 发布时间 |
 | created_at / updated_at | timestamps | 时间戳 |
 
 ### album_category
