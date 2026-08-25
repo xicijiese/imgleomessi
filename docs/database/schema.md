@@ -2,6 +2,35 @@
 
 数据库以 MySQL 8.0 为默认实现。字段类型可在 Laravel migration 中按实际需要调整。本设计是开发前逻辑模型，不是最终 migration 代码。
 
+## 开发阶段说明
+
+本文档记录项目的长期逻辑模型，不代表所有表都会在第一阶段同时开发。
+
+Phase 1 只落图库核心表，用于完成图片录入、管理、浏览和基础检索闭环：
+
+- `photos`
+- `albums`
+- `tags`
+- `photo_tag`
+- `teams`
+- `competitions`
+- `matches`
+- `sources`
+
+Phase 1 暂不创建以下后续功能表：
+
+- `supporter_profiles`
+- `photo_analysis_results`
+- `similar_groups`
+- `comments`
+- `likes`
+- `favorites`
+- `reports`
+- `sponsorship_orders`
+- `processing_jobs`
+
+`users` 表使用 Laravel/Fortify 当前已生成的基础结构。角色、手机号、支持者有效期、用户状态等字段会在权限或会员阶段再扩展。
+
 ## 1. 用户与权限
 
 ### users
@@ -251,4 +280,3 @@
 - `likes(user_id, target_type, target_id)` 唯一索引
 - `favorites(user_id, photo_id)` 唯一索引
 - `sponsorship_orders(order_no)` 唯一索引
-
