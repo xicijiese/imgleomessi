@@ -103,6 +103,15 @@ Phase 1 必须支持“批量上传到相册”。
 - 图片发布时写入 `published_at`。
 - 已发布图片对前台用户可见。
 
+图片文件命名与标题规则：
+
+- 图片上传后由系统自动重命名文件，不使用用户上传时的原始文件名作为存储文件名。
+- 重命名格式为 `YYYYMMDD-HHmmss-6位随机码.原扩展名`，例如 `20260825-143522-A7K9Q2.jpg`。
+- 数据库保留原始文件名，用于后续追溯线索。
+- 图片标题默认使用系统重命名后的文件名。
+- 管理员或编辑发布前可以修改标题，也可以不修改。
+- 系统生成的存储文件名不提供后台手动修改入口。
+
 ## 1. 用户与权限
 
 ### users
@@ -143,6 +152,8 @@ Phase 1 必须支持“批量上传到相册”。
 | uuid | char(36) unique | 外部引用 ID |
 | title | varchar | 图片标题 |
 | description | text nullable | 图片说明 |
+| original_filename | varchar nullable | 用户上传时的原始文件名，用于追溯 |
+| stored_filename | varchar | 系统重命名后的文件名，格式为 `YYYYMMDD-HHmmss-6位随机码.原扩展名` |
 | taken_at | datetime nullable | 拍摄时间 |
 | event_date | date nullable | 事件日期 |
 | career_stage | varchar nullable | 生涯阶段 |
