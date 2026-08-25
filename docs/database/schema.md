@@ -9,7 +9,10 @@
 Phase 1 只落图库核心表，用于完成图片录入、管理、浏览和基础检索闭环：
 
 - `photos`
+- `albums`
 - `categories`
+- `album_category`
+- `album_photo`
 - `photo_category`
 - `tags`
 - `photo_tag`
@@ -32,16 +35,21 @@ Phase 1 暂不创建以下后续功能表：
 
 `users` 表使用 Laravel/Fortify 当前已生成的基础结构。角色、手机号、支持者有效期、用户状态等字段会在权限或会员阶段再扩展。
 
-## Phase 1 分类模型决策
+## Phase 1 相册、分类与标签模型决策
 
-Phase 1 采用“主分类 + 子分类 + 多标签”模型。
+Phase 1 采用“相册/专题 + 主分类 + 子分类 + 多标签”模型。
 
 - 主分类：`categories.parent_id = null`，例如 `球队`、`赛事`、`年份`、`场景`、`图片类型`。
 - 子分类：`categories.parent_id = 主分类 ID`，例如 `阿根廷国家队`、`世界杯`、`2022年`、`球场内`、`社媒图`。
+- 相册/专题：用于批量组织一组图片，例如 `2022世界杯决赛`、`2022世界杯夺冠之路`。
+- 相册默认分类：相册可以关联多个子分类，通过 `album_category` 实现。
+- 图片相册关系：图片可以加入一个或多个相册，通过 `album_photo` 实现。
+- 图片分类继承：图片加入相册时，默认继承该相册已选择的分类，并写入 `photo_category`。
 - 图片分类关系：一张图片可以关联多个子分类，通过 `photo_category` 实现。
+- 图片额外分类：图片允许在继承相册分类之外，继续手动补充其他分类。
 - 标签：用于描述更细粒度的信息，例如 `进球`、`庆祝`、`高清`、`捧杯`，通过 `photo_tag` 实现。
 
-前台可以把主分类渲染为筛选分组，把子分类渲染为筛选按钮，体验上符合“分类 + 标签”的理解。
+前台可以把主分类渲染为筛选分组，把子分类渲染为筛选按钮，体验上符合“分类 + 标签”的理解。相册用于专题浏览和批量上传，不替代分类。
 
 ## 1. 用户与权限
 
@@ -107,6 +115,33 @@ Phase 1 采用“主分类 + 子分类 + 多标签”模型。
 | uploaded_by | fk users | 上传者 |
 | published_at | datetime nullable | 发布时间 |
 | created_at / updated_at | timestamps | 时间戳 |
+
+### albums
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | bigint pk | 相册 ID |
+| title | varchar | 相册名 |
+| slug | varchar unique | URL 标识 |
+| description | text nullable | 描述 |
+| cover_photo_id | fk photos nullable | 封面图 |
+| sort_order | int | 排序 |
+| visibility | enum | `public`、`hidden` |
+| created_at / updated_at | timestamps | 时间戳 |
+
+### album_category
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| album_id | fk albums | 相册 |
+| category_id | fk categories | 相册默认分类 |
+
+### album_photo
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| album_id | fk albums | 相册 |
+| photo_id | fk photos | 图片 |
 
 ### categories
 
@@ -287,6 +322,11 @@ Phase 1 采用“主分类 + 子分类 + 多标签”模型。
 ## 8. 索引建议
 
 - `photos(review_status, event_date)`
+- `albums(slug)`
+- `album_category(album_id, category_id)` 唯一索引
+- `album_category(category_id, album_id)`
+- `album_photo(album_id, photo_id)` 唯一索引
+- `album_photo(photo_id, album_id)`
 - `photo_category(photo_id, category_id)` 唯一索引
 - `photo_category(category_id, photo_id)`
 - `photos(team_id, competition_id, event_date)`
