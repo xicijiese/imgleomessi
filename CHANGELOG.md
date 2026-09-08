@@ -13,6 +13,7 @@
 
 ### Changed
 
+- 进一步细化 VPS 首次生产部署：明确 Composer、生产 .env、APP_KEY、数据库迁移、Laravel 缓存、npm 构建、宝塔 Worker、计划任务、COS 配置和验收命令均在何处执行；所有 Artisan、Composer、npm 命令均明确进入 /www/wwwroot/img.leomessi.cn 项目根目录。
 - 校正文档状态：主进度和页面地图统一进入“真实生产部署前确认与演练”，同步修正任务区和数据万象真实验证的过期表述；未执行生产切换。
 - 修复首页 Welcome.vue 未导入 PublicFooter 导致页脚不渲染的问题；首页专项测试、前端类型检查、生产构建和全量测试均已通过。
 - 完成 Ubuntu 24.04 + 宝塔生产部署前准备与上线教程，补充 PHP 扩展、Composer、Node.js、Supervisor、Cron、Redis 队列、COS 配置、备份、回滚和验收清单；标注当前 production 后台访问策略和测试 Seeder 的上线阻塞风险，未执行真实生产部署。

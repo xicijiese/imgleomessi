@@ -542,7 +542,7 @@ git pull --ff-only origin main
 - 测试图片和测试备份；
 - 调试日志和临时文件。
 
-设置目录权限：
+设置目录权限（命令在项目根目录执行）：
 
 ```bash
 chown -R www:www /www/wwwroot/img.leomessi.cn
@@ -553,27 +553,72 @@ chmod -R ug+rwX /www/wwwroot/img.leomessi.cn/storage \
 不要使用 `chmod -R 777`。代码获取完成后，在宝塔网站设置中将网站目录改为 `/www/wwwroot/img.leomessi.cn/public`，不能直接指向项目根目录。
 ## 8. 安装 Laravel 依赖
 
-确认当前目录包含 `composer.json` 和 `composer.lock` 后执行：
+以下命令全部在 VPS 的 Laravel 项目根目录执行。每次重新 SSH 登录后，都要先执行第一行 cd：
 
-```bash
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+pwd
+test -f composer.json && echo "composer.json 存在"
+test -f composer.lock && echo "composer.lock 存在"
+/www/server/php/83/bin/php -v
+command -v composer
+composer --version
+~~~
+
+确认 PHP 版本为宝塔 PHP 8.3、Composer 可以正常运行后，仍在同一个目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
 composer install --no-dev --prefer-dist --optimize-autoloader
-```
+~~~
 
-如果 Composer 不在 PATH 中，应使用宝塔 Composer 的实际绝对路径。
+安装完成后验证：
 
-不要在生产环境执行 `composer update`，生产部署应严格依据 `composer.lock` 安装依赖。
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+test -f vendor/autoload.php && echo "Composer 依赖安装完成"
+~~~
 
-## 9. 创建生产 `.env`
+如果 composer 不在 PATH 中，应使用宝塔 Composer 的实际绝对路径。不要在生产环境执行 composer update，生产环境必须依据 composer.lock 安装依赖。
 
-复制 `.env.example` 后，只在 VPS 上编辑：
+## 9. 创建生产 .env
 
-```bash
-cp .env.example .env
-```
+### 9.1 先创建生产数据库
 
-生产环境至少确认以下配置：
+数据库创建在宝塔面板“数据库”中完成，不是在 SSH 项目目录中执行：
 
-```dotenv
+1. 创建独立 MySQL 数据库。
+2. 创建独立数据库用户。
+3. 字符集使用 utf8mb4。
+4. 只授予该用户访问本项目数据库的权限。
+5. 不使用 MySQL root 连接 Laravel。
+6. 不开启 3306 公网访问。
+
+数据库名称、用户名和密码准备好后，可以先在项目根目录测试数据库连接：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+mysql -h 127.0.0.1 -P 3306 -u [项目数据库用户] -p -D [生产数据库名] -e "SELECT 1;"
+~~~
+
+执行后输入数据库密码。命令返回 1，说明 MySQL 账号、密码和数据库连接正常；不要把密码直接写在命令参数中。确认连接正常后，再回到 VPS 项目根目录创建 .env。
+
+### 9.2 创建并编辑生产 .env
+
+以下命令全部在项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+test -f .env || cp .env.example .env
+chmod 640 .env
+nano .env
+~~~
+
+在 nano 中填写生产值。保存按 Ctrl+O、回车；退出按 Ctrl+X。
+
+至少确认以下内容：
+
+~~~dotenv
 APP_NAME="梅西影像档案库"
 APP_ENV=production
 APP_DEBUG=false
@@ -601,62 +646,126 @@ REDIS_QUEUE_RETRY_AFTER=150
 LOG_CHANNEL=stack
 LOG_STACK=single
 LOG_LEVEL=warning
-```
+~~~
 
-说明：
+编辑完成后，在项目根目录检查文件和权限。下面的 grep 不会输出数据库密码、Redis 密码或腾讯云密钥：
 
-- 如果 `.env` 中没有有效的 `APP_KEY`，只在第一次初始化时执行 `php artisan key:generate`。
-- 已经存在生产数据后，绝不能重新生成 `APP_KEY`，否则历史加密数据和会话可能无法解密。
-- 腾讯云 COS / 数据万象凭证由后台系统设置加密保存，不写入教程、不提交 Git。
-- `FILESYSTEM_DISK` 是 Laravel 默认文件系统配置；项目实际图片存储方式还需要在后台选择“本地”或“腾讯云 COS”。生产推荐后台选择 COS。
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+test -f .env && echo ".env 已创建"
+grep -E '^(APP_ENV|APP_DEBUG|APP_URL|DB_CONNECTION|DB_HOST|DB_PORT|DB_DATABASE|DB_USERNAME|QUEUE_CONNECTION|CACHE_STORE|SESSION_DRIVER|REDIS_HOST|REDIS_PORT)=' .env
+chown www:www .env
+chmod 640 .env
+~~~
 
-## 10. 初始化数据库和 Laravel 缓存
+### 9.3 生成 APP_KEY
 
-确认数据库备份、`.env` 和生产管理员准备完成后，再执行：
+仅当这是全新的生产 .env 且 APP_KEY 为空时，在项目根目录执行一次：
 
-```bash
-php artisan migrate --force
-php artisan optimize:clear
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-```
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+grep '^APP_KEY=' .env
+/www/server/php/83/bin/php artisan key:generate --force
+~~~
 
-不要直接执行：
+如果已有生产数据或已有有效 APP_KEY，禁止再次执行 key:generate。重新生成会导致历史加密数据和会话无法解密。
 
-```bash
-php artisan db:seed --force
-```
+腾讯云 COS / 数据万象凭证在部署完成后的生产后台“系统设置 → 存储与处理”中填写和加密保存，不写入本手册、不写入 .env、不提交 Git。
 
-当前完整 Seeder 会创建开发测试账号。若生产确实需要初始化固定分类、赞助方案或勋章，应逐个审核对应 Seeder 后单独执行，禁止无审查地导入演示数据。
+## 10. 初始化生产数据库和 Laravel 缓存
+
+以下命令全部在项目根目录执行。执行迁移前必须确认生产数据库已创建、.env 连接信息正确，并且已有数据库已完成备份：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan migrate:status
+~~~
+
+确认能够连接数据库后，执行生产迁移：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan migrate --force
+~~~
+
+迁移完成后再次查看状态：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan migrate:status
+~~~
+
+然后清理并重建 Laravel 缓存：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan optimize:clear
+/www/server/php/83/bin/php artisan config:cache
+/www/server/php/83/bin/php artisan route:cache
+/www/server/php/83/bin/php artisan view:cache
+~~~
+
+不要执行完整 db:seed --force。当前完整 Seeder 会创建开发测试账号。生产环境如需初始化固定分类、赞助方案或勋章，必须逐个审核对应 Seeder 后再单独执行。
+
+如果迁移报错，不要反复执行 migrate --force；先保留错误信息，检查 .env、数据库权限、PHP 扩展和迁移状态。
 
 ## 11. 构建前端资源
 
-项目已经安装 Node.js 版本管理器。推荐在 VPS 或可信构建机使用 Node.js LTS：
+前端构建也必须在项目根目录执行：
 
-```bash
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+pwd
 node -v
 npm -v
+test -f package-lock.json && echo "package-lock.json 存在"
 npm ci
 npm run build
-```
+~~~
 
-如果选择在本地或 CI 构建，也可以只把生成后的 `public/build` 和锁定的后端依赖一起发布到 VPS；但每次前端代码变更后必须重新构建。
+构建完成后验证产物：
 
-当前项目不要求启用 Inertia SSR。只有在明确启用 SSR 后才执行：
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+test -f public/build/manifest.json && echo "前端构建完成"
+find public/build -maxdepth 1 -type f -printf '%f\n' | head
+~~~
 
-```bash
+npm ci 依据 package-lock.json 安装依赖；生产发布不要使用 npm install 随意改锁文件，也不要执行 npm update。
+
+当前项目不要求启用 Inertia SSR。只有明确启用 SSR 后，才在项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
 npm run build:ssr
-```
-
+~~~
 ## 12. 配置宝塔进程守护管理器队列 Worker
 
 项目的图片派生图、OCR、智能标签、哈希和相似候选等耗时任务必须异步执行，不能依赖用户请求同步完成。
 
-在宝塔“进程守护管理器”中新增一个 Laravel 队列进程。以下是配置模板，实际 PHP 路径、项目目录和运行用户必须按 VPS 检查结果修改：
+### 12.1 在项目根目录验证队列环境
 
-```ini
-[program:messiimage-worker]
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+redis-cli ping
+/www/server/php/83/bin/php -m | grep -i '^redis$'
+/www/server/php/83/bin/php artisan queue:failed
+~~~
+
+预期结果是 redis-cli 返回 PONG、PHP 模块包含 redis，queue:failed 能够正常执行。
+
+### 12.2 在宝塔进程守护管理器中创建 Worker
+
+下面这一步在宝塔面板图形界面中完成，不是在 SSH 当前目录中执行：
+
+1. 打开宝塔“进程守护管理器”。
+2. 新增 Laravel Worker，名称填写 imgleomessi-worker。
+3. 工作目录填写 /www/wwwroot/img.leomessi.cn。
+4. 运行用户填写 www。
+5. 命令填写以下完整内容，PHP 路径以 VPS 实测为准：
+
+~~~ini
+[program:imgleomessi-worker]
 command=/www/server/php/83/bin/php /www/wwwroot/img.leomessi.cn/artisan queue:work redis --queue=high,default,low --sleep=3 --tries=3 --timeout=120 --max-time=3600
 directory=/www/wwwroot/img.leomessi.cn
 autostart=true
@@ -666,191 +775,288 @@ killasgroup=true
 user=www
 numprocs=1
 redirect_stderr=true
-stdout_logfile=/www/wwwlogs/messiimage-worker.log
+stdout_logfile=/www/wwwlogs/imgleomessi-worker.log
 stopwaitsecs=360
-```
+~~~
+
+6. 保存配置并启动。
+7. 确认状态显示“运行中”。
+8. 查看日志，确认没有持续报错。
+
+不要执行 apt install supervisor，不要以系统 supervisorctl 作为本项目管理入口。本 VPS 使用宝塔已安装的基于 Supervisor 的进程守护管理器。
+
+### 12.3 Worker 启动后的验证
+
+回到 SSH 后，以下命令在项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan queue:restart
+/www/server/php/83/bin/php artisan queue:failed
+tail -n 100 /www/wwwlogs/imgleomessi-worker.log
+~~~
+
+发布新代码后，先在项目根目录执行 queue:restart，再在宝塔进程守护管理器中重启 imgleomessi-worker。
+
+只有确认失败原因并准备重新处理时，才在项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan queue:retry all
+~~~
+
+不要把 queue:retry all 当作日常部署命令。
 
 队列参数约束：
 
-- Worker `--timeout=120`。
-- Redis `retry_after=150`。
-- `timeout` 必须小于 `retry_after`，避免任务被重复领取。
-- 初次上线使用 `numprocs=1`，观察 CPU、内存和失败任务后再扩容。
-
-保存后只在宝塔“进程守护管理器”中启动，并确认状态为运行中。进程的保存、启动、重启和日志查看全部通过宝塔工具完成。
-
-保存或修改配置后，在宝塔“进程守护管理器”中执行保存、启动、重启和查看日志。
-
-发布队列代码后执行：
-
-```bash
-php artisan queue:restart
-```
-
-然后在宝塔“进程守护管理器”中重启 `messiimage-worker`。
-
-失败任务排查：
-
-```bash
-php artisan queue:failed
-php artisan queue:retry all
-```
+- Worker timeout=120。
+- Redis retry_after=150。
+- timeout 必须小于 retry_after。
+- 初次上线使用 numprocs=1，观察 CPU、内存和失败任务后再扩容。
 
 ## 13. 配置 Laravel 定时任务
 
-当前项目没有把耗时图片处理放进 Web 请求，但仍应配置 Laravel 标准调度入口，便于后续定时备份、清理和巡检任务运行。
+### 13.1 宝塔计划任务配置
 
-在宝塔“计划任务”中新增一条每分钟执行的 Shell 任务，不要直接编辑宝塔生成的系统 crontab：
+下面这一步在宝塔“计划任务”图形界面中完成，不是在 SSH 当前目录中执行：
 
-```cron
-* * * * * cd /www/wwwroot/img.leomessi.cn && /www/server/php/83/bin/php artisan schedule:run >> /dev/null 2>&1
-```
+1. 新增 Shell 任务。
+2. 周期选择每分钟。
+3. 脚本内容填写：
 
-PHP 路径必须替换为 VPS 上实际的 PHP 8.3 CLI 路径。
+~~~bash
+cd /www/wwwroot/img.leomessi.cn && /www/server/php/83/bin/php artisan schedule:run >> /dev/null 2>&1
+~~~
 
+不要直接编辑宝塔生成的系统 crontab。
+
+### 13.2 手动验证调度命令
+
+需要手动测试时，在项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan schedule:run
+~~~
+
+没有输出不一定代表失败；同时检查 Laravel 日志和宝塔计划任务执行记录。
 ## 14. 配置腾讯云 COS / 数据万象
 
-部署完成并能登录后台后：
+部署完成、数据库迁移完成并能登录生产后台后，在网页中完成以下配置；这一步不需要在 SSH 项目目录执行命令：
 
-1. 进入“系统设置 → 存储与处理”。
+1. 进入生产网站后台“系统设置 → 存储与处理”。
 2. 存储方式选择“腾讯云 COS”。
 3. 填写 SecretId、SecretKey、地域和存储桶。
 4. 开启数据万象处理开关。
 5. 如已配置 CDN，填写展示图/CDN 域名。
 6. 保存配置。
 7. 使用“检测 COS / 数据万象”或“上线前检查”。
-8. 选择已经存在于当前 COS 存储桶中的原图进行验证。
+8. 验证图片时，必须选择已经存在于当前 COS 存储桶中的业务原图，不能选择只存在于本地的历史图片。
 
-检测范围：
+检测范围包括 COS 临时写入、读取、删除，代表性原图是否存在，展示图和缩略图对象是否存在，数据万象标签接口是否可用，以及 CDN 地址格式是否正确。
 
-- COS 临时写入、读取、删除。
-- 代表性原图是否存在。
-- 展示图和缩略图对象是否存在。
-- 数据万象标签接口是否可用。
-- CDN 地址格式是否正确。
-
-本检查不会自动迁移本地历史图片，也不会删除 COS 文件或切换生产流量。
-
+本检查不会自动迁移本地历史图片，也不会删除 COS 文件或切换生产流量。生产环境图片存储切换、历史图片迁移和 CDN 防盗链必须分别确认。
 ## 15. 上线前检查清单
 
-### 应用和后台
+### 15.1 命令行统一入口
 
-- [ ] `APP_ENV=production`。
-- [ ] `APP_DEBUG=false`。
-- [ ] `APP_KEY` 已配置且不再重复生成。
-- [ ] 生产管理员不是测试账号。
-- [ ] 生产环境可登录 `/admin`。
-- [ ] 管理员具备双因素认证。
-- [ ] 后台生产访问策略已通过验证。
+下面的命令全部在 Laravel 项目根目录执行：
 
-### Web 和 PHP
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+pwd
+test -f artisan && echo "Laravel 项目根目录正确"
+test -f .env && echo ".env 存在"
+test -f vendor/autoload.php && echo "Composer 依赖存在"
+test -f public/build/manifest.json && echo "前端构建产物存在"
+/www/server/php/83/bin/php -v
+/www/server/php/83/bin/php artisan about
+/www/server/php/83/bin/php artisan migrate:status
+redis-cli ping
+/www/server/php/83/bin/php artisan queue:failed
+~~~
 
-- [ ] Nginx 根目录是 `public/`。
-- [ ] HTTPS 正常，HTTP 自动跳转 HTTPS。
-- [ ] PHP-FPM 使用 PHP 8.3。
-- [ ] PHP CLI 与宝塔进程守护管理器 Worker 使用同一套 PHP 8.3。
-- [ ] PHP 扩展完整。
-- [ ] 上传限制满足实际批量上传需求。
-- [ ] `storage` 和 `bootstrap/cache` 可由 `www` 写入。
+如果 pwd 不是 /www/wwwroot/img.leomessi.cn，先执行 cd /www/wwwroot/img.leomessi.cn，不要在 /root、/www/wwwroot 或 public 目录执行 Artisan、Composer、npm 和 Git 项目命令。
 
-### 数据库、缓存和队列
+### 15.2 应用和后台
 
-- [ ] MySQL 使用独立数据库用户。
-- [ ] Redis 返回 `PONG`。
-- [ ] `CACHE_STORE=redis`。
-- [ ] `SESSION_DRIVER=redis`。
-- [ ] `QUEUE_CONNECTION=redis`。
-- [ ] 宝塔进程守护管理器 Worker 状态为运行中。
-- [ ] Worker 日志没有持续报错。
-- [ ] `php artisan queue:failed` 无异常积压。
+- APP_ENV=production。
+- APP_DEBUG=false。
+- APP_KEY 已配置且不再重复生成。
+- 生产管理员不是测试账号。
+- 生产环境可登录 /admin。
+- 管理员具备双因素认证。
+- 后台生产访问策略已通过验证。
 
-### 图片链路
+### 15.3 Web 和 PHP
 
-- [ ] 后台存储模式已选择 COS。
-- [ ] COS / 数据万象检测通过。
-- [ ] 上传一张测试图片后，原图写入 COS。
-- [ ] 展示图和缩略图生成成功。
-- [ ] SHA-256、OCR、智能标签和相似候选任务状态符合预期。
-- [ ] 发布图片后首页、图库列表和详情页可见。
-- [ ] 未发布图片不会出现在前台。
-- [ ] 当前没有误迁移或误删除本地历史图片。
+- Nginx 根目录是 /www/wwwroot/img.leomessi.cn/public。
+- HTTPS 正常，HTTP 自动跳转 HTTPS。
+- PHP-FPM 使用 PHP 8.3。
+- PHP CLI 与宝塔进程守护管理器 Worker 使用同一套 PHP 8.3。
+- PHP 扩展完整。
+- 上传限制满足实际批量上传需求。
+- storage 和 bootstrap/cache 可由 www 写入。
 
-### 安全和运维
+### 15.4 数据库、缓存和队列
 
-- [ ] 3306、6379 未对公网开放。
-- [ ] 宝塔面板和 SSH 已限制来源。
-- [ ] MySQL 已配置每日备份。
-- [ ] `.env` 已加密备份但未进入 Git。
-- [ ] COS 文件误删恢复方案已经确认。
-- [ ] Laravel 日志和 Worker 日志有保留策略。
-- [ ] 磁盘使用率、队列失败和 PHP/Nginx 错误有监控。
+- MySQL 使用独立数据库用户。
+- Redis 返回 PONG。
+- CACHE_STORE=redis。
+- SESSION_DRIVER=redis。
+- QUEUE_CONNECTION=redis。
+- 宝塔进程守护管理器 Worker 状态为运行中。
+- Worker 日志没有持续报错。
+- queue:failed 无异常积压。
 
+### 15.5 图片链路
+
+- 后台存储模式已选择 COS。
+- COS / 数据万象检测通过。
+- 上传一张测试图片后，原图写入 COS。
+- 展示图和缩略图生成成功。
+- SHA-256、OCR、智能标签和相似候选任务状态符合预期。
+- 发布图片后首页、图库列表和详情页可见。
+- 未发布图片不会出现在前台。
+- 当前没有误迁移或误删除本地历史图片。
 ## 16. 正式发布顺序
 
-正式切流前建议按以下顺序执行：
+下面是一份从已经拉取代码的 VPS 继续执行的顺序。除宝塔面板操作外，命令全部在 /www/wwwroot/img.leomessi.cn 执行：
 
-1. 进入维护窗口并记录当前代码版本。
-2. 备份 MySQL、`.env` 和当前发布目录。
-3. 上传或拉取新代码。
-4. 执行 `composer install --no-dev --prefer-dist --optimize-autoloader`。
-5. 执行 `npm ci && npm run build`，或发布已验证的 `public/build`。
-6. 检查并更新 `.env`，不覆盖现有 `APP_KEY`。
-7. 执行 `php artisan migrate --force`，仅在迁移已审核并完成备份后执行。
-8. 执行 `php artisan optimize:clear`、`config:cache`、`route:cache`、`view:cache`。
-9. 重启 PHP-FPM。
-10. 重启或平滑重启 宝塔进程守护管理器 Worker。
-11. 执行后台上线前检查和 COS / 数据万象检测。
-12. 手动检查首页、页脚、图库、搜索、登录、后台、图片上传和图片处理。
-13. 确认无误后退出维护模式并开放正式流量。
+1. 在宝塔面板创建生产数据库和独立数据库用户。
+2. 在项目根目录创建并填写 .env。
+3. 在项目根目录确认 APP_KEY，仅首次初始化时生成。
+4. 在项目根目录安装 Composer 依赖。
+5. 在项目根目录执行数据库迁移。
+6. 在项目根目录执行 npm ci 和 npm run build。
+7. 在项目根目录重建 Laravel 缓存。
+8. 在宝塔网站设置中把运行目录设置为 /www/wwwroot/img.leomessi.cn/public。
+9. 在宝塔进程守护管理器中创建并启动 Worker。
+10. 在宝塔计划任务中配置每分钟 schedule:run。
+11. 登录生产后台，配置 COS / 数据万象并执行检测。
+12. 完成命令行和网页验收后，再开放正式流量。
 
+后续代码发布时，在项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+export GIT_SSH_COMMAND='ssh -o IdentitiesOnly=yes -i /root/.ssh/imgleomessi_vps_deploy'
+git fetch origin main
+git checkout main
+git pull --ff-only origin main
+
+composer install --no-dev --prefer-dist --optimize-autoloader
+npm ci
+npm run build
+
+/www/server/php/83/bin/php artisan migrate --force
+/www/server/php/83/bin/php artisan optimize:clear
+/www/server/php/83/bin/php artisan config:cache
+/www/server/php/83/bin/php artisan route:cache
+/www/server/php/83/bin/php artisan view:cache
+/www/server/php/83/bin/php artisan queue:restart
+~~~
+
+然后在宝塔面板重启 PHP-FPM，在进程守护管理器中重启 Worker，并回到项目根目录执行 queue:failed 和日志检查。
 ## 17. 回滚方案
 
 如果新版本出现严重错误：
 
-1. 立即停止新增上传和发布操作。
+1. 停止新增上传和发布操作。
 2. 保留错误日志、Worker 日志和当前版本信息。
-3. 进入维护模式。
-4. 停止当前 Worker，恢复上一份代码和 `public/build`。
-5. 恢复上一份 `.env`，不得重新生成 `APP_KEY`。
-6. 重建 Composer 和 Laravel 缓存。
-7. 重启 PHP-FPM 和 宝塔进程守护管理器 Worker。
-8. 先检查首页、登录、后台和已有图片，再退出维护模式。
-9. 只有在确认数据库迁移导致不可逆问题时，才根据备份执行数据库恢复；数据库恢复前必须再次确认影响范围。
+3. 在宝塔面板进入维护状态或暂时限制站点访问。
+4. 停止宝塔进程守护管理器中的当前 Worker。
+5. 恢复上一份代码、.env 和 public/build。
+6. 在项目根目录重建缓存：
 
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan optimize:clear
+/www/server/php/83/bin/php artisan config:cache
+/www/server/php/83/bin/php artisan route:cache
+/www/server/php/83/bin/php artisan view:cache
+~~~
+
+7. 在宝塔面板重启 PHP-FPM 和 Worker。
+8. 在项目根目录检查首页、登录、后台和已有图片。
+9. 只有确认数据库迁移导致不可逆问题时，才根据备份恢复数据库。
+
+不要重新生成 APP_KEY，不要直接删除生产数据库，不要使用 git reset --hard 覆盖未备份的生产文件。
 ## 18. 常见故障排查
 
 ### 首页 500
 
-```bash
-php artisan optimize:clear
-tail -n 200 storage/logs/laravel.log
-```
+以下命令在项目根目录执行：
 
-检查 PHP 版本、扩展、`.env`、数据库连接和文件权限。
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan optimize:clear
+tail -n 200 storage/logs/laravel.log
+~~~
+
+检查 PHP 版本、扩展、.env、数据库连接和文件权限。
 
 ### 后台登录失败或无权限
 
-检查生产后台访问策略、管理员账号状态、`APP_ENV` 和 Filament 面板授权逻辑。不要使用 `test@example.com` 或开发环境账号。
+先在项目根目录确认环境：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+grep -E '^(APP_ENV|APP_DEBUG|APP_URL)=' .env
+/www/server/php/83/bin/php artisan optimize:clear
+~~~
+
+然后检查生产后台访问策略、管理员账号状态、APP_ENV 和 Filament 面板授权逻辑。不要使用 test@example.com 或开发环境账号。
 
 ### 队列不处理
 
-```bash
-redis-cli ping
-php artisan queue:failed
-在宝塔“进程守护管理器”中查看 `messiimage-worker` 状态和日志。
-tail -n 200 /www/wwwlogs/messiimage-worker.log
-```
+以下命令在项目根目录执行：
 
-重点检查 PHP CLI 路径、Redis PHP 扩展、运行用户、项目目录权限和 `QUEUE_CONNECTION`。
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+redis-cli ping
+/www/server/php/83/bin/php artisan queue:failed
+tail -n 200 /www/wwwlogs/imgleomessi-worker.log
+~~~
+
+同时在宝塔进程守护管理器中查看 Worker 状态和日志。重点检查 PHP CLI 路径、Redis PHP 扩展、运行用户、项目目录权限和 QUEUE_CONNECTION。
+
+### 数据库连接或迁移失败
+
+以下命令在项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+grep -E '^(DB_CONNECTION|DB_HOST|DB_PORT|DB_DATABASE|DB_USERNAME)=' .env
+/www/server/php/83/bin/php artisan migrate:status
+~~~
+
+不要在命令行参数中直接写数据库密码。检查宝塔数据库用户名权限、数据库名称、MySQL 是否运行和 .env 是否保存成功。
+
+### 前端页面空白或资源 404
+
+以下命令在项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+test -f public/build/manifest.json && echo "构建产物存在"
+npm run build
+~~~
+
+然后确认宝塔网站运行目录是 /www/wwwroot/img.leomessi.cn/public，不是项目根目录。
 
 ### 图片上传成功但首页不显示
 
-检查图片是否已发布、是否完成必选分类、展示图/缩略图是否生成、COS 对象是否存在、CDN 域名是否正确，以及前台是否读取了当前配置的存储地址。
+检查图片是否已发布、是否完成必选分类、展示图/缩略图是否生成、COS 对象是否存在、CDN 域名是否正确，以及前台是否读取了当前配置的存储地址。需要查看 Laravel 日志时，在项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+tail -n 200 storage/logs/laravel.log
+~~~
 
 ### COS / 数据万象失败
 
-检查 SecretId、SecretKey、地域、存储桶、数据万象绑定关系和 COS 原图 Key。后台检测必须选择当前 COS 存储桶中已经存在的原图。
-
+检查 SecretId、SecretKey、地域、存储桶、数据万象绑定关系和 COS 原图 Key。后台检测必须选择当前 COS 存储桶中已经存在的原图。不要把密钥写入 SSH 命令、日志或 Git。
 ## 19. 当前未执行事项
 
 截至本手册整理时，以下操作仍未执行：
