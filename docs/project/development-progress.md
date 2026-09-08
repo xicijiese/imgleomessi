@@ -676,3 +676,9 @@ P1 当前已完成基础切片到 P1-15，时间轴浏览、球队 / 生涯阶�
 
 - 定位生产首页可访问但其他前台路由返回 Nginx 404 的原因：项目 Laravel 路由存在，站点缺少 Nginx 的 Laravel try_files 回退规则。
 - 部署文档已补充宝塔运行目录、Laravel Nginx 伪静态规则、Nginx 重载和 curl 验证步骤。
+
+### 2026-09-08（生产管理员账号）
+
+- 修复生产环境 Filament 后台授权：新增 users.role，admin/editor 角色在生产环境可进入 /admin，非 active 或已封禁账号不能进入。
+- 新增 app:create-admin 生产管理员创建命令，交互式输入姓名、邮箱和密码，密码至少 12 位并只保存哈希。
+- 明确生产环境不执行完整 DatabaseSeeder，不使用 test@example.com / password 测试账号。

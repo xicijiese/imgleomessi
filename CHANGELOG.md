@@ -3,6 +3,7 @@
 ## 2026-09-08
 
 ### Changed
+- 修复生产后台无默认管理员且生产授权被环境限制的问题：新增 users.role、app:create-admin 命令和 admin/editor 生产访问策略。
 - 补充生产 Nginx Laravel 伪静态规则和其他前台路由 404 的排查步骤；确认代码路由无需修改。
 - 记录生产 Laravel Worker 的 pcntl 函数禁用、前台启动验证、宝塔 Supervisor 绝对路径和日志配置修复；Worker 已验证正常启动。
 

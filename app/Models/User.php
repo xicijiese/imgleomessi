@@ -32,6 +32,7 @@ class User extends Authenticatable implements FilamentUser
     protected $fillable = [
         'name',
         'email',
+        'role',
         'password',
         'status',
         'banned_until',
@@ -101,7 +102,17 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return $panel->getId() === 'admin' && app()->environment(['local', 'testing']);
+        if ($panel->getId() !== 'admin') {
+            return false;
+        }
+
+        if (app()->environment(['local', 'testing'])) {
+            return true;
+        }
+
+        return in_array($this->role, ['admin', 'editor'], true)
+            && $this->status === 'active'
+            && ! $this->isBanned();
     }
 
     public function isBanned(): bool

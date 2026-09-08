@@ -10,7 +10,7 @@
 
 在执行真实生产部署前，必须先完成以下代码和账号安全确认：
 
-1. 当前 `app/Models/User.php` 的 Filament `canAccessPanel()` 只允许 `local/testing` 环境。必须先补齐生产环境的管理员/编辑员访问策略，否则 production 环境即使账号密码正确也无法进入 `/admin`。
+1. 已补齐生产环境管理员访问策略：数据库新增 users.role，admin / editor 可以进入 /admin；首次生产部署必须执行 app:create-admin 创建独立管理员，不能依赖测试 Seeder。
 2. 不得在生产环境直接执行完整 `DatabaseSeeder`。当前 Seeder 会创建 `test@example.com`、默认密码 `password` 的测试账号，存在严重安全风险。
 3. 生产管理员必须使用独立账号、强密码和双因素认证；禁止使用测试账号、开发账号或示例密码。
 4. 上述后台访问策略和生产管理员账号完成后，必须使用 `APP_ENV=production` 做一次登录验收，再进入正式部署。
@@ -810,6 +810,27 @@ cd /www/wwwroot/img.leomessi.cn
 不要执行完整 db:seed --force。当前完整 Seeder 会创建开发测试账号。生产环境如需初始化固定分类、赞助方案或勋章，必须逐个审核对应 Seeder 后再单独执行。
 
 如果迁移报错，不要反复执行 migrate --force；先保留错误信息，检查 .env、数据库权限、PHP 扩展和迁移状态。
+### 10.3 创建生产管理员账号
+
+生产环境没有默认管理员账号。不要执行完整 DatabaseSeeder，因为它会创建开发测试账号 test@example.com / password。
+
+完成数据库迁移后，在 VPS 项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan app:create-admin
+~~~
+
+命令会依次询问：
+
+1. 管理员姓名；
+2. 管理员邮箱；
+3. 管理员密码；
+4. 确认管理员密码。
+
+密码至少 12 个字符。输入密码时终端不会显示字符，这是正常的。密码只会写入数据库哈希，不会写入代码、日志或 Git。创建成功后，用刚才填写的邮箱和密码访问 /admin。
+
+不要把本节输入的真实账号密码记录到部署文档、聊天记录或 Git 仓库。
 ## 11. 构建前端资源
 
 前端构建也必须在项目根目录执行：
@@ -1024,7 +1045,7 @@ redis-cli ping
 - APP_ENV=production。
 - APP_DEBUG=false。
 - APP_KEY 已配置且不再重复生成。
-- 生产管理员不是测试账号。
+- 尚未使用测试账号；完成迁移后必须执行 app:create-admin 创建独立生产管理员。
 - 生产环境可登录 /admin。
 - 管理员具备双因素认证。
 - 后台生产访问策略已通过验证。
