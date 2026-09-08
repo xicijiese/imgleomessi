@@ -31,7 +31,7 @@
 | PHP 进程守护 | 宝塔“进程守护管理器” 3.0.6，基于 Supervisor |
 | 数据库管理 | phpMyAdmin 5.2 |
 
-已完成：PHP CLI 的 OPcache/zip 重复加载警告清理、putenv 恢复、Composer 2.10.3 升级和 GitHub 代码仓库准备；仍需在正式上线前确认 PHP-FPM、站点权限、宝塔进程守护管理器中的 Worker 配置、计划任务、生产数据库和域名 HTTPS。
+已完成：PHP CLI 的 OPcache/zip 重复加载警告清理、putenv 恢复、Composer 2.10.3 升级、GitHub 代码仓库准备和宝塔 Laravel Worker 启动验证；仍需在正式上线前确认 PHP-FPM、站点权限、计划任务、生产数据库和域名 HTTPS。
 
 ## 2. 本项目需要的基础环境
 
@@ -836,6 +836,35 @@ redis-cli ping
 
 预期结果是 redis-cli 返回 PONG、PHP 模块包含 redis，queue:failed 能够正常执行。
 
+php -m 显示 pcntl 只是扩展已加载，不代表 pcntl_signal() 一定可用。继续检查 CLI 函数：
+
+~~~bash
+/www/server/php/83/bin/php -r 'var_dump(extension_loaded("pcntl")); var_dump(function_exists("pcntl_signal")); echo "disable_functions=", ini_get("disable_functions"), PHP_EOL;'
+/www/server/php/83/bin/php --ini
+~~~
+
+如果 extension_loaded("pcntl") 为 true，但 function_exists("pcntl_signal") 为 false，说明 pcntl 函数被 /www/server/php/83/etc/php-cli.ini 的 disable_functions 禁用了。只修改 CLI 配置，不修改 PHP-FPM 配置，不影响其他网站的 Web 请求。
+
+先备份并移除队列 Worker 所需的禁用项：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+cp -n /www/server/php/83/etc/php-cli.ini /www/server/php/83/etc/php-cli.ini.bak.before-queue-pcntl
+sed -i \
+  -e 's/pcntl_alarm,//g' \
+  -e 's/pcntl_signal_dispatch,//g' \
+  -e 's/pcntl_signal,//g' \
+  /www/server/php/83/etc/php-cli.ini
+~~~
+
+cp -n 出现 non-portable warning 只是备份命令的兼容性提示，不是失败。修改后验证：
+
+~~~bash
+/www/server/php/83/bin/php -r 'foreach (["pcntl_signal","pcntl_alarm","pcntl_signal_dispatch","pcntl_async_signals"] as $f) printf("%s: %s\n", $f, function_exists($f) ? "可用" : "不可用");'
+~~~
+
+四个函数都应显示“可用”。不要因为 pcntl 已加载就跳过函数检查。
+
 ### 12.2 在宝塔进程守护管理器中创建 Worker
 
 下面这一步在宝塔面板图形界面中完成，不是在 SSH 当前目录中执行：
@@ -844,7 +873,9 @@ redis-cli ping
 2. 新增 Laravel Worker，名称填写 imgleomessi-worker。
 3. 工作目录填写 /www/wwwroot/img.leomessi.cn。
 4. 运行用户填写 www。
-5. 命令填写以下完整内容，PHP 路径以 VPS 实测为准：
+5. 命令填写以下完整内容，PHP 路径以 VPS 实测为准。必须使用以 / 开头的绝对路径：
+
+如果日志出现 supervisor: couldn't exec www/server/php/83/bin/php: ENOENT，说明 PHP 路径缺少开头的 /，Supervisor 在 Laravel 启动前就已经找不到可执行文件。不要使用相对路径，也不要在命令中添加 cd、nohup 或末尾的 &。
 
 ~~~ini
 [program:imgleomessi-worker]
@@ -869,13 +900,22 @@ stopwaitsecs=360
 
 ### 12.3 Worker 启动后的验证
 
+首次配置 Worker 时，不要直接依赖宝塔后台判断。先回到 SSH，在项目根目录前台验证：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan queue:work redis --queue=high,default,low --sleep=3 --tries=3 --timeout=120 --max-time=3600
+~~~
+
+命令保持运行且没有报错，说明 Worker 可以启动；按 Ctrl+C 停止是正常操作，然后再交给宝塔进程守护管理器启动。
+
 回到 SSH 后，以下命令在项目根目录执行：
 
 ~~~bash
 cd /www/wwwroot/img.leomessi.cn
 /www/server/php/83/bin/php artisan queue:restart
 /www/server/php/83/bin/php artisan queue:failed
-tail -n 100 /www/wwwlogs/imgleomessi-worker.log
+test -f /www/wwwlogs/imgleomessi-worker.log && tail -n 100 /www/wwwlogs/imgleomessi-worker.log
 ~~~
 
 发布新代码后，先在项目根目录执行 queue:restart，再在宝塔进程守护管理器中重启 imgleomessi-worker。
@@ -1101,7 +1141,7 @@ redis-cli ping
 tail -n 200 /www/wwwlogs/imgleomessi-worker.log
 ~~~
 
-同时在宝塔进程守护管理器中查看 Worker 状态和日志。重点检查 PHP CLI 路径、Redis PHP 扩展、运行用户、项目目录权限和 QUEUE_CONNECTION。
+同时在宝塔进程守护管理器中查看 Worker 状态和日志。重点检查 PHP CLI 的绝对路径、pcntl 函数是否被 disable_functions 禁用、Redis PHP 扩展、运行用户、项目目录权限和 QUEUE_CONNECTION。如果出现 child process was not spawned，先检查命令第一个路径是否为 /www/server/php/83/bin/php。
 
 ### 数据库连接或迁移失败
 
@@ -1145,7 +1185,7 @@ tail -n 200 storage/logs/laravel.log
 
 - 生产数据库已创建并完成首次迁移；后续版本迁移仍需按发布流程执行。
 - 生产 `.env` 已创建，并已验证 Laravel 实际读取到正确的数据库配置；腾讯云凭证仍需在生产后台填写。
-- 未在宝塔“进程守护管理器”中配置并启动 Laravel Worker。
+- 已在宝塔“进程守护管理器”中配置并验证 Laravel Worker 正常启动；后续发布仍需按本手册执行 queue:restart 和日志检查。
 - 尚未完成全套生产上线验收。
 - 未配置正式域名和 HTTPS。
 - 未执行历史图片迁移。
@@ -1157,5 +1197,7 @@ tail -n 200 storage/logs/laravel.log
 - 本地项目已完成首次 Git 提交并推送到 GitHub `main`。
 - VPS 已使用独立只读 Deploy Key 将 GitHub `main` 拉取到 `/www/wwwroot/img.leomessi.cn`，并保留 SSL `.well-known`。
 - PHP CLI 重复扩展、Composer `putenv()` 和 Composer 版本问题已完成修复与验证。
+
+- 宝塔 Worker 已使用 PHP CLI 和 Artisan 的绝对路径，并完成 pcntl 函数和 Supervisor 启动验证。
 
 这些操作必须在生产后台访问策略、管理员账号、备份和回滚方案确认后，按本手册逐项执行。

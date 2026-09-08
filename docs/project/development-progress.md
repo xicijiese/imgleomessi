@@ -664,3 +664,10 @@ P1 当前已完成基础切片到 P1-15，时间轴浏览、球队 / 生涯阶�
 - 完成 Laravel + Inertia.js + Vue 3 + TypeScript + Tailwind CSS + Filament 项目骨架初始化。
 - 完成后台简体中文配置。
 - 完成本地 SQLite 数据库初始化和基础验证。
+
+### 2026-09-08（生产部署 Worker 验证）
+
+- 完成生产 PHP CLI 队列 Worker 排障：确认 pcntl 扩展已加载，但 pcntl_signal、pcntl_alarm、pcntl_signal_dispatch 被 php-cli.ini 的 disable_functions 禁用；移除相关 CLI 禁用项后验证函数可用。
+- 完成 Laravel Redis Worker 前台启动验证；前台命令保持运行后使用 Ctrl+C 停止属于正常操作。
+- 完成宝塔进程守护管理器配置修正：Worker 的 PHP CLI 和 Artisan 均使用绝对路径，避免 ENOENT 与 child process was not spawned；Worker 已正常启动。
+- 部署文档已补充 PHP CLI 函数检查、前台验证、宝塔绝对路径、日志查看和常见故障处理。

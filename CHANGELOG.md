@@ -3,6 +3,7 @@
 ## 2026-09-08
 
 ### Changed
+- 记录生产 Laravel Worker 的 pcntl 函数禁用、前台启动验证、宝塔 Supervisor 绝对路径和日志配置修复；Worker 已验证正常启动。
 
 - 完成本地 GitHub 首次上传：项目位于 `main` 分支，`origin` 使用 SSH 地址 `git@github.com:xicijiese/imgleomessi.git`；`.env` 未被 Git 跟踪，`.env.example` 不含真实凭证。
 - 完成 VPS 代码获取演练：VPS 使用独立的只读 Deploy Key，通过 `ssh-keygen` 生成密钥、公钥添加到 GitHub Deploy keys，私钥只留在 VPS；首次连接的主机指纹提示输入 `yes`，不是输入公钥或私钥口令。
