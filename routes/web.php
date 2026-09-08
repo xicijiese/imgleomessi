@@ -34,7 +34,6 @@ use App\Http\Controllers\UserNotificationController;
 use App\Http\Controllers\UserReportController;
 use App\Http\Controllers\UserSponsorshipController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 Route::get('/robots.txt', RobotsController::class)->name('robots');
@@ -93,7 +92,7 @@ Route::get('/privacy', [StaticPageController::class, 'privacy'])->name('privacy'
 Route::get('/terms', [StaticPageController::class, 'terms'])->name('terms');
 
 Route::get('dashboard', function () {
-    return Inertia::render('Dashboard');
+    return redirect()->route('me.show');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 require __DIR__.'/settings.php';

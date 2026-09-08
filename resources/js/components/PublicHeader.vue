@@ -352,13 +352,13 @@ onUnmounted(() => {
                                     @click="accountMenuOpen = false"
                                     >个人中心</Link
                                 >
-                                <Link
+                                <a
                                     v-if="canAccessAdmin"
                                     href="/admin"
                                     class="block rounded-sm px-3 py-2 hover:bg-[#d8eefe]"
                                     role="menuitem"
                                     @click="accountMenuOpen = false"
-                                    >管理后台</Link
+                                    >管理后台</a
                                 >
                                 <button
                                     type="button"
@@ -495,12 +495,12 @@ onUnmounted(() => {
                         @click="mobileMenuOpen = false"
                         >个人中心</Link
                     >
-                    <Link
+                    <a
                         v-if="canAccessAdmin"
                         href="/admin"
                         class="rounded-sm border border-[#90b4ce]/60 px-4 py-2 text-sm font-semibold hover:border-[#3da9fc] hover:text-[#3da9fc]"
                         @click="mobileMenuOpen = false"
-                        >管理后台</Link
+                        >管理后台</a
                     >
                     <button
                         type="button"

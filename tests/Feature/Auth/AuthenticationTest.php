@@ -29,7 +29,23 @@ class AuthenticationTest extends TestCase
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertRedirect(route('me.show', absolute: false));
+    }
+
+    public function test_admins_using_the_frontend_login_are_sent_to_the_user_center(): void
+    {
+        $admin = User::factory()->withoutTwoFactor()->create([
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+
+        $response = $this->post(route('login.store'), [
+            'email' => $admin->email,
+            'password' => 'password',
+        ]);
+
+        $this->assertAuthenticatedAs($admin);
+        $response->assertRedirect(route('me.show', absolute: false));
     }
 
     public function test_users_with_two_factor_enabled_are_redirected_to_two_factor_challenge()

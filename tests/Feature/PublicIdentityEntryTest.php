@@ -74,6 +74,6 @@ class PublicIdentityEntryTest extends TestCase
 
         $this->actingAs(User::factory()->create())
             ->get('/dashboard')
-            ->assertOk();
+            ->assertRedirect(route('me.show'));
     }
 }

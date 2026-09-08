@@ -42,10 +42,10 @@ defineProps<Props>();
             </Link>
         </DropdownMenuItem>
         <DropdownMenuItem v-if="canAccessAdmin" :as-child="true">
-            <Link class="block w-full" href="/admin" as="button">
+            <a class="block w-full" href="/admin">
                 <LayoutDashboard class="mr-2 h-4 w-4" />
                 管理后台
-            </Link>
+            </a>
         </DropdownMenuItem>
         <DropdownMenuItem :as-child="true">
             <Link class="block w-full" :href="edit()" prefetch as="button">

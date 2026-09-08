@@ -221,12 +221,19 @@ composer diagnose
 然后在宝塔网站的“伪静态”配置中填写以下 Laravel Nginx 规则。这里只填写 location 规则，不要额外包裹 server、http 或 events 配置：
 
 ~~~nginx
+# Filament/Livewire 的动态资源路径必须先交给 Laravel
+location ^~ /livewire- {
+    try_files $uri $uri/ /index.php?$query_string;
+}
+
 location / {
     try_files $uri $uri/ /index.php?$query_string;
 }
 ~~~
 
-这条规则的作用是：先读取真实存在的静态文件；如果请求路径不是静态文件，就统一交给 Laravel 的 public/index.php 处理。缺少这条规则时，首页可能可以打开，但 /photos、/albums、/topics、/search 等 Laravel 路由会被 Nginx 直接返回 404。
+这两条规则的作用是：真实存在的静态文件继续由 Nginx 直接返回，Laravel 前台路由和 Filament/Livewire 动态请求统一回退到 public/index.php。Filament/Livewire 当前版本会生成带哈希的 `/livewire-xxxx/` 路径；缺少专用的 `location ^~ /livewire-` 时，Nginx 的静态资源规则可能直接返回 404，导致后台登录表单无法提交或后台主体白屏。
+
+缺少通用回退规则时，首页可能可以打开，但 /photos、/albums、/topics、/search 等 Laravel 路由会被 Nginx 直接返回 404。
 
 保存伪静态配置后，在宝塔面板重载 Nginx。不要把这段规则写入项目根目录的 .htaccess；当前生产环境使用 Nginx，不依赖 Apache 的 .htaccess。
 - HTTPS：申请并启用正式证书
@@ -1399,7 +1406,13 @@ chmod 640 .env
 ~~~
 
 预期结果：Environment 为 `production`、Debug Mode 为 `DISABLED`，Session Cookie 为 `imgleomessi_session`，Session Driver 为 `redis`。之后在宝塔重启本网站 PHP 8.3 PHP-FPM，并清除浏览器本站 Cookie；旧的 `-session` Cookie 不会自动变成新名称，必须删除或使用无痕窗口重新登录。
+### 前台与后台登录入口验收
 
+1. 前台访问 `/login` 登录成功后应进入 `/me`，不能再进入 Laravel Starter Kit 的 `/dashboard` 占位页面。
+2. `admin` / `editor` 且状态正常的账号，在 `/me` 的个人中心菜单中显示“管理后台”，点击后进入 Filament `/admin`。
+3. 普通用户在个人中心只看到“退出登录”，不显示管理后台入口。
+4. 未登录用户直接访问 `/admin` 时进入 `/admin/login`；`/admin/login` 是后台直达入口，不替代前台 `/login`。
+5. 旧地址 `/dashboard` 仅作为兼容地址，认证用户访问后应跳转 `/me`。
 ### 登录后台后白屏、没有菜单或设置入口
 
 如果 /admin/login 登录成功，顶部能看到站点名称和头像，但主体区域全白、没有左侧菜单或“系统设置”，这通常不是账号密码问题：登录授权已经通过，优先按“Filament 资产未发布、组件缓存过期、站点运行目录不正确”排查。
@@ -1431,10 +1444,15 @@ test -f bootstrap/cache/filament/panels/admin.php && echo "Filament 组件缓存
 cd /www/wwwroot/img.leomessi.cn
 curl -I https://img.leomessi.cn/css/filament/filament/app.css
 curl -I https://img.leomessi.cn/js/filament/filament/app.js
+LIVEWIRE_URL="$(curl -sk https://img.leomessi.cn/admin/login \
+  | grep -oE 'https://img.leomessi.cn/livewire-[^"]+/livewire(\.min)?\.js[^"]*' \
+  | head -n 1)"
+echo "$LIVEWIRE_URL"
+test -n "$LIVEWIRE_URL" && curl -I "$LIVEWIRE_URL"
 tail -n 200 storage/logs/laravel.log
 ~~~
 
-两个静态资源请求应返回 200，不应返回 Nginx 404 或 403。如果资源返回 404/403，先修正网站运行目录和文件权限；如果资源返回 200 但页面仍白屏，再查看浏览器开发者工具 Console/Network 中是否有 JavaScript 或 Livewire 请求错误，并同时检查 Laravel 日志。不要反复创建管理员账号，也不要执行完整 DatabaseSeeder。
+Filament CSS、Filament JS 和上面动态发现的 Livewire JS 都应返回 200；Livewire JS 如果返回 404，先修正宝塔伪静态规则中的 `location ^~ /livewire-`，不要先重建管理员账号或重新生成 APP_KEY。资源都返回 200 但页面仍白屏时，再查看浏览器开发者工具 Console/Network 中的 JavaScript 或 Livewire 请求错误，并同时检查 Laravel 日志。不要执行完整 DatabaseSeeder。
 
 ### 前端页面空白或资源 404
 
