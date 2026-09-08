@@ -3,32 +3,19 @@ import { Head } from '@inertiajs/vue3';
 
 import AppearanceTabs from '@/components/AppearanceTabs.vue';
 import HeadingSmall from '@/components/HeadingSmall.vue';
-import { type BreadcrumbItem } from '@/types';
-
-import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
-import { edit } from '@/routes/appearance';
-
-const breadcrumbItems: BreadcrumbItem[] = [
-    {
-        title: 'Appearance settings',
-        href: edit().url,
-    },
-];
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="breadcrumbItems">
-        <Head title="Appearance settings" />
+    <Head title="外观设置" />
 
-        <SettingsLayout>
-            <div class="space-y-6">
-                <HeadingSmall
-                    title="Appearance settings"
-                    description="Update your account's appearance settings"
-                />
-                <AppearanceTabs />
-            </div>
-        </SettingsLayout>
-    </AppLayout>
+    <SettingsLayout>
+        <div class="space-y-6">
+            <HeadingSmall
+                title="外观设置"
+                description="调整账号页面的显示偏好"
+            />
+            <AppearanceTabs />
+        </div>
+    </SettingsLayout>
 </template>

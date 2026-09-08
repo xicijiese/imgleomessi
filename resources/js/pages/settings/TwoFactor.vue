@@ -5,10 +5,8 @@ import TwoFactorSetupModal from '@/components/TwoFactorSetupModal.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
-import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
-import { disable, enable, show } from '@/routes/two-factor';
-import { BreadcrumbItem } from '@/types';
+import { disable, enable } from '@/routes/two-factor';
 import { Form, Head } from '@inertiajs/vue3';
 import { ShieldBan, ShieldCheck } from 'lucide-vue-next';
 import { onUnmounted, ref } from 'vue';
@@ -23,13 +21,6 @@ withDefaults(defineProps<Props>(), {
     twoFactorEnabled: false,
 });
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Two-Factor Authentication',
-        href: show.url(),
-    },
-];
-
 const { hasSetupData, clearTwoFactorAuthData } = useTwoFactorAuth();
 const showSetupModal = ref<boolean>(false);
 
@@ -39,83 +30,74 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="breadcrumbs">
-        <Head title="Two-Factor Authentication" />
-        <SettingsLayout>
-            <div class="space-y-6">
-                <HeadingSmall
-                    title="Two-Factor Authentication"
-                    description="Manage your two-factor authentication settings"
-                />
+    <Head title="安全验证" />
 
-                <div
-                    v-if="!twoFactorEnabled"
-                    class="flex flex-col items-start justify-start space-y-4"
-                >
-                    <Badge variant="destructive">Disabled</Badge>
+    <SettingsLayout>
+        <div class="space-y-6">
+            <HeadingSmall
+                title="安全验证"
+                description="管理账号的两步验证设置"
+            />
 
-                    <p class="text-muted-foreground">
-                        When you enable two-factor authentication, you will be
-                        prompted for a secure pin during login. This pin can be
-                        retrieved from a TOTP-supported application on your
-                        phone.
-                    </p>
+            <div
+                v-if="!twoFactorEnabled"
+                class="flex flex-col items-start justify-start space-y-4"
+            >
+                <Badge variant="destructive">未启用</Badge>
 
-                    <div>
-                        <Button
-                            v-if="hasSetupData"
-                            @click="showSetupModal = true"
-                        >
-                            <ShieldCheck />Continue Setup
-                        </Button>
-                        <Form
-                            v-else
-                            v-bind="enable.form()"
-                            @success="showSetupModal = true"
-                            #default="{ processing }"
-                        >
-                            <Button type="submit" :disabled="processing">
-                                <ShieldCheck />Enable 2FA</Button
-                            ></Form
-                        >
-                    </div>
+                <p class="text-muted-foreground">
+                    启用两步验证后，登录时需要输入验证器应用生成的一次性验证码。
+                    这可以在密码泄露时为账号增加一层保护。
+                </p>
+
+                <div>
+                    <Button v-if="hasSetupData" @click="showSetupModal = true">
+                        <ShieldCheck />继续设置
+                    </Button>
+                    <Form
+                        v-else
+                        v-bind="enable.form()"
+                        @success="showSetupModal = true"
+                        #default="{ processing }"
+                    >
+                        <Button type="submit" :disabled="processing">
+                            <ShieldCheck />启用两步验证</Button
+                        ></Form
+                    >
                 </div>
-
-                <div
-                    v-else
-                    class="flex flex-col items-start justify-start space-y-4"
-                >
-                    <Badge variant="default">Enabled</Badge>
-
-                    <p class="text-muted-foreground">
-                        With two-factor authentication enabled, you will be
-                        prompted for a secure, random pin during login, which
-                        you can retrieve from the TOTP-supported application on
-                        your phone.
-                    </p>
-
-                    <TwoFactorRecoveryCodes />
-
-                    <div class="relative inline">
-                        <Form v-bind="disable.form()" #default="{ processing }">
-                            <Button
-                                variant="destructive"
-                                type="submit"
-                                :disabled="processing"
-                            >
-                                <ShieldBan />
-                                Disable 2FA
-                            </Button>
-                        </Form>
-                    </div>
-                </div>
-
-                <TwoFactorSetupModal
-                    v-model:isOpen="showSetupModal"
-                    :requiresConfirmation="requiresConfirmation"
-                    :twoFactorEnabled="twoFactorEnabled"
-                />
             </div>
-        </SettingsLayout>
-    </AppLayout>
+
+            <div
+                v-else
+                class="flex flex-col items-start justify-start space-y-4"
+            >
+                <Badge variant="default">已启用</Badge>
+
+                <p class="text-muted-foreground">
+                    当前账号已启用两步验证。后续登录时，请使用验证器应用中的一次性验证码完成确认。
+                </p>
+
+                <TwoFactorRecoveryCodes />
+
+                <div class="relative inline">
+                    <Form v-bind="disable.form()" #default="{ processing }">
+                        <Button
+                            variant="destructive"
+                            type="submit"
+                            :disabled="processing"
+                        >
+                            <ShieldBan />
+                            关闭两步验证
+                        </Button>
+                    </Form>
+                </div>
+            </div>
+
+            <TwoFactorSetupModal
+                v-model:isOpen="showSetupModal"
+                :requiresConfirmation="requiresConfirmation"
+                :twoFactorEnabled="twoFactorEnabled"
+            />
+        </div>
+    </SettingsLayout>
 </template>

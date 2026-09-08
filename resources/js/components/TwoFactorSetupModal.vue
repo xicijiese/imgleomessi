@@ -46,26 +46,25 @@ const modalConfig = computed<{
 }>(() => {
     if (props.twoFactorEnabled) {
         return {
-            title: 'Two-Factor Authentication Enabled',
-            description:
-                'Two-factor authentication is now enabled. Scan the QR code or enter the setup key in your authenticator app.',
-            buttonText: 'Close',
+            title: '两步验证已启用',
+            description: '请扫描二维码，或在验证器应用中手动输入设置密钥。',
+            buttonText: '关闭',
         };
     }
 
     if (showVerificationStep.value) {
         return {
-            title: 'Verify Authentication Code',
-            description: 'Enter the 6-digit code from your authenticator app',
-            buttonText: 'Continue',
+            title: '验证动态验证码',
+            description: '请输入验证器应用中显示的 6 位验证码',
+            buttonText: '继续',
         };
     }
 
     return {
-        title: 'Enable Two-Factor Authentication',
+        title: '启用两步验证',
         description:
-            'To finish enabling two-factor authentication, scan the QR code or enter the setup key in your authenticator app',
-        buttonText: 'Continue',
+            '请扫描二维码，或在验证器应用中手动输入设置密钥，以完成两步验证设置。',
+        buttonText: '继续',
     };
 });
 
@@ -190,7 +189,7 @@ watch(
                                 class="absolute inset-0 top-1/2 h-px w-full bg-border"
                             />
                             <span class="relative bg-card px-2 py-1"
-                                >or, enter the code manually</span
+                                >或手动输入设置密钥</span
                             >
                         </div>
 
@@ -259,12 +258,7 @@ watch(
                                         />
                                     </InputOTPGroup>
                                 </InputOTP>
-                                <InputError
-                                    :message="
-                                        errors?.confirmTwoFactorAuthentication
-                                            ?.code
-                                    "
-                                />
+                                <InputError :message="errors.code" />
                             </div>
 
                             <div class="flex w-full items-center space-x-5">
@@ -275,14 +269,14 @@ watch(
                                     @click="showVerificationStep = false"
                                     :disabled="processing"
                                 >
-                                    Back
+                                    返回
                                 </Button>
                                 <Button
                                     type="submit"
                                     class="w-auto flex-1"
                                     :disabled="processing || code.length < 6"
                                 >
-                                    Confirm
+                                    确认
                                 </Button>
                             </div>
                         </div>

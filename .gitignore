@@ -27,3 +27,8 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+# Local test image drop zone
+/.scratch/messi-gallery/test-images/*
+!/.scratch/messi-gallery/test-images/.gitkeep
+/.scratch/messi-gallery/write-test.txt
+/imgleomessi/

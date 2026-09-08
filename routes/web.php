@@ -1,14 +1,96 @@
 <?php
 
+use App\Http\Controllers\AlbumDetailController;
+use App\Http\Controllers\AlbumIndexController;
+use App\Http\Controllers\CommentReportController;
+use App\Http\Controllers\DimensionArchiveController;
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\OpponentArchiveController;
+use App\Http\Controllers\PhotoCommentController;
+use App\Http\Controllers\PhotoDetailController;
+use App\Http\Controllers\PhotoFavoriteController;
+use App\Http\Controllers\PhotoGalleryController;
+use App\Http\Controllers\PhotoLikeController;
+use App\Http\Controllers\PublicUserProfileController;
+use App\Http\Controllers\PhotoShareController;
+use App\Http\Controllers\RankingController;
+use App\Http\Controllers\RobotsController;
+use App\Http\Controllers\SearchController;
+use App\Http\Controllers\SearchSuggestionController;
+use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\SponsorshipOrderController;
+use App\Http\Controllers\StaticPageController;
+use App\Http\Controllers\SupportController;
+use App\Http\Controllers\SupporterWallController;
+use App\Http\Controllers\SupportResultController;
+use App\Http\Controllers\TopicDetailController;
+use App\Http\Controllers\TopicIndexController;
+use App\Http\Controllers\TimelineController;
+use App\Http\Controllers\UserBadgeController;
+use App\Http\Controllers\UserCenterController;
+use App\Http\Controllers\UserCommentController;
+use App\Http\Controllers\UserFavoriteController;
+use App\Http\Controllers\UserNotificationController;
+use App\Http\Controllers\UserReportController;
+use App\Http\Controllers\UserSponsorshipController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Laravel\Fortify\Features;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canRegister' => Features::enabled(Features::registration()),
-    ]);
-})->name('home');
+Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
+Route::get('/robots.txt', RobotsController::class)->name('robots');
+Route::get('/', HomeController::class)->name('home');
+Route::get('/photos', PhotoGalleryController::class)->name('photos.index');
+Route::get('/photos/{uuid}', PhotoDetailController::class)->name('photos.show');
+Route::get('/rankings', RankingController::class)->name('rankings.index');
+Route::get('/support', SupportController::class)->name('support.index');
+Route::get('/supporters', SupporterWallController::class)->name('supporters.index');
+Route::post('/photos/{uuid}/shares', [PhotoShareController::class, 'store'])->name('photos.shares.store');
+Route::middleware('auth')->group(function (): void {
+    Route::get('/me', [UserCenterController::class, 'show'])->name('me.show');
+    Route::patch('/me/public-profile', [UserCenterController::class, 'updatePublicProfile'])->name('me.public-profile.update');
+    Route::get('/me/favorites', [UserFavoriteController::class, 'index'])->name('me.favorites.index');
+    Route::delete('/me/favorites/{favorite}', [UserFavoriteController::class, 'destroy'])->name('me.favorites.destroy');
+    Route::get('/me/comments', [UserCommentController::class, 'index'])->name('me.comments.index');
+    Route::get('/me/reports', [UserReportController::class, 'index'])->name('me.reports.index');
+    Route::get('/me/notifications', [UserNotificationController::class, 'index'])->name('me.notifications.index');
+    Route::patch('/me/notifications/{notification}/read', [UserNotificationController::class, 'markRead'])->name('me.notifications.read');
+    Route::patch('/me/notifications/read-all', [UserNotificationController::class, 'markAllRead'])->name('me.notifications.read-all');
+    Route::get('/me/sponsorships', [UserSponsorshipController::class, 'index'])->name('me.sponsorships.index');
+    Route::get('/me/badges', [UserBadgeController::class, 'index'])->name('me.badges.index');
+    Route::patch('/me/badges/{badge}/equip', [UserBadgeController::class, 'equip'])->name('me.badges.equip');
+    Route::patch('/me/sponsorships/profile', [UserSponsorshipController::class, 'updateProfile'])->name('me.sponsorships.profile');
+    Route::get('/support/result', SupportResultController::class)->name('support.result');
+    Route::post('/support/orders', [SponsorshipOrderController::class, 'store'])->name('support.orders.store');
+    Route::post('/support/orders/{order}/mock-pay', [SponsorshipOrderController::class, 'mockPay'])->name('support.orders.mock-pay');
+    Route::post('/photos/{uuid}/favorite', [PhotoFavoriteController::class, 'store'])->name('photos.favorite.store');
+    Route::delete('/photos/{uuid}/favorite', [PhotoFavoriteController::class, 'destroy'])->name('photos.favorite.destroy');
+    Route::post('/photos/{uuid}/like', [PhotoLikeController::class, 'store'])->name('photos.like.store');
+    Route::delete('/photos/{uuid}/like', [PhotoLikeController::class, 'destroy'])->name('photos.like.destroy');
+    Route::post('/photos/{uuid}/comments', [PhotoCommentController::class, 'storeDiscussion'])->name('photos.comments.store');
+    Route::post('/photos/{uuid}/corrections', [PhotoCommentController::class, 'storeCorrection'])->name('photos.corrections.store');
+    Route::post('/comments/{comment}/reports', [CommentReportController::class, 'store'])->name('comments.reports.store');
+});
+Route::get('/search/suggestions', SearchSuggestionController::class)->name('search.suggestions');
+Route::get('/search', SearchController::class)->name('search');
+Route::get('/users/{user}', [PublicUserProfileController::class, 'show'])->whereNumber('user')->name('users.show');
+Route::get('/opponents', [OpponentArchiveController::class, 'index'])->name('opponents.index');
+Route::get('/opponents/{slug}', [OpponentArchiveController::class, 'show'])->name('opponents.show');
+Route::get('/teams', [DimensionArchiveController::class, 'teams'])->name('teams.index');
+Route::get('/teams/{slug}', [DimensionArchiveController::class, 'team'])->name('teams.show');
+Route::get('/seasons', [DimensionArchiveController::class, 'seasons'])->name('seasons.index');
+Route::get('/seasons/{slug}', [DimensionArchiveController::class, 'season'])->name('seasons.show');
+Route::get('/timeline', [TimelineController::class, 'index'])->name('timeline.index');
+Route::get('/timeline/{year}', [TimelineController::class, 'year'])->whereNumber('year')->name('timeline.year');
+Route::get('/timeline/{year}/{month}', [TimelineController::class, 'month'])->whereNumber('year')->whereNumber('month')->name('timeline.month');
+Route::get('/albums', AlbumIndexController::class)->name('albums.index');
+Route::get('/albums/{slug}', AlbumDetailController::class)->name('albums.show');
+Route::get('/topics', TopicIndexController::class)->name('topics.index');
+Route::get('/topics/{slug}', TopicDetailController::class)->name('topics.show');
+Route::get('/about', [StaticPageController::class, 'about'])->name('about');
+Route::get('/copyright', [StaticPageController::class, 'copyright'])->name('copyright');
+Route::get('/takedown', [StaticPageController::class, 'takedown'])->name('takedown');
+Route::get('/privacy', [StaticPageController::class, 'privacy'])->name('privacy');
+Route::get('/terms', [StaticPageController::class, 'terms'])->name('terms');
 
 Route::get('dashboard', function () {
     return Inertia::render('Dashboard');

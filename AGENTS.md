@@ -12,15 +12,15 @@
 
 ### Issue tracker
 
-项目初期使用本地 Markdown 任务追踪，任务文件放在 `.scratch/messi-gallery/`。后续接入 GitHub 后可迁移到 GitHub Issues。详见 `docs/agents/issue-tracker.md`。
+项目初期使用本地 Markdown 任务追踪，任务文件放在 `.scratch/messi-gallery/`。后续接入 GitHub 后可迁移到 GitHub Issues。
 
 ### Triage labels
 
-项目使用默认 triage 状态：`needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、`wontfix`。详见 `docs/agents/triage-labels.md`。
+项目使用默认 triage 状态：`needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、`wontfix`。
 
 ### Domain docs
 
-项目采用 single-context 布局：根目录 `CONTEXT.md` + `docs/adr/`。详见 `docs/agents/domain.md`。
+项目采用 single-context 布局：根目录 `CONTEXT.md` 记录领域语言；架构决策直接合并到 `docs/architecture/technical-architecture.md`。
 
 ## AI 工作原则
 
@@ -34,6 +34,7 @@
 8. 安全优先：不得把腾讯云密钥、微信支付证书、短信密钥写入代码或提交到仓库。
 9. 测试行为，不测实现：测试应验证用户可见行为和公开接口，避免绑定内部函数名。
 10. 任何高风险操作必须先说明影响：数据库迁移、删除数据、支付回调、权限改动、批量处理图片都属于高风险。
+11. 禁止新增文档文件：以后不得在 `docs/` 或项目根目录新增新的说明类 Markdown 文档；任何文档内容只能合并到现有主文档中。
 
 ## 默认技术栈
 
@@ -42,10 +43,10 @@
 - 后台管理：Filament，不另行使用 Naive UI / Arco Design 自建后台。
 - 数据库：MySQL 8.0 起步，后续可评估 PostgreSQL。
 - 缓存与队列：Redis。
-- 图片存储：腾讯云 COS。
+- 图片存储：通过 Laravel 文件系统抽象管理；支持本地存储和腾讯云 COS 切换，生产环境优先腾讯云 COS/CDN。
 - 图片处理与识别：腾讯云数据万象。
 - 搜索：第一阶段用 MySQL 索引；第二阶段接 Meilisearch 或 Typesense。
-- 部署：CentOS + 宝塔 LNMP，Nginx + PHP-FPM + MySQL + Redis + Supervisor。
+- 部署：Ubuntu 24.04 + 宝塔 LNMP，Nginx + PHP-FPM + MySQL + Redis + Supervisor。
 
 ## 禁止事项
 
@@ -58,14 +59,15 @@
 7. 不要绕过后台审核直接发布 UGC 评论。
 8. 不要把前台做成重型组件库堆砌；前台以 Tailwind 定制组件为主，只按需引入 PhotoSwipe、Swiper 等图库交互库。
 9. 不要用 Naive UI / Arco Design 代替 Filament 搭后台，除非后续 ADR 正式改动。
+10. 不要新增新的文档文件。开发说明、页面规格、阶段计划、数据库规则、架构决策和任务规则都必须写入现有主文档。
 
 ## 开发前必读顺序
 
 1. `CONTEXT.md`
 2. `docs/product/prd.md`
-3. `docs/architecture/technical-architecture.md`
-4. `docs/database/schema.md`
-5. `docs/ui/page-map.md`
-6. `docs/integrations/third-party-services.md`
-7. `docs/ops/deployment-centos-bt.md`
-8. `docs/project/project-management.md`
+3. `docs/database/schema.md`
+4. `docs/ui/page-map.md`
+5. `docs/architecture/technical-architecture.md`
+6. `docs/development/development-standards.md`
+7. `docs/integrations/third-party-services.md`
+8. `docs/ops/deployment-centos-bt.md`

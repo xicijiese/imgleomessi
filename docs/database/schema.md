@@ -6,35 +6,54 @@
 
 本文档记录项目的长期逻辑模型，不代表所有表都会在第一阶段同时开发。
 
-Phase 1 只落图库核心表，用于完成图片录入、管理、浏览和基础检索闭环：
+当前已落库表先覆盖图库核心、首页配置、站点合规页依赖和 P1 图片互动、评论/纠错、审核举报、用户中心通知、互动排行榜、支持者赞助基础、勋章 / 成就基础、图片入库队列与后台重复图提示，用于完成图片录入、管理、浏览、首页展示、基础检索、搜索运营、收藏、点赞、分享记录、评论提交、图片信息补充/纠错、举报处理、封禁、站内通知、排行榜、模拟赞助闭环、基础勋章成就闭环、图片基础分析任务和精确哈希重复提示：
 
-- `photos`
-- `albums`
-- `categories`
-- `album_category`
-- `album_photo`
-- `photo_category`
-- `tags`
-- `photo_tag`
-- `teams`
-- `competitions`
-- `matches`
-- `sources`
+- photos
+- photo_upload_batches
+- albums
+- categories
+- album_category
+- album_photo
+- photo_category
+- tags
+- photo_tag
+- opponents
+- opponent_photo
+- sources
+- settings
+- search_recommendations
+- search_queries
+- photo_favorites
+- photo_likes
+- photo_shares
+- comments
+- reports
+- sensitive_words
+- notifications
+- sponsorship_plans
+- sponsorship_orders
+- payment_logs
+- supporter_profiles
+- badges
+- user_badges
+- photo_analysis_results
+- processing_jobs
 
-Phase 1 暂不创建以下后续功能表：
+球队、赛事、赛季、年份、比赛等第一版通过 7 个固定主分类及其子分类承载，不单列后台入口，也不提前创建 teams、competitions、matches 独立表；P1 后续已单独确认并落地轻量 opponents 对手字典，只用于“对手名称 -> 公开图片”聚合，不代表完整球队或比赛资料库。
 
-- `supporter_profiles`
-- `photo_analysis_results`
-- `similar_groups`
-- `comments`
-- `likes`
-- `favorites`
-- `reports`
-- `sponsorship_orders`
-- `processing_jobs`
+Phase 1 明确不创建以下独立足球资料表：
 
-`users` 表使用 Laravel/Fortify 当前已生成的基础结构。角色、手机号、支持者有效期、用户状态等字段会在权限或会员阶段再扩展。
+- teams
+- competitions
+- matches
 
+当前暂不创建以下后续功能表：
+
+- similar_groups
+
+已明确后续规划但不属于 P1-4 / P1-5 已完成基础切片的互动扩展：分享到微信/微博等第三方 API、分享海报生成、短链接、复杂社交动态流、后台互动管理、异常刷赞处理和排行榜管理。前台公开图片详情默认下载按钮永久不作为默认能力；分享返利默认不做，除非后续重新立项并完成合规确认。
+
+users 表使用 Laravel/Fortify 当前已生成的基础结构。P1-6 已扩展用户状态和封禁字段，P1-9 已扩展 `supporter_until` 支持者有效期；角色、手机号等字段后续在权限或账号资料阶段再扩展。
 ## Phase 1 相册、分类与标签模型决策
 
 Phase 1 采用“相册/专题 + 7 个必选主分类 + 子分类 + 多标签”模型。
@@ -45,8 +64,8 @@ Phase 1 采用“相册/专题 + 7 个必选主分类 + 子分类 + 多标签”
 - 子分类管理：后台允许在 7 个固定主分类下自由新增、编辑和排序子分类。
 - 相册/专题：用于批量组织一组图片，例如 `2022世界杯决赛`、`2022世界杯夺冠之路`。
 - 相册默认分类：新建相册时，必须从 7 个主分类中分别选择一个子分类，7 个主分类缺一不可，通过 `album_category` 实现。
-- 图片相册关系：图片可以加入一个或多个相册，通过 `album_photo` 实现。
-- 相册内图片分类：图片加入相册时，完全同步该相册已选择的 7 个分类，并写入 `photo_category`；相册内图片不允许额外手动补充分类。
+- 图片相册关系：一张图片可以加入一个或多个相册，通过 album_photo 实现。
+- 相册内图片分类：上传到相册形成的图片记录，完全同步该相册已选择的 7 个分类，并写入 photo_category；相册内图片不额外手动补充分类。
 - 单独上传图片分类：图片不属于相册时，必须从 7 个主分类中分别选择一个子分类，7 个主分类缺一不可，并写入 `photo_category`。
 - 分类兜底：每个主分类必须预置 `待补充` 子分类，用于资料暂时不完整、需要后续考古补充的图片；信息不知道时也必须选择对应主分类下的 `待补充`，不能留空。
 - 分类修正：若后续用户在评论或其他反馈中补充了可靠信息，管理员或编辑可以将 `待补充` 修改为已有子分类，或先新增子分类再重新选择。
@@ -70,7 +89,7 @@ Phase 1 上传流程不做重复图片检测，也不阻止疑似重复图片入
 - 同一视觉图片如果上传到不同相册，各自跟随所在相册的分类，各自维护标题、说明和标签。
 - 相似图去重只作为后续后台管理能力，用于管理员日后筛选、比对、合并、删除或保留相似图片。
 
-`photos.sha256`、`photos.perceptual_hash`、`photos.similar_group_id` 在 Phase 1 中只作为后续能力预留字段，不作为上传拦截条件。
+哈希、感知哈希和相似图组不进入图片核心模型切片，后续相似图治理或 AI 分析切片再补字段；图片质量评分明确不纳入项目；Phase 1 上传流程仍不做重复检测或相似图拦截。
 
 ## Phase 1 批量上传与整理规则
 
@@ -159,6 +178,8 @@ Phase 1 必须支持“批量上传到相册”。
 | show_publicly | boolean | 是否展示在支持者墙 |
 | total_amount_cents | int | 累计赞助金额，单位分 |
 | badge_level | varchar | 支持者等级 |
+| last_supported_at | timestamp nullable | 最近支持时间 |
+| created_at / updated_at | timestamps | 时间戳 |
 
 ## 2. 图库核心
 
@@ -171,31 +192,43 @@ Phase 1 必须支持“批量上传到相册”。
 | title | varchar | 图片标题，不允许为空；默认使用系统重命名后的文件名 |
 | description | text nullable | 图片说明，可为空；用于补充背景、考古线索、来源备注等长文本 |
 | original_filename | varchar nullable | 用户上传时的原始文件名，用于追溯 |
-| stored_filename | varchar | 系统重命名后的文件名，格式为 `YYYYMMDD-HHmmss-6位随机码.原扩展名` |
+| stored_filename | varchar nullable | 系统重命名后的文件名，格式为 `YYYYMMDD-HHmmss-6位随机码.原扩展名`；手工补录或历史导入可为空 |
 | taken_at | datetime nullable | 拍摄时间 |
 | event_date | date nullable | 事件日期 |
-| career_stage | varchar nullable | 生涯阶段 |
-| team_id | fk teams nullable | 球队 |
-| competition_id | fk competitions nullable | 赛事 |
-| match_id | fk matches nullable | 比赛 |
-| source_id | fk sources nullable | 来源 |
-| copyright_status | enum | `unknown`、`public_reference`、`official_public`、`user_submitted`、`restricted`、`takedown` |
-| review_status | enum | `draft` 草稿/待整理、`published` 已发布、`archived` 已归档 |
-| analysis_status | enum | `pending`、`processing`、`done`、`failed` |
+| source_id | fk sources nullable | 来源；来源平台作为 7 个主分类中的来源平台子分类维护 |
+| copyright_status | enum | `unknown` 待确认、`credited` 已标注来源、`restricted` 受限使用、`remove_requested` 请求下架 |
+| watermark_status | enum | unknown 未确认、none 无水印、present 有水印；P1-15 用于前台高级筛选和后台维护 |
+| status | enum | `draft` 草稿/待整理、`published` 已发布、`archived` 已归档 |
+| publish_after_processing | boolean | 上传时选择“处理完成后自动发布”时为 true；基础处理未完成、发布条件不满足或图片归档后会保持/清除为 false |
 | width / height | int nullable | 尺寸 |
-| mime_type | varchar | MIME |
-| file_size | bigint | 文件大小 |
-| original_key | varchar | COS 原图 Key |
-| display_key | varchar nullable | COS 展示图 Key |
-| thumbnail_key | varchar nullable | COS 缩略图 Key |
-| sha256 | char(64) nullable index | 文件哈希，Phase 1 仅预留，不用于上传拦截 |
-| perceptual_hash | varchar nullable index | 感知哈希，后续相似图管理预留 |
-| similar_group_id | fk similar_groups nullable | 相似图组，后续后台治理预留 |
-| quality_score | decimal nullable | 质量评分 |
-| is_featured | boolean | 是否推荐 |
-| uploaded_by | fk users | 上传者 |
+| mime_type | varchar nullable | MIME |
+| file_size | bigint nullable | 文件大小 |
+| original_key | varchar nullable | 原图存储 Key，指向当前启用存储驱动中的文件 |
+| display_key | varchar nullable | 展示图存储 Key，指向当前启用存储驱动中的文件 |
+| thumbnail_key | varchar nullable | 缩略图存储 Key，指向当前启用存储驱动中的文件 |
+| uploaded_by | fk users nullable | 上传者；手工补录或测试数据可为空 |
+| photo_upload_batch_id | fk photo_upload_batches nullable | 上传批次；单张手工补录或历史数据可为空 |
 | published_at | datetime nullable | 发布时间 |
 | created_at / updated_at | timestamps | 时间戳 |
+
+P1-15 高级搜索与资料增强基于 photos、photo_category、photo_tag、sources 和互动统计做数据库内组合筛选。清晰度和横竖图由 width / height 派生，不新增独立字段；人物同框继续使用人物关系标签；水印状态使用 watermark_status 维护。对手聚合切片已新增 opponents / opponent_photo，作为不破坏 7 个主分类规则的轻量对手主数据。搜索运营切片已新增 search_recommendations / search_queries，只用于推荐词配置、热门词聚合和排障，不接外部搜索引擎。
+
+### photo_upload_batches
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | bigint pk | 上传批次 ID |
+| mode | enum | `standalone` 单独上传、`album` 相册内上传 |
+| album_id | fk albums nullable | 目标相册；相册内上传时必填 |
+| uploaded_by | fk users nullable | 上传者；系统补录或测试数据可为空 |
+| status | enum | `draft`、`processing`、`completed`、`failed`、`partially_failed` |
+| total_count | int | 总文件数 |
+| success_count | int | 成功文件数 |
+| failed_count | int | 失败文件数 |
+| note | text nullable | 批次备注 |
+| created_at / updated_at | timestamps | 时间戳 |
+
+上传批次用于支撑后台 `图片批量上传` 和 `上传批次 / 批量整理` 页面。批量上传支持选择草稿或“处理完成后自动发布”，并可选择自动创建 OCR / 智能标签任务；批次仍只记录一次批量上传和整理过程，不改变图片本身是否可以加入多个相册的规则。
 
 ### albums
 
@@ -232,11 +265,13 @@ Phase 1 必须支持“批量上传到相册”。
 | id | bigint pk | 分类 ID |
 | parent_id | fk categories nullable | 父分类；为空表示主分类，不为空表示子分类 |
 | name | varchar | 分类名 |
-| slug | varchar | URL 标识，同一父分类下唯一 |
+| slug | varchar unique | URL 标识，Phase 1 先全局唯一，避免不同主分类下重名 slug 带来路由歧义 |
 | description | text nullable | 描述 |
-| cover_photo_id | fk photos nullable | 分类封面图 |
+| cover_photo_id | fk photos nullable | 分类封面图；等 photos 表落地后再补外键 |
 | sort_order | int | 排序 |
-| visibility | enum | `public`、`hidden` |
+| visibility | enum | public、hidden |
+| is_system | boolean | 是否系统预置；7 个固定主分类和各自的 待补充子分类为系统预置数据 |
+| created_at / updated_at | timestamps | 时间戳 |
 
 ### photo_category
 
@@ -251,7 +286,7 @@ Phase 1 必须支持“批量上传到相册”。
 |---|---|---|
 | id | bigint pk | 标签 ID |
 | name | varchar unique | 标签名 |
-| type | enum | `动作`、`情绪`、`画质`、`人物关系`、`荣誉`、`画面内容`、`服装/装备`、`地点` |
+| type | enum | 动作、情绪、画质、人物关系、荣誉、画面内容、服装/装备、地点 |
 | description | text nullable | 说明 |
 | sort_order | int | 排序 |
 | created_at / updated_at | timestamps | 时间戳 |
@@ -263,39 +298,74 @@ Phase 1 必须支持“批量上传到相册”。
 | photo_id | fk photos | 图片 |
 | tag_id | fk tags | 标签 |
 
-## 3. 足球资料
+### opponents
 
-### teams
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| id | bigint pk | 球队 ID |
-| name | varchar | 中文名 |
-| name_en | varchar nullable | 英文名 |
-| type | enum | `club`、`national` |
-| country | varchar nullable | 国家 |
-
-### competitions
+P1 对手聚合切片已落库。该表只作为轻量对手字典，用于公开页 `/opponents` 和 `/opponents/{slug}` 聚合相关图片；不保存比分、赛程、阵容、球队资料、赛事资料或对战统计。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| id | bigint pk | 赛事 ID |
-| name | varchar | 赛事名 |
-| type | enum | `league`、`cup`、`international`、`award`、`friendly` |
+| id | bigint pk | 对手 ID |
+| name | varchar | 对手名称 |
+| slug | varchar unique | URL 标识 |
+| country | varchar nullable | 国家 / 地区 |
+| aliases | text nullable | 简称、英文名或常见别名；用于后台整理和前台搜索 |
+| description | text nullable | 对手说明 |
+| sort_order | unsigned int | 排序 |
+| is_active | boolean | 是否启用；未启用对手不进入公开聚合页 |
+| created_at / updated_at | timestamps | 时间戳 |
 
-### matches
+### opponent_photo
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| id | bigint pk | 比赛 ID |
-| competition_id | fk competitions | 赛事 |
-| home_team_id | fk teams nullable | 主队 |
-| away_team_id | fk teams nullable | 客队 |
-| match_date | date | 比赛日期 |
-| title | varchar | 展示标题 |
-| score | varchar nullable | 比分 |
-| venue | varchar nullable | 场馆 |
-| season | varchar nullable | 赛季 |
+| opponent_id | fk opponents | 对手 |
+| photo_id | fk photos | 图片 |
+
+对手聚合公开边界：只展示 `photos.status = published` 且 `copyright_status` 不是 `restricted` / `remove_requested` 的图片；不向前台输出 `original_key`、`stored_filename`、上传批次、上传者或后台备注。
+
+### search_recommendations
+
+P1 搜索运营切片已落库。该表用于后台维护推荐搜索词，服务 `/search` 空状态 / 无结果状态和公共导航搜索建议；不承载广告、赞助关键词、付费排序或个性化推荐。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | bigint pk | 推荐词 ID |
+| keyword | varchar | 实际搜索词 |
+| title | varchar | 前台展示标题 |
+| description | text nullable | 前台说明，可为空 |
+| url | varchar nullable | 跳转 URL；为空时默认 `/search?q=keyword` |
+| is_active | boolean | 是否启用；前台只展示启用项 |
+| sort_order | int | 排序 |
+| internal_note | text nullable | 内部备注；只在后台可见，不进入前台 payload |
+| created_at / updated_at | timestamps | 时间戳 |
+
+### search_queries
+
+P1 搜索运营切片已落库。该表只记录用户主动提交的有效搜索，用于热门词聚合和排障；不记录 IP、UA，不向前台暴露原始日志，不提供用户搜索历史页。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | bigint pk | 搜索记录 ID |
+| user_id | fk users nullable | 登录用户可关联；游客为空，不建立个人画像 |
+| keyword | varchar | 原始搜索词，截断到 120 字符 |
+| normalized_keyword | varchar index | 规范化搜索词，用于聚合 |
+| source | varchar index | 来源入口，例如 `search_page` |
+| result_count | int index | 本次公开搜索结果数 |
+| filters_json | json nullable | 基础筛选摘要；不包含关键词、IP、UA 或内部字段 |
+| created_at / updated_at | timestamps | 时间戳 |
+
+热门搜索公开边界：只聚合有效、有结果且达到最小次数阈值的搜索词；明显空白、过短、纯符号和超长关键词不进入热门词。搜索建议接口只输出 `term`、`label`、`description`、`url`、`source` 安全字段。
+
+Phase 1 不在 photos 表中直接写入 team_id、competition_id、match_id 等外键。球队、赛事、赛季、年份、比赛等通过 7 个固定主分类及其子分类承载；人物同框通过 `人物关系` 类型标签承载。
+
+## 3. 足球资料维度说明
+
+Phase 1 不建立独立的球队、赛事、赛季或比赛资料表。相关信息按以下方式进入图库归档体系：
+
+- 球队、赛事、赛季、年份、比赛等作为 7 个固定主分类下的子分类维护。
+- 人物同框作为 `人物关系` 类型标签维护。
+- 事件或比赛主题的一组图片通过相册表达，例如“2022-12-18 世界杯决赛 阿根廷 vs 法国”。
+- 后台不单列球队管理、赛事管理、比赛管理或人物管理入口。
 
 ## 4. 来源与分析
 
@@ -304,64 +374,132 @@ Phase 1 必须支持“批量上传到相册”。
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | bigint pk | 来源 ID |
-| name | varchar | 来源名 |
-| url | varchar nullable | 原始链接 |
-| type | enum | `media`、`official`、`social`、`user`、`unknown` |
-| note | text nullable | 备注 |
+| original_url | varchar nullable | 原始链接 |
+| published_at | datetime nullable | 原始来源发布时间 |
+| copyright_note | text nullable | 版权备注；用于前台展示和版权排查 |
+| internal_note | text nullable | 后台内部备注，不在前台公开展示 |
+| is_enabled | boolean | 启用状态；用于后台禁用来源记录，默认启用 |
+
+来源管理是 Phase 1 P0 能力，目的是让图片详情展示、版权说明和后续下架排查有可追溯资料。P0 来源记录保持克制，只保留原始链接、原始发布日期、版权备注和内部备注；另有启用状态用于后台管理；内部备注只给后台看，不在前台公开。来源平台作为 7 个固定主分类中的 `来源平台` 子分类维护，不在 sources 表重复建来源平台字段。
 
 ### photo_analysis_results
+
+P1-11 已落库。当前真实写入基础文件信息、SHA-256 精确哈希、可读取的 EXIF 和处理时间；相似图切片新增后台人工触发的感知哈希和候选关系记录；OCR 和智能标签切片新增后台人工触发的识别结果。COS 临时读写真实验证已通过，当前 6 张 COS 业务原图已完成展示图/缩略图、智能标签和相似候选真实验证，图片质量评分不纳入项目。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | bigint pk | ID |
-| photo_id | fk photos | 图片 |
-| exif_json | json nullable | EXIF |
-| ocr_text | longtext nullable | OCR 文本 |
-| ci_labels_json | json nullable | 数据万象标签 |
-| ci_quality_json | json nullable | 质量评估 |
-| error_message | text nullable | 错误 |
+| photo_id | fk photos unique | 图片；一张图片对应一条分析结果 |
+| width | unsigned int nullable | 宽度 |
+| height | unsigned int nullable | 高度 |
+| mime_type | varchar nullable | MIME 类型 |
+| file_size | unsigned bigint nullable | 文件大小 |
+| sha256_hash | varchar(64) nullable index | 文件 SHA-256；精确重复提示基于该字段 |
+| perceptual_hash | varchar(16) nullable index | 64 位 dHash 感知特征；仅在后台手动触发相似候选计算时写入 |
+| exif_json | json nullable | 可读取的 EXIF 基础数据 |
+| ocr_text | longtext nullable | 后台手动 OCR 识别文本；不直接作为前台搜索字段 |
+| ci_labels_json | json nullable | 后台手动智能标签结果；COS 临时读写已真实验证，数据万象真实调用仍需业务原图 |
+| ci_quality_json | json nullable | 历史兼容字段；图片质量评分不纳入项目，不读取、不写入 |
+| error_message | text nullable | 分析错误 |
 | processed_at | datetime nullable | 处理时间 |
 
-### similar_groups
+### photo_similarity_candidates
+
+相似图首个切片不创建自动相似组，只保存后台人工审核用的候选关系。图片顺序按 ID 规范化，避免同一对图片重复记录；人工结论不会自动修改图片记录或发布状态。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| id | bigint pk | 相似组 ID |
-| representative_photo_id | fk photos nullable | 代表图 |
-| note | text nullable | 说明 |
+| id | bigint pk | 候选关系 ID |
+| photo_id | fk photos | 候选图片 A |
+| candidate_photo_id | fk photos | 候选图片 B |
+| distance | unsigned tinyint | dHash 汉明距离，当前阈值不超过 12 |
+| similarity_score | decimal(5,2) | 根据 64 位特征换算的辅助相似度百分比 |
+| status | varchar index | pending_review、kept_separate、confirmed_duplicate、ignored |
+| reviewed_by | fk users nullable | 人工处理人 |
+| reviewed_at | timestamp nullable | 人工处理时间 |
+| created_at / updated_at | timestamps | 时间戳 |
 
-## 5. 轻社交
+## 5. 系统设置
+
+### settings
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | bigint pk | 设置 ID |
+| group | varchar | 配置分组，例如 `site`、`home`、`footer` |
+| key | varchar | 配置键，例如 `hero_slides`、`latest_photos`、`topic_module` |
+| value | json nullable | 配置值，保存结构化 JSON |
+| description | varchar nullable | 后台说明 |
+| updated_by | fk users nullable | 最近修改人 |
+| created_at / updated_at | timestamps | 时间戳 |
+
+`settings` 是 Phase 1 P0 首页配置的数据基础，用于保存站点基础信息、导航、头图轮播、分类模块、最新照片模块、专题模块、页脚配置，以及项目后台的图片存储配置。P0 不做拖拽式 CMS，不在数据库中为首页每个小模块拆独立表；首页固定结构通过结构化 JSON 配置驱动，前台读取时必须过滤草稿、隐藏、归档、版权受限或请求下架内容。存储配置使用 group=storage、key=config 保存，腾讯云 SecretKey 必须加密后写入 JSON，表单不得回显明文。
+## 6. 轻社交
 
 ### comments
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | bigint pk | 评论 ID |
-| user_id | fk users | 用户 |
-| photo_id | fk photos nullable | 图片 |
-| category_id | fk categories nullable | 分类 |
-| parent_id | fk comments nullable | 回复 |
-| content | text | 内容 |
-| status | enum | `pending`、`published`、`rejected`、`deleted` |
-| like_count | int | 点赞数 |
+| user_id | fk users | 提交用户；游客不能提交 |
+| photo_id | fk photos | 所属图片；只允许对公开图片提交 |
+| parent_id | fk comments nullable | 回复关系预留；P1-5 不做楼中楼 |
+| type | enum | `discussion` 普通评论、`correction` 图片信息补充/纠错 |
+| content | text | 评论内容或补充说明；前台保留换行但不渲染 HTML |
+| status | enum | pending、published、rejected、hidden、deleted；新提交默认 pending |
+| correction_field | varchar nullable | 纠错建议字段，如标题、日期、赛事、球队、人物同框、来源、版权备注、分类、标签或其他 |
+| suggested_value | text nullable | 用户建议修正或补充的内容 |
+| evidence_url | varchar nullable | 用户提供的证据链接 |
+| meta | json nullable | 后续审核、处理记录或扩展信息预留 |
+| like_count | int | 评论点赞数预留；P1-5 不做评论点赞 |
+| reviewed_by | fk users nullable | 审核人 |
+| reviewed_at | timestamp nullable | 审核时间 |
+| moderation_note | text nullable | 后台审核备注 |
+| risk_level | varchar | clean、low、medium、high 风险等级 |
+| sensitive_word_hits | json nullable | 敏感词命中结果 |
+| created_at / updated_at | timestamps | 时间戳 |
 
-### likes
+P1-5 已落地 comments 表基础能力：图片详情页只公开展示 published 状态的 discussion 评论；普通评论和图片信息补充/纠错提交后默认进入 pending；correction 不进入公开评论流，由 P1-6 审核队列处理。
+
+P1-6 已补齐评论审核字段：reviewed_by 记录审核人，reviewed_at 记录审核时间，moderation_note 记录后台审核备注，risk_level 记录 clean、low、medium、high 风险等级，sensitive_word_hits 记录命中的敏感词规则；meta 继续作为审核历史等扩展信息。
+
+### photo_favorites
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | bigint pk | ID |
+| photo_id | fk photos | 图片；只允许对公开图片创建收藏 |
 | user_id | fk users | 用户 |
-| target_type | varchar | `photo`、`album`、`comment` |
-| target_id | bigint | 目标 ID |
+| created_at / updated_at | timestamps | 时间戳 |
 
-### favorites
+同一用户对同一图片只保留一条收藏记录；P1-4 不做收藏夹字段、不公开收藏数，`我的收藏` 和收藏夹后续在用户中心切片确认。
+
+### photo_likes
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | bigint pk | ID |
+| photo_id | fk photos | 图片；只允许对公开图片创建点赞 |
 | user_id | fk users | 用户 |
-| photo_id | fk photos | 图片 |
-| collection_name | varchar nullable | 收藏夹 |
+| created_at / updated_at | timestamps | 时间戳 |
+
+同一用户对同一图片只保留一条点赞记录；P1-4 在图片详情页公开点赞数和当前用户点赞状态。
+
+### photo_shares
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | bigint pk | ID |
+| photo_id | fk photos | 图片；只允许对公开图片记录分享 |
+| user_id | fk users nullable | 用户；游客分享不绑定用户 |
+| channel | varchar | 分享渠道；P1-14 支持 `copy_link`、`native_share`、`weibo`、`wechat_qr` |
+| page_url | varchar nullable | 分享时的图片详情页 URL |
+| ip_address | varchar nullable | 基础安全排查线索 |
+| user_agent | varchar nullable | 基础安全排查线索 |
+| created_at / updated_at | timestamps | 时间戳 |
+
+P1-14 已在 P1-4 基础上补齐分享弹层、微博跳转分享、微信二维码引导和四类分享渠道记录；仍不接微信 JS-SDK / 真实第三方分享 API，不生成分享海报，不生成短链接，不做分享返利。真实 API、海报、短链接和复杂治理后续独立确认；分享返利默认不做。
+P1-8 互动统计与排行榜不新增统计表，运行时从 `photo_likes`、`photo_favorites`、`photo_shares` 和 `comments` 聚合。公开排行榜只统计 `published` 图片，并排除 `restricted`、`remove_requested`；评论数只计算 `type = discussion` 且 `status = published` 的普通评论，不计待审核评论、纠错投稿、举报或后台备注。综合热度公式固定为：收藏 x4 + 点赞 x3 + 评论 x2 + 分享 x1。P1-8 不做浏览量、趋势图、人工排行榜管理、异常刷赞处理或第三方平台统计。
 
 ### reports
 
@@ -369,12 +507,102 @@ Phase 1 必须支持“批量上传到相册”。
 |---|---|---|
 | id | bigint pk | ID |
 | user_id | fk users | 举报人 |
-| target_type | varchar | 目标类型 |
+| target_type | varchar | 目标类型；P1-6 固定为 comment |
 | target_id | bigint | 目标 ID |
 | reason | varchar | 原因 |
-| status | enum | `pending`、`resolved`、`rejected` |
+| details | text nullable | 举报补充说明 |
+| status | enum | pending、resolved、rejected、closed |
+| handled_by | fk users nullable | 处理人 |
+| handled_at | timestamp nullable | 处理时间 |
+| internal_note | text nullable | 后台处理备注 |
+| risk_level | varchar | 风险等级 |
+| sensitive_word_hits | json nullable | 敏感词命中结果 |
+| created_at / updated_at | timestamps | 时间戳 |
 
-## 6. 赞助与支付
+P1-6 只支持评论举报目标；处理举报可以同步隐藏违规评论，但不物理删除评论或举报记录。
+
+### sensitive_words
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | bigint pk | ID |
+| word | varchar unique | 敏感词词条 |
+| severity | varchar | low、medium、high |
+| is_enabled | boolean | 是否启用 |
+| internal_note | text nullable | 后台备注 |
+| created_at / updated_at | timestamps | 时间戳 |
+
+P1-6 敏感词只做简单包含匹配和风险标记，不自动拒绝、不自动封禁、不对前台暴露具体词库。
+### notifications
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | uuid pk | 通知 ID，复用 Laravel database notifications 默认结构 |
+| type | varchar | 通知类名 |
+| notifiable_type | varchar | 通知接收模型类型；P1-7 固定为用户 |
+| notifiable_id | bigint | 通知接收用户 ID |
+| data | json | 通知安全摘要，包含 category、title、message、url、target_type、target_id |
+| read_at | timestamp nullable | 已读时间 |
+| created_at / updated_at | timestamps | 时间戳 |
+
+P1-7 已落地 notifications 表：评论 / 纠错审核结果、举报处理结果、账号封禁 / 解封提示和系统通知写入站内通知；P1-10 补充勋章成就通知 `badge`；前台只展示当前用户自己的通知安全摘要，不暴露后台审核备注、敏感词命中或内部处理记录。
+## 7. 勋章与成就
+
+P1-10 已落地勋章 / 成就基础闭环：只做基础规则、人工发放/撤销、用户佩戴和站内通知；不做积分商城、复杂任务系统、签到、公开勋章大厅、勋章排行榜、纪念日自动发放或运营活动配置。
+
+### badges
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | bigint pk | 勋章 ID |
+| name | varchar | 勋章名称 |
+| slug | varchar unique | 勋章标识 |
+| description | text nullable | 前台说明 |
+| icon_key | varchar nullable | 前端图标标识 |
+| color | varchar | 前台展示颜色 |
+| rule_type | varchar | `manual`、`registered`、`favorites_count`、`comments_count`、`supporter` |
+| rule_threshold | int nullable | 规则阈值，例如收藏数、评论数 |
+| is_active | boolean | 是否启用 |
+| sort_order | int | 排序 |
+| internal_note | text nullable | 后台内部备注 |
+| created_at / updated_at | timestamps | 时间戳 |
+
+### user_badges
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | bigint pk | 用户勋章记录 ID |
+| user_id | fk users | 用户 |
+| badge_id | fk badges | 勋章 |
+| source | varchar | `rule` 规则获得、`manual` 后台发放 |
+| status | varchar | `earned` 已获得、`revoked` 已撤销 |
+| equipped | boolean | 是否当前佩戴 |
+| awarded_by | fk users nullable | 后台发放或撤销操作人 |
+| awarded_at | timestamp nullable | 获得时间 |
+| revoked_at | timestamp nullable | 撤销时间 |
+| note | text nullable | 备注 |
+| created_at / updated_at | timestamps | 时间戳 |
+
+同一用户对同一勋章只保留一条记录；撤销后保留历史状态，不物理删除。P1-10 获得规则只读取用户注册、收藏数量、已发布普通评论数量和支持者身份，不读取待审核评论、纠错投稿、举报、后台备注或支付敏感信息。
+## 8. 赞助与支付
+
+P1-9 已落地赞助支持基础闭环：只做模拟支付和后台手动处理，不接真实微信 / 支付宝 API，不做真实回调验签、退款 API、发票、续费提醒、优惠码、自定义金额、付费内容墙或图片下载权益。本站赞助支持不是图片版权售卖。
+
+### sponsorship_plans
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | bigint pk | 方案 ID |
+| name | varchar | 方案名称 |
+| slug | varchar unique | 方案标识 |
+| amount_cents | int | 金额，单位分 |
+| duration_days | int nullable | 支持者身份有效天数；为空表示一次性支持 |
+| badge_level | varchar | 支持者徽章等级 |
+| benefits | text nullable | 前台展示说明，每行一条 |
+| is_active | boolean | 是否启用 |
+| sort_order | int | 排序 |
+| internal_note | text nullable | 后台内部备注 |
+| created_at / updated_at | timestamps | 时间戳 |
 
 ### sponsorship_orders
 
@@ -383,42 +611,91 @@ Phase 1 必须支持“批量上传到相册”。
 | id | bigint pk | 订单 ID |
 | order_no | varchar unique | 商户订单号 |
 | user_id | fk users | 用户 |
+| sponsorship_plan_id | fk sponsorship_plans nullable | 赞助方案，方案删除后保留订单 |
 | amount_cents | int | 金额，单位分 |
-| channel | enum | `wechat`、`alipay`、`manual` |
-| status | enum | `pending`、`paid`、`closed`、`refunded` |
+| channel | varchar | P1-9 使用 `mock`、`manual`；真实 `wechat`、`alipay` 后续单独接入 |
+| status | varchar | `pending`、`paid`、`failed`、`closed`、`refunded` |
 | transaction_id | varchar nullable | 第三方交易号 |
 | paid_at | datetime nullable | 支付时间 |
-| raw_callback_json | json nullable | 回调原文 |
+| closed_at | datetime nullable | 关闭时间 |
+| refunded_at | datetime nullable | 退款标记时间 |
+| raw_callback_json | json nullable | 模拟支付或后续回调原文 |
+| admin_note | text nullable | 后台内部备注 |
+| created_at / updated_at | timestamps | 时间戳 |
 
-## 7. 系统任务
+### payment_logs
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | bigint pk | 日志 ID |
+| sponsorship_order_id | fk sponsorship_orders nullable | 关联订单 |
+| channel | varchar | `mock`、`manual`，真实渠道后续扩展 |
+| event_type | varchar | 事件类型，如 `order_created`、`payment_success`、`order_closed`、`order_refunded` |
+| status | varchar | `received`、`processed`、`failed` |
+| payload | json nullable | 事件载荷 |
+| message | text nullable | 日志说明 |
+| created_at / updated_at | timestamps | 时间戳 |
+
+## 9. 系统任务
 
 ### processing_jobs
+
+P1-11 已落库。当前任务类型包括 metadata、hash、ocr_placeholder、datawanxiang_derivatives、similarity、ocr 和 labels；数据万象相关任务仅在 COS 存储和数据万象开关均开启时入队，OCR / labels 可由批量上传开关选择自动创建，也可由图片管理手动触发。失败任务可在后台异步重新入队或批量重试，上传批次通过图片关系汇总待处理、处理中和失败任务数量；生产 Worker 真实守护仍需按独立确认稿推进；图片质量评分不纳入项目。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | bigint pk | ID |
-| type | varchar | `exif`、`ocr`、`thumbnail`、`similar_search` |
-| photo_id | fk photos nullable | 图片 |
-| status | enum | `pending`、`running`、`done`、`failed` |
-| attempts | int | 尝试次数 |
-| error_message | text nullable | 错误 |
+| type | varchar index | metadata、hash、ocr_placeholder、datawanxiang_derivatives、similarity、ocr、labels |
+| photo_id | fk photos nullable | 关联图片 |
+| status | varchar index | `pending`、`running`、`done`、`failed` |
+| attempts | unsigned int | 尝试次数 |
+| payload | json nullable | 任务参数；P1-11 默认不需要填写 |
+| error_message | text nullable | 错误信息 |
+| processed_at | datetime nullable | 处理完成时间 |
+| created_at / updated_at | timestamps | 时间戳 |
 
-## 8. 索引建议
+## 10. 索引建议
 
-- `photos(review_status, event_date)`
+- `photos(status, event_date)`
 - `albums(slug)`
 - `album_category(album_id, category_id)` 唯一索引
 - `album_category(category_id, album_id)`
-- `album_photo(album_id, photo_id)` 唯一索引
-- `album_photo(photo_id, album_id)`
+- album_photo(album_id, photo_id) 唯一索引
+- album_photo(photo_id, album_id)
 - `photo_category(photo_id, category_id)` 唯一索引
 - `photo_category(category_id, photo_id)`
-- `photos(team_id, competition_id, event_date)`
-- `photos(sha256)`
+- `opponents(slug)` 唯一索引
+- `opponents(is_active, sort_order)`
+- `opponent_photo(opponent_id, photo_id)` 唯一索引
+- `opponent_photo(photo_id, opponent_id)`
+- photos(event_date)
 - `categories(parent_id, slug)` 唯一索引
 - `categories(parent_id, sort_order)`
+- `sources(is_enabled)`
+- `sources(published_at)`
 - `tags(name)`
-- `comments(photo_id, status, created_at)`
-- `likes(user_id, target_type, target_id)` 唯一索引
-- `favorites(user_id, photo_id)` 唯一索引
+- `settings(group, key)` 唯一索引
+- `comments(photo_id, type, status, created_at)`
+- `comments(user_id, type, status)`
+- `photo_favorites(photo_id, user_id)` 唯一索引
+- `photo_favorites(user_id, created_at)`
+- `photo_likes(photo_id, user_id)` 唯一索引
+- `photo_likes(user_id, created_at)`
+- `notifications(notifiable_type, notifiable_id)`
+- `badges(slug)` 唯一索引
+- `badges(is_active, sort_order)`
+- `user_badges(user_id, badge_id)` 唯一索引
+- `user_badges(user_id, equipped)`
+- `user_badges(user_id, status)`
+- `photo_shares(photo_id, created_at)`
+- `photo_shares(user_id, created_at)`
+- `photo_shares(channel)`
+- `sponsorship_plans(slug)` 唯一索引
+- `sponsorship_plans(is_active, sort_order)`
 - `sponsorship_orders(order_no)` 唯一索引
+- `sponsorship_orders(user_id, created_at)`
+- `sponsorship_orders(status, created_at)`
+- `payment_logs(sponsorship_order_id)`
+- `payment_logs(channel)`
+- `supporter_profiles(user_id)` 唯一索引
+- `supporter_profiles(show_publicly, last_supported_at)`

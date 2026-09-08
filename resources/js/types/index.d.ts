@@ -37,3 +37,23 @@ export interface User {
 }
 
 export type BreadcrumbItemType = BreadcrumbItem;
+
+export interface SeoPayload {
+    title: string;
+    description: string;
+    canonical_url: string;
+    robots: string | null;
+    og: {
+        title: string;
+        description: string;
+        type: string;
+        url: string;
+        image: string | null;
+    };
+    twitter: {
+        card: string;
+        title: string;
+        description: string;
+        image: string | null;
+    };
+}
