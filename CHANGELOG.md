@@ -3,6 +3,7 @@
 ## 2026-09-08
 
 ### Changed
+- 补齐前台账号与 Filament 后台权限衔接：服务端共享 canAccessAdmin，管理员 / 编辑从前台个人中心进入 /admin，普通用户不显示后台入口；前台桌面端和移动端均补充退出登录菜单，并增加角色边界回归测试。
 - 定位并修复生产后台登录循环：中文站名导致 Laravel 默认 Session Cookie 名称退化为 `-session`；固定默认 Cookie 为 `imgleomessi_session`，补充回归测试，并将 `APP_DEBUG=false`、生产会话配置、旧 Cookie 清理和 PHP-FPM 重启步骤写入部署文档。
 - 修复生产后台无默认管理员且生产授权被环境限制的问题：新增 users.role、app:create-admin 命令和 admin/editor 生产访问策略。
 - 排查生产后台登录后白屏问题：确认本地 Filament 已发现 18 个资源并生成 8 组菜单，补充生产部署中的 filament:upgrade、filament:cache-components、静态资产 200 检查、运行目录和浏览器强制刷新步骤；当前待在 VPS 执行刷新并完成后台验收。

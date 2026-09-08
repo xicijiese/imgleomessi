@@ -38,7 +38,31 @@ class PublicIdentityEntryTest extends TestCase
                 ->where('auth.user.id', $user->id)
                 ->where('auth.user.name', 'Lionel Fan')
                 ->where('auth.user.email', 'fan@example.com')
+                ->where('canAccessAdmin', false)
             );
+    }
+
+    public function test_only_active_admins_and_editors_expose_the_admin_entry(): void
+    {
+        foreach (['admin', 'editor'] as $role) {
+            $user = User::factory()->create([
+                'role' => $role,
+                'status' => 'active',
+            ]);
+
+            $this->actingAs($user)
+                ->get('/photos')
+                ->assertInertia(fn (Assert $page) => $page->where('canAccessAdmin', true));
+        }
+
+        $bannedAdmin = User::factory()->create([
+            'role' => 'admin',
+            'status' => 'banned',
+        ]);
+
+        $this->actingAs($bannedAdmin)
+            ->get('/photos')
+            ->assertInertia(fn (Assert $page) => $page->where('canAccessAdmin', false));
     }
 
     public function test_account_entry_routes_keep_expected_boundaries(): void

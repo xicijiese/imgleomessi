@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { logout } from '@/routes';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { Menu, Search, X } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -40,6 +41,7 @@ const searchSuggestions = ref<SearchSuggestionItem[]>([]);
 const suggestionsOpen = ref(false);
 const suggestionsLoading = ref(false);
 const mobileMenuOpen = ref(false);
+const accountMenuOpen = ref(false);
 const hasScrolled = ref(false);
 
 let suggestionsTimer: number | undefined;
@@ -75,18 +77,15 @@ const currentUser = computed(() => {
 
     return auth?.user ?? null;
 });
-const accountLinks = computed(() => {
-    if (currentUser.value) {
-        return [{ label: '个人中心', url: '/me' }];
-    }
-
-    return canRegister.value
+const canAccessAdmin = computed(() => Boolean(page.props.canAccessAdmin));
+const guestAccountLinks = computed(() =>
+    canRegister.value
         ? [
               { label: '登录', url: '/login' },
               { label: '注册', url: '/register' },
           ]
-        : [{ label: '登录', url: '/login' }];
-});
+        : [{ label: '登录', url: '/login' }],
+);
 const showSuggestionPanel = computed(
     () =>
         suggestionsOpen.value &&
@@ -111,10 +110,13 @@ const fetchSearchSuggestions = async () => {
     suggestionsLoading.value = true;
 
     try {
-        const response = await fetch(`/search/suggestions?${params.toString()}`, {
-            headers: { Accept: 'application/json' },
-            signal: controller.signal,
-        });
+        const response = await fetch(
+            `/search/suggestions?${params.toString()}`,
+            {
+                headers: { Accept: 'application/json' },
+                signal: controller.signal,
+            },
+        );
 
         if (!response.ok) {
             searchSuggestions.value = [];
@@ -187,6 +189,12 @@ const submitSearch = () => {
     suggestionsOpen.value = false;
     router.visit(query ? searchUrl(query) : '/search');
     mobileMenuOpen.value = false;
+};
+
+const handleLogout = () => {
+    accountMenuOpen.value = false;
+    mobileMenuOpen.value = false;
+    router.post(logout());
 };
 
 const onScroll = () => {
@@ -289,7 +297,10 @@ onUnmounted(() => {
                         class="absolute top-full right-0 left-0 mt-2 overflow-hidden rounded-sm border border-[#90b4ce]/30 bg-[#fffffe] text-[#094067] shadow-lg"
                     >
                         <p
-                            v-if="suggestionsLoading && searchSuggestions.length === 0"
+                            v-if="
+                                suggestionsLoading &&
+                                searchSuggestions.length === 0
+                            "
                             class="px-4 py-3 text-sm text-[#5f6c7b]"
                         >
                             正在加载建议
@@ -301,7 +312,9 @@ onUnmounted(() => {
                             class="block w-full px-4 py-3 text-left transition hover:bg-[#d8eefe] focus-visible:bg-[#d8eefe] focus-visible:outline-none"
                             @mousedown.prevent="chooseSuggestion(item)"
                         >
-                            <span class="block text-sm font-semibold">{{ item.label }}</span>
+                            <span class="block text-sm font-semibold">{{
+                                item.label
+                            }}</span>
                             <span
                                 v-if="item.description"
                                 class="mt-0.5 block text-xs text-[#5f6c7b]"
@@ -316,8 +329,51 @@ onUnmounted(() => {
                     class="flex shrink-0 items-center gap-2 text-sm font-medium"
                     aria-label="账号入口"
                 >
+                    <template v-if="currentUser">
+                        <div class="relative">
+                            <button
+                                type="button"
+                                class="rounded-sm px-3 py-2 whitespace-nowrap transition hover:bg-[#d8eefe] hover:text-[#094067] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#3da9fc]"
+                                :aria-expanded="accountMenuOpen"
+                                aria-haspopup="menu"
+                                @click="accountMenuOpen = !accountMenuOpen"
+                            >
+                                个人中心
+                            </button>
+                            <div
+                                v-if="accountMenuOpen"
+                                class="absolute top-full right-0 z-10 mt-2 min-w-40 rounded-sm border border-[#90b4ce]/30 bg-[#fffffe] p-1 text-[#094067] shadow-lg"
+                                role="menu"
+                            >
+                                <Link
+                                    href="/me"
+                                    class="block rounded-sm px-3 py-2 hover:bg-[#d8eefe]"
+                                    role="menuitem"
+                                    @click="accountMenuOpen = false"
+                                    >个人中心</Link
+                                >
+                                <Link
+                                    v-if="canAccessAdmin"
+                                    href="/admin"
+                                    class="block rounded-sm px-3 py-2 hover:bg-[#d8eefe]"
+                                    role="menuitem"
+                                    @click="accountMenuOpen = false"
+                                    >管理后台</Link
+                                >
+                                <button
+                                    type="button"
+                                    class="block w-full rounded-sm px-3 py-2 text-left hover:bg-[#d8eefe]"
+                                    role="menuitem"
+                                    @click="handleLogout"
+                                >
+                                    退出登录
+                                </button>
+                            </div>
+                        </div>
+                    </template>
                     <Link
-                        v-for="link in accountLinks"
+                        v-else
+                        v-for="link in guestAccountLinks"
                         :key="link.label"
                         :href="link.url"
                         class="rounded-sm px-3 py-2 whitespace-nowrap transition hover:bg-[#d8eefe] hover:text-[#094067] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#3da9fc]"
@@ -389,7 +445,9 @@ onUnmounted(() => {
                     class="absolute top-full right-0 left-0 z-10 mt-2 overflow-hidden rounded-sm border border-[#90b4ce]/30 bg-[#fffffe] text-[#094067] shadow-lg"
                 >
                     <p
-                        v-if="suggestionsLoading && searchSuggestions.length === 0"
+                        v-if="
+                            suggestionsLoading && searchSuggestions.length === 0
+                        "
                         class="px-4 py-3 text-sm text-[#5f6c7b]"
                     >
                         正在加载建议
@@ -401,7 +459,9 @@ onUnmounted(() => {
                         class="block w-full px-4 py-3 text-left transition hover:bg-[#d8eefe] focus-visible:bg-[#d8eefe] focus-visible:outline-none"
                         @mousedown.prevent="chooseSuggestion(item)"
                     >
-                        <span class="block text-sm font-semibold">{{ item.label }}</span>
+                        <span class="block text-sm font-semibold">{{
+                            item.label
+                        }}</span>
                         <span
                             v-if="item.description"
                             class="mt-0.5 block text-xs text-[#5f6c7b]"
@@ -425,11 +485,34 @@ onUnmounted(() => {
             </nav>
 
             <nav
-                class="mt-4 flex gap-2 border-t border-[#90b4ce]/35 pt-4"
+                class="mt-4 flex flex-wrap gap-2 border-t border-[#90b4ce]/35 pt-4"
                 aria-label="移动端账号入口"
             >
+                <template v-if="currentUser">
+                    <Link
+                        href="/me"
+                        class="rounded-sm border border-[#90b4ce]/60 px-4 py-2 text-sm font-semibold hover:border-[#3da9fc] hover:text-[#3da9fc]"
+                        @click="mobileMenuOpen = false"
+                        >个人中心</Link
+                    >
+                    <Link
+                        v-if="canAccessAdmin"
+                        href="/admin"
+                        class="rounded-sm border border-[#90b4ce]/60 px-4 py-2 text-sm font-semibold hover:border-[#3da9fc] hover:text-[#3da9fc]"
+                        @click="mobileMenuOpen = false"
+                        >管理后台</Link
+                    >
+                    <button
+                        type="button"
+                        class="rounded-sm border border-[#90b4ce]/60 px-4 py-2 text-sm font-semibold hover:border-[#3da9fc] hover:text-[#3da9fc]"
+                        @click="handleLogout"
+                    >
+                        退出登录
+                    </button>
+                </template>
                 <Link
-                    v-for="link in accountLinks"
+                    v-else
+                    v-for="link in guestAccountLinks"
                     :key="link.label"
                     :href="link.url"
                     class="rounded-sm border border-[#90b4ce]/60 px-4 py-2 text-sm font-semibold hover:border-[#3da9fc] hover:text-[#3da9fc]"

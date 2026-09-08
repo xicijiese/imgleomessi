@@ -23,6 +23,7 @@ export type AppPageProps<
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
+    canAccessAdmin: boolean;
     sidebarOpen: boolean;
 };
 

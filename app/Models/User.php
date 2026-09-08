@@ -110,6 +110,11 @@ class User extends Authenticatable implements FilamentUser
             return true;
         }
 
+        return $this->canAccessAdminPanel();
+    }
+
+    public function canAccessAdminPanel(): bool
+    {
         return in_array($this->role, ['admin', 'editor'], true)
             && $this->status === 'active'
             && ! $this->isBanned();

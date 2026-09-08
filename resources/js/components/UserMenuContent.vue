@@ -9,8 +9,9 @@ import {
 import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
 import type { User } from '@/types';
-import { Link, router } from '@inertiajs/vue3';
-import { LogOut, Settings } from 'lucide-vue-next';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { LayoutDashboard, LogOut, Settings, UserRound } from 'lucide-vue-next';
+import { computed } from 'vue';
 
 interface Props {
     user: User;
@@ -19,6 +20,9 @@ interface Props {
 const handleLogout = () => {
     router.flushAll();
 };
+
+const page = usePage();
+const canAccessAdmin = computed(() => Boolean(page.props.canAccessAdmin));
 
 defineProps<Props>();
 </script>
@@ -31,6 +35,18 @@ defineProps<Props>();
     </DropdownMenuLabel>
     <DropdownMenuSeparator />
     <DropdownMenuGroup>
+        <DropdownMenuItem :as-child="true">
+            <Link class="block w-full" href="/me" prefetch as="button">
+                <UserRound class="mr-2 h-4 w-4" />
+                个人中心
+            </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem v-if="canAccessAdmin" :as-child="true">
+            <Link class="block w-full" href="/admin" as="button">
+                <LayoutDashboard class="mr-2 h-4 w-4" />
+                管理后台
+            </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem :as-child="true">
             <Link class="block w-full" :href="edit()" prefetch as="button">
                 <Settings class="mr-2 h-4 w-4" />
