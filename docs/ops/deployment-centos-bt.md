@@ -2,9 +2,9 @@
 
 本文档是本项目进入真实生产环境前的准备、部署、验收、备份和回滚手册。
 
-本项目采用 Laravel 单体应用：Nginx 提供 Web 服务，PHP-FPM 运行 Laravel，MySQL 保存业务数据，Redis 提供缓存/会话/队列，Supervisor 守护 Laravel 队列 Worker，腾讯云 COS / 数据万象负责生产图片存储和图片处理。
+本项目采用 Laravel 单体应用：Nginx 提供 Web 服务，PHP-FPM 运行 Laravel，MySQL 保存业务数据，Redis 提供缓存/会话/队列，宝塔“进程守护管理器”（基于 Supervisor）守护 Laravel 队列 Worker，腾讯云 COS / 数据万象负责生产图片存储和图片处理。
 
-本文档只描述生产部署方案，不代表已经连接或修改真实 VPS。所有带有“确认后执行”的命令，都必须在备份、维护窗口和回滚方案准备完成后执行。
+本文档描述生产部署方案；本次已完成 GitHub 首次推送和 VPS 代码拉取演练，但不代表已经完成生产切流。所有带有“确认后执行”的命令，都必须在备份、维护窗口和回滚方案准备完成后执行。
 
 ## 0. 当前生产部署阻塞项
 
@@ -31,7 +31,7 @@
 | PHP 进程守护 | 宝塔“进程守护管理器” 3.0.6，基于 Supervisor |
 | 数据库管理 | phpMyAdmin 5.2 |
 
-当前仍需处理或确认：PHP CLI 的 OPcache/zip 重复加载警告、PHP-FPM、站点权限、宝塔进程守护管理器中的 Worker 配置和宝塔计划任务；Composer 2.10.3 已升级完成。
+已完成：PHP CLI 的 OPcache/zip 重复加载警告清理、putenv 恢复、Composer 2.10.3 升级和 GitHub 代码仓库准备；仍需在正式上线前确认 PHP-FPM、站点权限、宝塔进程守护管理器中的 Worker 配置、计划任务、生产数据库和域名 HTTPS。
 
 ## 2. 本项目需要的基础环境
 
@@ -138,7 +138,7 @@ crontab -l
 
 ### 4.1 当前检测到的 PHP CLI / Composer 问题
 
-当前检测结果显示 `putenv()` 已恢复，Composer 已升级到 2.10.3，但 OPcache 和 zip 仍存在重复加载警告。先清理 PHP CLI 重复配置，再继续生产部署。
+本节记录本次 VPS 实测排障过程，供下次部署复用。当前结果已经收口：`putenv()` 已恢复，Composer 已升级到 2.10.3，OPcache 和 zip 的重复加载已清理；`php -m` 只显示一个 `Zend OPcache` 和一个 `zip`，`composer diagnose` 已通过。若新环境再次出现警告，按下面的分支定位，不要凭截图只修改 `php-cli.ini` 中看到的那一行。
 
 在宝塔 PHP 8.3 的配置中处理：
 
@@ -205,8 +205,8 @@ composer diagnose
 
 在宝塔中创建站点并绑定正式域名：
 
-- 网站目录：`/www/wwwroot/messiimage`
-- 运行目录：`/www/wwwroot/messiimage/public`
+- 网站目录：`/www/wwwroot/img.leomessi.cn`
+- 运行目录：`/www/wwwroot/img.leomessi.cn/public`
 - PHP 版本：PHP 8.3
 - 运行用户：`www`
 - 伪静态：使用 Laravel/Nginx 重写规则
@@ -326,19 +326,46 @@ SSH 公钥和私钥口令不是同一个东西，必须严格区分：
 - 如果创建密钥时没有设置口令，在该提示处直接按回车；输入口令时终端不会显示字符；
 - 如果忘记私钥口令，无法从 `id_rsa` 恢复，只能生成新密钥并把新的 `.pub` 公钥添加到 GitHub。
 
-正确流程如下：
+推荐为本仓库单独使用一把 Windows SSH 密钥，避免和其他 GitHub 仓库混用。若该文件已经存在，不要重复生成：
 
-```powershell
-# 只把下面的公钥文本复制到 GitHub 网页，不要复制到 SSH 口令提示处
-Get-Content $env:USERPROFILE\.ssh\id_rsa.pub | Set-Clipboard
+~~~powershell
+ssh-keygen -t ed25519 -C "imgleomessi GitHub push" -f $env:USERPROFILE\.ssh\github_imgleomessi_deploy
+~~~
 
-# 测试时只输入创建 id_rsa 时设置的私钥口令；如果没有口令，直接按回车
-ssh -o IdentitiesOnly=yes -i $env:USERPROFILE\.ssh\id_rsa -T git@github.com
-```
+如果生成时看到：
+
+~~~text
+Enter passphrase (empty for no passphrase):
+~~~
+
+想使用无口令部署时直接按回车；随后 `Enter same passphrase again:` 再按一次回车。若设置了口令，之后 `Enter passphrase for key ...` 要输入的是这把私钥创建时设置的口令，终端不会显示字符。公钥文本绝对不能粘贴到这个口令提示处。
+
+只复制公钥到 GitHub：
+
+~~~powershell
+Get-Content $env:USERPROFILE\.ssh\github_imgleomessi_deploy.pub | Set-Clipboard
+~~~
+
+将剪贴板内容粘贴到仓库 `Settings → Deploy keys → Add deploy key`。本机需要推送代码时勾选 `Allow write access`；私钥文件 `github_imgleomessi_deploy` 只保留在本机，不能上传、发送或复制到 VPS。
+
+然后用同一把私钥验证：
+
+~~~powershell
+ssh -o IdentitiesOnly=yes -i $env:USERPROFILE\.ssh\github_imgleomessi_deploy -T git@github.com
+~~~
+
+如果当前电脑已有其他密钥，也必须用 `-i` 指定本仓库密钥。首次连接出现主机指纹确认时输入小写 `yes`；这不是私钥口令。认证成功会显示 GitHub 已认证但不提供 Shell。
+
+将该密钥绑定到本地仓库，确保后续 `git push` 使用的是刚才验证过的密钥：
+
+~~~powershell
+git config --local core.sshCommand "ssh -o IdentitiesOnly=yes -i C:/Users/xicij/.ssh/github_imgleomessi_deploy"
+~~~
+
 
 测试成功后，才执行 `git push`。首次上传完成后，确认 GitHub 页面能够看到 `artisan`、`composer.json`、`package.json` 和 `public` 目录，再进行 VPS 部署。
 
-### 7.1 VPS 克隆到宝塔网站项目目录
+### 7.1 VPS 获取代码并接入宝塔网站项目目录
 
 项目目录与网站对外目录必须区分：
 
@@ -424,52 +451,89 @@ Are you sure you want to continue connecting (yes/no/[fingerprint])?
 Hi xicijiese! You've successfully authenticated, but GitHub does not provide shell access.
 ```
 
-**第 5 步：下载项目**
+**第 5 步：将项目接入宝塔网站根目录**
 
-认证成功后，才执行 `git clone`。如果目标目录为空：
+先进入已经由宝塔创建的网站根目录：
 
-```bash
-git clone --branch main --single-branch \
-  git@github.com:xicijiese/imgleomessi.git \
-  /www/wwwroot/img.leomessi.cn
-```
-
-
-
-如果目标目录中只有宝塔为 SSL / Let's Encrypt 创建的 `.well-known` 目录，不要删除或移动它。Git 不支持直接克隆到非空目录，应先克隆到临时目录，再把项目文件合并到网站根目录：
-
-```bash
-release=/www/wwwroot/img.leomessi.cn.release
-
-# 临时目录已存在时先停止，避免覆盖未知文件
-if [ -e "$release" ]; then
-  echo "临时发布目录已存在，请先检查：$release"
-  exit 1
-fi
-
-git clone --branch main --single-branch \
-  git@github.com:xicijiese/imgleomessi.git \
-  "$release"
-
-# 将项目文件（包含 .git）复制到网站根目录；已有 .well-known 会保留
-cp -a "$release"/. /www/wwwroot/img.leomessi.cn/
-
-test -f /www/wwwroot/img.leomessi.cn/artisan
-test -d /www/wwwroot/img.leomessi.cn/.git
-```
-
-如果目录中除 `.well-known` 外还有未知业务文件，不要继续覆盖；先逐项核对并把确认无用的默认文件单独移到带时间戳的备份目录。不要整体移动或删除包含 `.well-known` 的网站根目录。
-
-如果目录已经是本项目的 Git 工作区，则不要重复克隆：
-
-```bash
+~~~bash
 cd /www/wwwroot/img.leomessi.cn
+~~~
+
+先查看根目录现有内容：
+
+~~~bash
+find /www/wwwroot/img.leomessi.cn -mindepth 1 -maxdepth 1 -printf '%f\n'
+~~~
+
+如果现有内容只有宝塔 SSL / Let's Encrypt 使用的 `.well-known` 目录，可以直接在这个目录初始化 Git。`.well-known` 必须保留，不能删除、移动或整体替换网站根目录。
+
+不要对包含 `.well-known` 的目录执行 `git clone`：Git 会因为目标目录非空而报 `destination path ... already exists and is not an empty directory`。本次实测采用下面的直接接入方式：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+
+git init
+
+# 宝塔创建的目录可能归 www 所有，而当前命令由 root 执行；
+# 遇到 dubious ownership 时，先把项目目录加入当前用户的安全目录列表。
+git config --global --add safe.directory /www/wwwroot/img.leomessi.cn
+
+export GIT_SSH_COMMAND='ssh -o IdentitiesOnly=yes -i /root/.ssh/imgleomessi_vps_deploy'
+
+git remote add origin git@github.com:xicijiese/imgleomessi.git
+git fetch origin main
+git checkout -b main --track origin/main
+~~~
+
+`git remote add origin` 如果提示 `remote origin already exists`，不要重复添加；先检查并继续：
+
+~~~bash
 git remote -v
-git fetch origin
+git fetch origin main
 git checkout main
 git pull --ff-only origin main
-```
+~~~
 
+这里不会删除 `.well-known`，也不会把它上传到 GitHub。拉取完成后验证：
+
+~~~bash
+test -d /www/wwwroot/img.leomessi.cn/.well-known \
+  && echo ".well-known 保留正常"
+
+test -f /www/wwwroot/img.leomessi.cn/artisan \
+  && echo "Laravel 项目已拉取"
+
+git status --short
+~~~
+
+首次接入时如果只看到：
+
+~~~text
+?? .well-known/
+~~~
+
+这是正常结果：该目录是 VPS 上的 SSL 文件，不属于 GitHub 项目。为了避免每次 `git status` 都显示它，可以只在当前 VPS 工作区的本地排除文件中记录：
+
+~~~bash
+printf '/.well-known/\n' >> .git/info/exclude
+git status --short
+~~~
+
+`.git/info/exclude` 不会修改项目源码，也不会提交到 GitHub；不要把 `.well-known` 加入全局 `.gitignore`，以免影响其他环境。
+
+如果目录中除 `.well-known` 外还有未知业务文件，不要继续覆盖；先逐项核对并把确认无用的默认文件单独移到带时间戳的备份目录。不要整体移动、删除或重建包含 `.well-known` 的网站根目录。
+
+后续发布新版本时，在项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+export GIT_SSH_COMMAND='ssh -o IdentitiesOnly=yes -i /root/.ssh/imgleomessi_vps_deploy'
+git fetch origin main
+git checkout main
+git pull --ff-only origin main
+~~~
+
+以上命令只允许从 GitHub 拉取代码，不允许在 VPS 上直接 `git push`。VPS 的 Deploy Key 不勾选 `Allow write access`。
 生产环境不要上传以下内容：
 
 - `.env` 的开发版本；
@@ -486,7 +550,7 @@ chmod -R ug+rwX /www/wwwroot/img.leomessi.cn/storage \
   /www/wwwroot/img.leomessi.cn/bootstrap/cache
 ```
 
-不要使用 `chmod -R 777`。克隆完成后，在宝塔网站设置中将网站目录改为 `/www/wwwroot/img.leomessi.cn/public`，不能直接指向项目根目录。
+不要使用 `chmod -R 777`。代码获取完成后，在宝塔网站设置中将网站目录改为 `/www/wwwroot/img.leomessi.cn/public`，不能直接指向项目根目录。
 ## 8. 安装 Laravel 依赖
 
 确认当前目录包含 `composer.json` 和 `composer.lock` 后执行：
@@ -585,7 +649,7 @@ npm run build
 npm run build:ssr
 ```
 
-## 12. 配置 Supervisor 队列 Worker
+## 12. 配置宝塔进程守护管理器队列 Worker
 
 项目的图片派生图、OCR、智能标签、哈希和相似候选等耗时任务必须异步执行，不能依赖用户请求同步完成。
 
@@ -593,8 +657,8 @@ npm run build:ssr
 
 ```ini
 [program:messiimage-worker]
-command=/www/server/php/83/bin/php /www/wwwroot/messiimage/artisan queue:work redis --queue=high,default,low --sleep=3 --tries=3 --timeout=120 --max-time=3600
-directory=/www/wwwroot/messiimage
+command=/www/server/php/83/bin/php /www/wwwroot/img.leomessi.cn/artisan queue:work redis --queue=high,default,low --sleep=3 --tries=3 --timeout=120 --max-time=3600
+directory=/www/wwwroot/img.leomessi.cn
 autostart=true
 autorestart=true
 stopasgroup=true
@@ -639,7 +703,7 @@ php artisan queue:retry all
 在宝塔“计划任务”中新增一条每分钟执行的 Shell 任务，不要直接编辑宝塔生成的系统 crontab：
 
 ```cron
-* * * * * cd /www/wwwroot/messiimage && /www/server/php/83/bin/php artisan schedule:run >> /dev/null 2>&1
+* * * * * cd /www/wwwroot/img.leomessi.cn && /www/server/php/83/bin/php artisan schedule:run >> /dev/null 2>&1
 ```
 
 PHP 路径必须替换为 VPS 上实际的 PHP 8.3 CLI 路径。
@@ -684,7 +748,7 @@ PHP 路径必须替换为 VPS 上实际的 PHP 8.3 CLI 路径。
 - [ ] Nginx 根目录是 `public/`。
 - [ ] HTTPS 正常，HTTP 自动跳转 HTTPS。
 - [ ] PHP-FPM 使用 PHP 8.3。
-- [ ] PHP CLI 与 Supervisor 使用同一套 PHP 8.3。
+- [ ] PHP CLI 与宝塔进程守护管理器 Worker 使用同一套 PHP 8.3。
 - [ ] PHP 扩展完整。
 - [ ] 上传限制满足实际批量上传需求。
 - [ ] `storage` 和 `bootstrap/cache` 可由 `www` 写入。
@@ -696,7 +760,7 @@ PHP 路径必须替换为 VPS 上实际的 PHP 8.3 CLI 路径。
 - [ ] `CACHE_STORE=redis`。
 - [ ] `SESSION_DRIVER=redis`。
 - [ ] `QUEUE_CONNECTION=redis`。
-- [ ] Supervisor Worker 状态为运行中。
+- [ ] 宝塔进程守护管理器 Worker 状态为运行中。
 - [ ] Worker 日志没有持续报错。
 - [ ] `php artisan queue:failed` 无异常积压。
 
@@ -734,7 +798,7 @@ PHP 路径必须替换为 VPS 上实际的 PHP 8.3 CLI 路径。
 7. 执行 `php artisan migrate --force`，仅在迁移已审核并完成备份后执行。
 8. 执行 `php artisan optimize:clear`、`config:cache`、`route:cache`、`view:cache`。
 9. 重启 PHP-FPM。
-10. 重启或平滑重启 Supervisor Worker。
+10. 重启或平滑重启 宝塔进程守护管理器 Worker。
 11. 执行后台上线前检查和 COS / 数据万象检测。
 12. 手动检查首页、页脚、图库、搜索、登录、后台、图片上传和图片处理。
 13. 确认无误后退出维护模式并开放正式流量。
@@ -749,7 +813,7 @@ PHP 路径必须替换为 VPS 上实际的 PHP 8.3 CLI 路径。
 4. 停止当前 Worker，恢复上一份代码和 `public/build`。
 5. 恢复上一份 `.env`，不得重新生成 `APP_KEY`。
 6. 重建 Composer 和 Laravel 缓存。
-7. 重启 PHP-FPM 和 Supervisor Worker。
+7. 重启 PHP-FPM 和 宝塔进程守护管理器 Worker。
 8. 先检查首页、登录、后台和已有图片，再退出维护模式。
 9. 只有在确认数据库迁移导致不可逆问题时，才根据备份执行数据库恢复；数据库恢复前必须再次确认影响范围。
 
@@ -791,16 +855,19 @@ tail -n 200 /www/wwwlogs/messiimage-worker.log
 
 截至本手册整理时，以下操作仍未执行：
 
-- 未连接真实生产 VPS。
 - 未创建或迁移生产数据库。
-- 本地项目已配置 GitHub `origin`，但尚未完成首次提交和推送。
-- 尚未在 VPS 克隆生产代码。
 - 未配置真实生产 `.env`。
-- 未配置 Supervisor Laravel Worker。
+- 未在宝塔“进程守护管理器”中配置并启动 Laravel Worker。
 - 未执行生产数据库迁移。
 - 未配置正式域名和 HTTPS。
 - 未执行历史图片迁移。
 - 未配置 CDN 防盗链。
 - 未进行正式生产流量切换。
+
+已完成但不等于生产上线的准备工作：
+
+- 本地项目已完成首次 Git 提交并推送到 GitHub `main`。
+- VPS 已使用独立只读 Deploy Key 将 GitHub `main` 拉取到 `/www/wwwroot/img.leomessi.cn`，并保留 SSL `.well-known`。
+- PHP CLI 重复扩展、Composer `putenv()` 和 Composer 版本问题已完成修复与验证。
 
 这些操作必须在生产后台访问策略、管理员账号、备份和回滚方案确认后，按本手册逐项执行。

@@ -4,9 +4,11 @@
 
 ### Changed
 
-- 完成本地 GitHub 上传准备：确认项目位于 `main` 分支，配置 `origin` 为 `https://github.com/xicijiese/imgleomessi.git`；`.env` 未被 Git 跟踪，`.env.example` 不含真实凭证。
-- 更新生产部署教程：补充 GitHub 首次提交 / 推送、VPS 克隆、已有宝塔目录备份和 `/www/wwwroot/img.leomessi.cn/public` 运行目录规则；当前尚未提交、推送或连接 VPS。
-- 根据 VPS 实测结果校正 PHP CLI 状态：`php -m` 无重复加载警告，Composer 2.10.3 与 `composer diagnose` 检查通过。
+- 完成本地 GitHub 首次上传：项目位于 `main` 分支，`origin` 使用 SSH 地址 `git@github.com:xicijiese/imgleomessi.git`；`.env` 未被 Git 跟踪，`.env.example` 不含真实凭证。
+- 完成 VPS 代码获取演练：VPS 使用独立的只读 Deploy Key，通过 `ssh-keygen` 生成密钥、公钥添加到 GitHub Deploy keys，私钥只留在 VPS；首次连接的主机指纹提示输入 `yes`，不是输入公钥或私钥口令。
+- 修正宝塔非空网站根目录的部署流程：不删除 SSL 的 `.well-known`，不再要求空目录克隆；在 `/www/wwwroot/img.leomessi.cn` 直接执行 `git init`、`safe.directory`、`git fetch origin main` 和 `git checkout -b main --track origin/main`，并用 `.git/info/exclude` 保留本地 SSL 目录不参与提交。
+- 更新生产部署教程：补充 GitHub 首次提交 / 推送、VPS Deploy Key、非空根目录 Git 接入、`safe.directory`、`.well-known` 保留、`/www/wwwroot/img.leomessi.cn/public` 运行目录和后续 `git pull --ff-only` 流程。
+- 根据 VPS 实测结果校正 PHP CLI 状态：恢复 `putenv()`，清理 OPcache / zip 重复加载，Composer 升级到 2.10.3；`php -m` 与 `composer diagnose` 检查通过。
 ## 2026-09-07
 
 ### Changed
@@ -14,7 +16,7 @@
 - 校正文档状态：主进度和页面地图统一进入“真实生产部署前确认与演练”，同步修正任务区和数据万象真实验证的过期表述；未执行生产切换。
 - 修复首页 Welcome.vue 未导入 PublicFooter 导致页脚不渲染的问题；首页专项测试、前端类型检查、生产构建和全量测试均已通过。
 - 完成 Ubuntu 24.04 + 宝塔生产部署前准备与上线教程，补充 PHP 扩展、Composer、Node.js、Supervisor、Cron、Redis 队列、COS 配置、备份、回滚和验收清单；标注当前 production 后台访问策略和测试 Seeder 的上线阻塞风险，未执行真实生产部署。
-- 根据 VPS 实测结果校正部署教程：宝塔进程守护管理器 3.0.6 统一负责 Worker，不再要求系统 supervisorctl；确认 Redis 可通过 redis-cli 访问；putenv 已恢复，Composer 已升级到 2.10.3，OPcache/zip 重复加载警告仍待清理。
+- 根据 VPS 实测结果校正部署教程：宝塔进程守护管理器 3.0.6 统一负责 Worker，不再要求系统 supervisorctl；确认 Redis 可通过 redis-cli 访问；putenv 已恢复，Composer 已升级到 2.10.3，OPcache/zip 重复加载警告当时仍待清理，已在 2026-09-08 的 VPS 实测中完成清理并验证。
 - 根据截图补充 PHP CLI 重复扩展的分支修复：区分 PHP 内置模块与其他配置文件来源，避免误删唯一有效的 zip 或 OPcache 配置。
 - 完成生产队列上线准备代码：失败任务支持后台异步重新入队和批量重试，处理任务对所有类型使用有限队列重试；数据库/Redis 队列默认 `retry_after=150` 秒，与 120 秒任务超时保持安全间隔。
 - 上传批次列表新增待处理、处理中和失败任务统计；修复处理任务与图片联表统计时 `status` 字段歧义导致的后台 500。
