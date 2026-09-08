@@ -738,7 +738,7 @@ cd /www/wwwroot/img.leomessi.cn
 
 ~~~bash
 cd /www/wwwroot/img.leomessi.cn
-/www/server/php/83/bin/php artisan tinker --execute="dump(config('database.default')); dump(config('database.connections.mysql.host')); dump(config('database.connections.mysql.database')); dump(config('database.connections.mysql.username'));"
+/www/server/php/83/bin/php -r 'require "/www/wwwroot/img.leomessi.cn/vendor/autoload.php"; $app=require "/www/wwwroot/img.leomessi.cn/bootstrap/app.php"; $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap(); foreach (["default" => config("database.default"), "host" => config("database.connections.mysql.host"), "database" => config("database.connections.mysql.database"), "username" => config("database.connections.mysql.username")] as $key => $value) echo $key."=".$value.PHP_EOL;'
 ~~~
 
 预期结果应类似：
@@ -775,7 +775,7 @@ cd /www/wwwroot/img.leomessi.cn
 chown www:www .env
 chmod 640 .env
 /www/server/php/83/bin/php artisan optimize:clear
-/www/server/php/83/bin/php artisan tinker --execute="dump(config('database.default')); dump(config('database.connections.mysql.database')); dump(config('database.connections.mysql.username'));"
+/www/server/php/83/bin/php -r 'require "/www/wwwroot/img.leomessi.cn/vendor/autoload.php"; $app=require "/www/wwwroot/img.leomessi.cn/bootstrap/app.php"; $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap(); foreach (["default" => config("database.default"), "database" => config("database.connections.mysql.database"), "username" => config("database.connections.mysql.username")] as $key => $value) echo $key."=".$value.PHP_EOL;'
 ~~~
 
 如果 Laravel 仍然读取旧值，再检查当前 SSH 会话是否设置了会覆盖 .env 的 DB 环境变量：
@@ -1297,11 +1297,16 @@ grep -E '^(DB_CONNECTION|DB_HOST|DB_PORT|DB_DATABASE|DB_USERNAME)=' .env
 
 如果新浏览器输入正确账号密码后页面刷新并再次显示登录页，说明登录后的 Laravel session cookie 没有被下一次请求带回，优先检查生产 .env 的会话配置，而不是重新创建管理员账号。
 
-先在项目根目录查看 Laravel 实际读取的安全配置；不会打印 APP_KEY 内容、数据库密码或 Redis 密码：
+先在项目根目录查看 Laravel 实际读取的会话配置。不要使用 Tinker：如果 PHP CLI 的 disable_functions 包含 shell_exec，Tinker 依赖的 PsySH 会直接报错；这不代表网站运行失败，也不需要为了 Tinker 恢复 shell_exec。
+
+以下命令不依赖 Tinker，也不会打印 APP_KEY、数据库密码或 Redis 密码：
 
 ~~~bash
 cd /www/wwwroot/img.leomessi.cn
-/www/server/php/83/bin/php artisan tinker --execute='echo "app_env=".config("app.env").PHP_EOL; echo "app_url=".config("app.url").PHP_EOL; echo "app_key_length=".strlen((string) config("app.key")).PHP_EOL; echo "session_driver=".config("session.driver").PHP_EOL; echo "session_cookie=".config("session.cookie").PHP_EOL; echo "session_domain=".(config("session.domain") ?? "null").PHP_EOL; echo "session_secure=".(config("session.secure") ? "true" : "false").PHP_EOL; echo "session_same_site=".config("session.same_site").PHP_EOL; echo "redis_host=".config("database.redis.default.host").PHP_EOL;'
+/www/server/php/83/bin/php artisan about --only=Environment
+/www/server/php/83/bin/php artisan config:show session
+grep -E '^(APP_URL|SESSION_DRIVER|SESSION_COOKIE|SESSION_DOMAIN|SESSION_PATH|SESSION_SECURE_COOKIE|SESSION_HTTP_ONLY|SESSION_SAME_SITE|SESSION_PARTITIONED_COOKIE|REDIS_HOST|REDIS_PORT)=' .env
+awk -F= '/^APP_KEY=/{print "APP_KEY_length=" length($2)}' .env
 ~~~
 
 生产单域名建议在 .env 中明确使用以下配置。域名必须替换成实际访问后台的正式 HTTPS 域名：
@@ -1329,11 +1334,11 @@ chmod 640 .env
 /www/server/php/83/bin/php artisan config:cache
 ~~~
 
-确认 PHP 端实际可以写入和读取 Redis；此命令只写入一个临时测试键并立即删除，不会显示 Redis 密码：
+确认 PHP 端实际可以写入和读取 Redis；以下命令不依赖 Tinker，只写入一个临时测试键并立即删除：
 
 ~~~bash
 cd /www/wwwroot/img.leomessi.cn
-/www/server/php/83/bin/php artisan tinker --execute='$r=app("redis")->connection(); $k="imgleomessi:deploy-session-check"; $r->set($k,"ok","EX",60); echo $r->get($k).PHP_EOL; $r->del($k);'
+/www/server/php/83/bin/php -r 'require "/www/wwwroot/img.leomessi.cn/vendor/autoload.php"; $app=require "/www/wwwroot/img.leomessi.cn/bootstrap/app.php"; $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap(); $cache=$app->make("cache")->store("redis"); $key="imgleomessi:deploy-session-check"; $cache->put($key,"ok",60); echo $cache->get($key).PHP_EOL; $cache->forget($key);'
 ~~~
 
 预期输出 ok。如果此命令报 Redis 认证、连接或权限错误，先修复 PHP 的 Redis 连接配置；redis-cli ping 只能证明命令行客户端能连通，不能完全证明 Laravel PHP 端的 Redis 配置正确。
@@ -1348,6 +1353,8 @@ curl -skD - -o /dev/null https://img.leomessi.cn/admin/login | grep -iE '^(HTTP/
 应看到 Set-Cookie，并且 cookie 名称是 imgleomessi_session。如果没有 Set-Cookie，检查 PHP-FPM 的 .env 缓存、站点 HTTPS 配置和 Laravel 日志。
 
 完成服务器修复后，清除旧浏览器中本站的 Cookie，或直接使用新的无痕窗口重新登录。不要只按 Ctrl+F5：Ctrl+F5 不会删除旧 session cookie。
+
+### 登录后台后白屏、没有菜单或设置入口
 
 如果 /admin/login 登录成功，顶部能看到站点名称和头像，但主体区域全白、没有左侧菜单或“系统设置”，这通常不是账号密码问题：登录授权已经通过，优先按“Filament 资产未发布、组件缓存过期、站点运行目录不正确”排查。
 
