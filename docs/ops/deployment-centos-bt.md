@@ -1010,7 +1010,7 @@ redis-cli ping
 3. 在项目根目录确认 APP_KEY，仅首次初始化时生成。
 4. 在项目根目录安装 Composer 依赖。
 5. 在项目根目录执行数据库迁移。
-6. 在项目根目录执行 npm ci 和 npm run build。
+6. 如果首次部署或本次发布包含前端代码变化，按第 11 节在项目根目录执行 npm ci 和 npm run build；不需要执行两遍。
 7. 在项目根目录重建 Laravel 缓存。
 8. 在宝塔网站设置中把运行目录设置为 /www/wwwroot/img.leomessi.cn/public。
 9. 在宝塔进程守护管理器中创建并启动 Worker。
