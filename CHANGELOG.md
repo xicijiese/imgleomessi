@@ -13,6 +13,7 @@
 
 ### Changed
 
+- VPS 生产环境已完成数据库配置校验和首次迁移：Laravel 实际读取 mysql、127.0.0.1、img_leomessi_cn 和 img_leomessi_cn，migrate --force 全部通过；未执行生产 Seeder。
 - 记录生产数据库初始化排障：CLI 的 mysql 连接成功但 Artisan 使用 root@localhost、数据库 laravel 和空密码时，先验证 Laravel 实际解析配置，再清理配置缓存并检查 .env 与当前 SSH 环境变量。
 - 进一步细化 VPS 首次生产部署：明确 Composer、生产 .env、APP_KEY、数据库迁移、Laravel 缓存、npm 构建、宝塔 Worker、计划任务、COS 配置和验收命令均在何处执行；所有 Artisan、Composer、npm 命令均明确进入 /www/wwwroot/img.leomessi.cn 项目根目录。
 - 校正文档状态：主进度和页面地图统一进入“真实生产部署前确认与演练”，同步修正任务区和数据万象真实验证的过期表述；未执行生产切换。
