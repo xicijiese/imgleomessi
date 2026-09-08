@@ -346,29 +346,95 @@ ssh -o IdentitiesOnly=yes -i $env:USERPROFILE\.ssh\id_rsa -T git@github.com
 Laravel 项目目录：/www/wwwroot/img.leomessi.cn
 宝塔网站运行目录：/www/wwwroot/img.leomessi.cn/public
 ```
-如果 GitHub 仓库为私有仓库，VPS 需要单独生成自己的只读 Deploy Key，不能复制本机的私钥到 VPS：
+如果 GitHub 仓库为私有仓库，必须在 VPS 上单独生成一把只读 Deploy Key。不要把 Windows 本机的私钥复制到 VPS，也不要把 VPS 私钥复制到 GitHub 网页。下面每一步的输入和复制位置必须按说明执行。
+
+**第 1 步：在 VPS 生成密钥**
 
 ```bash
-ssh-keygen -t ed25519 -C "imgleomessi VPS read-only deploy" \
+sudo -i
+mkdir -p /root/.ssh
+chmod 700 /root/.ssh
+ssh-keygen -t ed25519 \
+  -C "imgleomessi VPS read-only deploy" \
   -f /root/.ssh/imgleomessi_vps_deploy
+```
+
+执行后会出现两个提示：
+
+```text
+Enter passphrase (empty for no passphrase):
+```
+
+这里**不要输入任何内容，直接按回车**。
+
+接着会出现：
+
+```text
+Enter same passphrase again:
+```
+
+这里也**不要输入任何内容，直接再按一次回车**。
+
+这一步不会让你复制公钥，也不会让你输入 GitHub 密码。按回车后会生成两个文件：
+
+```text
+/root/.ssh/imgleomessi_vps_deploy       # 私钥，只留在 VPS，绝对不要复制或发送
+/root/.ssh/imgleomessi_vps_deploy.pub   # 公钥，稍后复制到 GitHub
+```
+
+**第 2 步：只查看公钥**
+
+```bash
 cat /root/.ssh/imgleomessi_vps_deploy.pub
 ```
 
-将输出的公钥添加到 GitHub 仓库 `Settings → Deploy keys`，不要勾选 `Allow write access`。然后在 VPS 上验证：
+终端会输出一整行，以 `ssh-ed25519` 开头，以 `imgleomessi VPS read-only deploy` 结尾。只复制这一整行公钥，复制到 GitHub 网页；不要复制 `/root/.ssh/imgleomessi_vps_deploy` 私钥文件的内容。
+
+**第 3 步：把公钥添加到 GitHub**
+
+打开仓库的 `Settings → Deploy keys → Add deploy key`，填写：
+
+```text
+Title: imgleomessi VPS read-only deploy
+Key: 粘贴刚才 cat 命令输出的整行 ssh-ed25519 公钥
+```
+
+不要勾选 `Allow write access`，然后点击 `Add key`。这里不需要把任何内容再粘回 VPS 命令行。
+
+**第 4 步：在 VPS 验证 GitHub 认证**
 
 ```bash
+chmod 600 /root/.ssh/imgleomessi_vps_deploy
+chmod 644 /root/.ssh/imgleomessi_vps_deploy.pub
 ssh -o IdentitiesOnly=yes \
   -i /root/.ssh/imgleomessi_vps_deploy -T git@github.com
 ```
 
-SSH 登录 VPS 后，先检查目录。目录为空时执行：
+第一次连接如果出现：
+
+```text
+Are you sure you want to continue connecting (yes/no/[fingerprint])?
+```
+
+这里输入小写 `yes` 并回车。这是确认 GitHub 主机指纹，不是私钥口令。
+
+认证成功会看到类似：
+
+```text
+Hi xicijiese! You've successfully authenticated, but GitHub does not provide shell access.
+```
+
+**第 5 步：下载项目**
+
+认证成功后，才执行 `git clone`。如果目标目录为空：
 
 ```bash
-sudo -i
 git clone --branch main --single-branch \
   git@github.com:xicijiese/imgleomessi.git \
   /www/wwwroot/img.leomessi.cn
 ```
+
+
 
 如果目录中只有宝塔默认页面或其他未知文件，不要直接删除；先保留备份，再克隆：
 
