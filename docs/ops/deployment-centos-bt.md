@@ -674,14 +674,97 @@ grep '^APP_KEY=' .env
 
 ## 10. 初始化生产数据库和 Laravel 缓存
 
-以下命令全部在项目根目录执行。执行迁移前必须确认生产数据库已创建、.env 连接信息正确，并且已有数据库已完成备份：
+### 10.1 先验证 Laravel 实际读取到的数据库配置
+
+在执行 migrate:status 之前，必须先确认 Laravel 读取的不是默认配置。以下命令全部在项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+pwd
+test -f .env && echo ".env 存在"
+grep -E '^(DB_CONNECTION|DB_HOST|DB_PORT|DB_DATABASE|DB_USERNAME)=' .env
+if grep -q '^DB_PASSWORD=.' .env; then echo "DB_PASSWORD 已填写"; else echo "DB_PASSWORD 为空"; fi
+test -f bootstrap/cache/config.php && echo "发现配置缓存：需要清理"
+~~~
+
+上面的检查不会打印数据库密码。然后清理可能残留的默认配置缓存：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan optimize:clear
+~~~
+
+再让 Laravel 输出实际生效的连接类型、主机、数据库名和用户名。此命令不会输出密码：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan tinker --execute="dump(config('database.default')); dump(config('database.connections.mysql.host')); dump(config('database.connections.mysql.database')); dump(config('database.connections.mysql.username'));"
+~~~
+
+预期结果应类似：
+
+~~~text
+"mysql"
+"127.0.0.1"
+"img_leomessi_cn"
+"img_leomessi_cn"
+~~~
+
+如果仍然显示 root、laravel 或其他默认值，不要继续执行迁移。回到项目根目录编辑 .env：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+nano .env
+~~~
+
+确认以下五项使用真实生产值，等号两边不要多写空格，方括号不要保留：
+
+~~~dotenv
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=img_leomessi_cn
+DB_USERNAME=img_leomessi_cn
+DB_PASSWORD=这里填写数据库真实密码
+~~~
+
+保存后再次清理缓存并验证：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+chown www:www .env
+chmod 640 .env
+/www/server/php/83/bin/php artisan optimize:clear
+/www/server/php/83/bin/php artisan tinker --execute="dump(config('database.default')); dump(config('database.connections.mysql.database')); dump(config('database.connections.mysql.username'));"
+~~~
+
+如果 Laravel 仍然读取旧值，再检查当前 SSH 会话是否设置了会覆盖 .env 的 DB 环境变量：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+for key in DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD; do
+  if printenv "$key" >/dev/null; then echo "$key 已存在于当前 SSH 环境"; fi
+done
+~~~
+
+如果发现这些变量来自当前 SSH 会话，先清除它们，再清理 Laravel 配置缓存：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+unset DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD
+/www/server/php/83/bin/php artisan optimize:clear
+~~~
+
+只有 Laravel 实际读取到正确的数据库名和用户名后，才继续执行迁移：
 
 ~~~bash
 cd /www/wwwroot/img.leomessi.cn
 /www/server/php/83/bin/php artisan migrate:status
 ~~~
 
-确认能够连接数据库后，执行生产迁移：
+### 10.2 执行生产迁移和缓存构建
+
+以下命令全部在项目根目录执行。执行迁移前必须确认生产数据库已创建、.env 连接信息正确，并且已有数据库已完成备份：
 
 ~~~bash
 cd /www/wwwroot/img.leomessi.cn
@@ -708,7 +791,6 @@ cd /www/wwwroot/img.leomessi.cn
 不要执行完整 db:seed --force。当前完整 Seeder 会创建开发测试账号。生产环境如需初始化固定分类、赞助方案或勋章，必须逐个审核对应 Seeder 后再单独执行。
 
 如果迁移报错，不要反复执行 migrate --force；先保留错误信息，检查 .env、数据库权限、PHP 扩展和迁移状态。
-
 ## 11. 构建前端资源
 
 前端构建也必须在项目根目录执行：
