@@ -274,7 +274,7 @@ DB_PASSWORD=[项目数据库密码]
 本项目当前 GitHub 远程仓库为：
 
 ```text
-https://github.com/xicijiese/imgleomessi.git
+git@github.com:xicijiese/imgleomessi.git
 ```
 
 项目本地首次上传时，在 Windows PowerShell 的项目目录执行。先检查状态，不要跳过敏感文件检查：
@@ -290,13 +290,13 @@ git ls-files .env
 `.env`、真实腾讯云密钥、数据库密码、生产图片、`vendor`、`node_modules` 和日志不得提交。确认 `.env` 没有被跟踪后，再配置远程地址：
 
 ```powershell
-git remote add origin https://github.com/xicijiese/imgleomessi.git
+git remote add origin git@github.com:xicijiese/imgleomessi.git
 ```
 
 如果 `origin` 已存在但地址不正确，使用：
 
 ```powershell
-git remote set-url origin https://github.com/xicijiese/imgleomessi.git
+git remote set-url origin git@github.com:xicijiese/imgleomessi.git
 ```
 
 首次提交前必须先审查暂存内容：
@@ -316,7 +316,27 @@ git branch -M main
 git push -u origin main
 ```
 
-GitHub 私有仓库推荐使用 SSH Deploy Key；不要把 Token 写进 Git URL、命令历史或项目文件。首次上传完成后，确认 GitHub 页面能够看到 `artisan`、`composer.json`、`package.json` 和 `public` 目录，再进行 VPS 部署。
+GitHub 私有仓库推荐使用 SSH Deploy Key；不要把 Token 写进 Git URL、命令历史或项目文件。
+
+SSH 公钥和私钥口令不是同一个东西，必须严格区分：
+
+- `id_rsa.pub` 是公钥，只能复制到 GitHub 的“Settings → SSH and GPG keys → New SSH key”页面；
+- `id_rsa` 是本机私钥，不能复制到 GitHub，也不能发给任何人；
+- `Enter passphrase for key ...` 要求输入的是创建 `id_rsa` 时设置的私钥口令，不是公钥文本、GitHub 密码或 VPS 密码；
+- 如果创建密钥时没有设置口令，在该提示处直接按回车；输入口令时终端不会显示字符；
+- 如果忘记私钥口令，无法从 `id_rsa` 恢复，只能生成新密钥并把新的 `.pub` 公钥添加到 GitHub。
+
+正确流程如下：
+
+```powershell
+# 只把下面的公钥文本复制到 GitHub 网页，不要复制到 SSH 口令提示处
+Get-Content $env:USERPROFILE\.ssh\id_rsa.pub | Set-Clipboard
+
+# 测试时只输入创建 id_rsa 时设置的私钥口令；如果没有口令，直接按回车
+ssh -o IdentitiesOnly=yes -i $env:USERPROFILE\.ssh\id_rsa -T git@github.com
+```
+
+测试成功后，才执行 `git push`。首次上传完成后，确认 GitHub 页面能够看到 `artisan`、`composer.json`、`package.json` 和 `public` 目录，再进行 VPS 部署。
 
 ### 7.1 VPS 克隆到宝塔网站项目目录
 
@@ -326,13 +346,27 @@ GitHub 私有仓库推荐使用 SSH Deploy Key；不要把 Token 写进 Git URL�
 Laravel 项目目录：/www/wwwroot/img.leomessi.cn
 宝塔网站运行目录：/www/wwwroot/img.leomessi.cn/public
 ```
+如果 GitHub 仓库为私有仓库，VPS 需要单独生成自己的只读 Deploy Key，不能复制本机的私钥到 VPS：
+
+```bash
+ssh-keygen -t ed25519 -C "imgleomessi VPS read-only deploy" \
+  -f /root/.ssh/imgleomessi_vps_deploy
+cat /root/.ssh/imgleomessi_vps_deploy.pub
+```
+
+将输出的公钥添加到 GitHub 仓库 `Settings → Deploy keys`，不要勾选 `Allow write access`。然后在 VPS 上验证：
+
+```bash
+ssh -o IdentitiesOnly=yes \
+  -i /root/.ssh/imgleomessi_vps_deploy -T git@github.com
+```
 
 SSH 登录 VPS 后，先检查目录。目录为空时执行：
 
 ```bash
 sudo -i
 git clone --branch main --single-branch \
-  https://github.com/xicijiese/imgleomessi.git \
+  git@github.com:xicijiese/imgleomessi.git \
   /www/wwwroot/img.leomessi.cn
 ```
 
@@ -344,7 +378,7 @@ mv /www/wwwroot/img.leomessi.cn \
   /www/wwwroot/img.leomessi.cn.bt-backup.$stamp
 
 git clone --branch main --single-branch \
-  https://github.com/xicijiese/imgleomessi.git \
+  git@github.com:xicijiese/imgleomessi.git \
   /www/wwwroot/img.leomessi.cn
 ```
 
