@@ -436,17 +436,29 @@ git clone --branch main --single-branch \
 
 
 
-如果目录中只有宝塔默认页面或其他未知文件，不要直接删除；先保留备份，再克隆：
+如果目标目录中只有宝塔为 SSL / Let's Encrypt 创建的 `.well-known` 目录，不要删除或移动它。Git 不支持直接克隆到非空目录，应先克隆到临时目录，再把项目文件合并到网站根目录：
 
 ```bash
-stamp=$(date +%Y%m%d%H%M%S)
-mv /www/wwwroot/img.leomessi.cn \
-  /www/wwwroot/img.leomessi.cn.bt-backup.$stamp
+release=/www/wwwroot/img.leomessi.cn.release
+
+# 临时目录已存在时先停止，避免覆盖未知文件
+if [ -e "$release" ]; then
+  echo "临时发布目录已存在，请先检查：$release"
+  exit 1
+fi
 
 git clone --branch main --single-branch \
   git@github.com:xicijiese/imgleomessi.git \
-  /www/wwwroot/img.leomessi.cn
+  "$release"
+
+# 将项目文件（包含 .git）复制到网站根目录；已有 .well-known 会保留
+cp -a "$release"/. /www/wwwroot/img.leomessi.cn/
+
+test -f /www/wwwroot/img.leomessi.cn/artisan
+test -d /www/wwwroot/img.leomessi.cn/.git
 ```
+
+如果目录中除 `.well-known` 外还有未知业务文件，不要继续覆盖；先逐项核对并把确认无用的默认文件单独移到带时间戳的备份目录。不要整体移动或删除包含 `.well-known` 的网站根目录。
 
 如果目录已经是本项目的 Git 工作区，则不要重复克隆：
 
