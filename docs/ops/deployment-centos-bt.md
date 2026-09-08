@@ -1354,6 +1354,52 @@ curl -skD - -o /dev/null https://img.leomessi.cn/admin/login | grep -iE '^(HTTP/
 
 完成服务器修复后，清除旧浏览器中本站的 Cookie，或直接使用新的无痕窗口重新登录。不要只按 Ctrl+F5：Ctrl+F5 不会删除旧 session cookie。
 
+本次生产环境已确认的根因与修复：
+
+- `config:show session` 曾显示 `cookie = -session`；项目 `APP_NAME` 是中文“梅西图片档案库”，Laravel 原默认值通过 `Str::slug(APP_NAME)` 生成 Cookie 名称，中文被转为空字符串后就得到 `-session`。
+- Redis PHP 写入/读取已经验证正常，因此本次登录循环不是 Redis 服务不可用，也不是管理员账号不存在。
+- 项目代码已将 Cookie 默认值固定为 ASCII 名 `imgleomessi_session`，`.env.example` 也已补齐同名配置；VPS 拉取包含该修复的版本后，即使漏填 `SESSION_COOKIE` 也不会再回退为 `-session`。
+- 生产环境的 `APP_DEBUG` 必须为 `false`。`APP_DEBUG=true` 会在异常页面暴露路径、配置错误和堆栈信息，不能作为登录问题的解决办法。
+
+VPS 拉取包含该修复的版本后，以下命令全部在项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+export GIT_SSH_COMMAND='ssh -o IdentitiesOnly=yes -i /root/.ssh/imgleomessi_vps_deploy'
+git pull --ff-only origin main
+~~~
+
+然后编辑 `/www/wwwroot/img.leomessi.cn/.env`，确认或补充以下生产配置；数据库、COS、Redis 等其他已有配置不要覆盖：
+
+~~~dotenv
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://img.leomessi.cn
+
+SESSION_DRIVER=redis
+SESSION_COOKIE=imgleomessi_session
+SESSION_DOMAIN=null
+SESSION_PATH=/
+SESSION_SECURE_COOKIE=true
+SESSION_HTTP_ONLY=true
+SESSION_SAME_SITE=lax
+SESSION_PARTITIONED_COOKIE=false
+~~~
+
+保存 `.env` 后仍在项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+chown www:www .env
+chmod 640 .env
+/www/server/php/83/bin/php artisan optimize:clear
+/www/server/php/83/bin/php artisan config:cache
+/www/server/php/83/bin/php artisan about --only=Environment
+/www/server/php/83/bin/php artisan config:show session
+~~~
+
+预期结果：Environment 为 `production`、Debug Mode 为 `DISABLED`，Session Cookie 为 `imgleomessi_session`，Session Driver 为 `redis`。之后在宝塔重启本网站 PHP 8.3 PHP-FPM，并清除浏览器本站 Cookie；旧的 `-session` Cookie 不会自动变成新名称，必须删除或使用无痕窗口重新登录。
+
 ### 登录后台后白屏、没有菜单或设置入口
 
 如果 /admin/login 登录成功，顶部能看到站点名称和头像，但主体区域全白、没有左侧菜单或“系统设置”，这通常不是账号密码问题：登录授权已经通过，优先按“Filament 资产未发布、组件缓存过期、站点运行目录不正确”排查。

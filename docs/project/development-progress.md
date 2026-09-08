@@ -292,7 +292,7 @@
 - 真实微信支付 / 支付宝、支付回调验签、退款、发票、续费提醒、优惠码、自定义金额和支付对账。
 - VIP 复杂权益、后台会员权益管理、公开勋章大厅、纪念日自动发放、运营活动配置。
 - 微信小程序只读版、内容合规策略、小程序登录与账号绑定。
-- 真实生产部署实施：连接生产 Supervisor、执行队列重启/回滚演练、配置外部告警、定时任务、备份、日志与错误监控；部署前准备与上线教程已整理，生产后台管理员创建和访问策略已完成；静态 Filament 资产已确认返回 200，但生产后台仍存在登录后白屏和新浏览器登录循环，当前优先排查 Redis session、session cookie、APP_KEY 和 HTTPS 会话配置；Worker 配置、历史图片迁移、防盗链和正式切流仍未执行；生产数据库首次迁移已完成。
+- 真实生产部署实施：连接生产 Supervisor、执行队列重启/回滚演练、配置外部告警、定时任务、备份、日志与错误监控；部署前准备与上线教程已整理，生产后台管理员创建和访问策略已完成；静态 Filament 资产已确认返回 200，但生产后台登录循环根因已定位：中文 APP_NAME 通过 Laravel 默认规则生成了错误的 `-session` Cookie 名称；Redis PHP 读写和 Filament 静态资产已验证正常，项目已固定 ASCII Cookie 默认值并补充回归测试，待 VPS 拉取新版本、设置 `APP_DEBUG=false` / `SESSION_COOKIE=imgleomessi_session` 后完成线上验收；Worker 配置、历史图片迁移、防盗链和正式切流仍未执行；生产数据库首次迁移已完成。
 
 永久不做 / 默认禁做：
 
@@ -665,6 +665,11 @@ P1 当前已完成基础切片到 P1-15，时间轴浏览、球队 / 生涯阶�
 - 完成后台简体中文配置。
 - 完成本地 SQLite 数据库初始化和基础验证。
 
+### 2026-09-08（生产后台登录循环根因定位与修复）
+
+- 根据 VPS 实际 `artisan about`、`config:show session` 和 Redis PHP 读写结果确认：Redis、APP_KEY 和 Filament 静态资产不是本次登录循环主因；生产实际 Cookie 名称为 `-session`。
+- 定位原因：中文 `APP_NAME` 经 Laravel 默认 `Str::slug()` 转换为空字符串，默认 Cookie 名称退化为 `-session`；生产 `APP_DEBUG` 同时仍为 `true`，存在异常信息泄露风险。
+- 修复代码默认 Cookie 为 `imgleomessi_session`，补充 `.env.example`、生产部署/升级教程和 `SessionConfigurationTest`；待 VPS 拉取新版本并清理旧 Cookie 后完成线上验收。
 ### 2026-09-08（生产部署 Worker 验证）
 
 - 完成生产 PHP CLI 队列 Worker 排障：确认 pcntl 扩展已加载，但 pcntl_signal、pcntl_alarm、pcntl_signal_dispatch 被 php-cli.ini 的 disable_functions 禁用；移除相关 CLI 禁用项后验证函数可用。
