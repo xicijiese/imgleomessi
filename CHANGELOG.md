@@ -5,6 +5,7 @@
 ### Changed
 - 修复生产后台无默认管理员且生产授权被环境限制的问题：新增 users.role、app:create-admin 命令和 admin/editor 生产访问策略。
 - 排查生产后台登录后白屏问题：确认本地 Filament 已发现 18 个资源并生成 8 组菜单，补充生产部署中的 filament:upgrade、filament:cache-components、静态资产 200 检查、运行目录和浏览器强制刷新步骤；当前待在 VPS 执行刷新并完成后台验收。
+- 根据生产静态资产 200 但新浏览器登录循环的反馈，补充 Redis session、session cookie、APP_KEY、HTTPS Cookie 属性检查，以及 GitHub 到 VPS 的后续版本升级发布教程；当前不重复创建管理员账号，先完成会话链路排障。
 - 补充生产 Nginx Laravel 伪静态规则和其他前台路由 404 的排查步骤；确认代码路由无需修改。
 - 记录生产 Laravel Worker 的 pcntl 函数禁用、前台启动验证、宝塔 Supervisor 绝对路径和日志配置修复；Worker 已验证正常启动。
 

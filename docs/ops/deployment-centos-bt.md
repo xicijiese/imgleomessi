@@ -664,6 +664,14 @@ DB_USERNAME=[项目数据库用户]
 DB_PASSWORD=[项目数据库密码]
 
 SESSION_DRIVER=redis
+SESSION_COOKIE=imgleomessi_session
+SESSION_DOMAIN=null
+SESSION_PATH=/
+SESSION_SECURE_COOKIE=true
+SESSION_HTTP_ONLY=true
+SESSION_SAME_SITE=lax
+SESSION_PARTITIONED_COOKIE=false
+
 CACHE_STORE=redis
 QUEUE_CONNECTION=redis
 
@@ -1115,7 +1123,21 @@ redis-cli ping
 11. 登录生产后台，配置 COS / 数据万象并执行检测。
 12. 完成命令行和网页验收后，再开放正式流量。
 
-后续代码发布时，在项目根目录执行：
+### 16.1 后续版本从 GitHub 发布到 VPS
+
+适用场景：本地已经完成 Bug 修复或功能开发，代码已经提交并推送到 GitHub 的 main 分支；生产环境只负责拉取已确认的代码，不在 VPS 直接修改业务代码。
+
+所有 SSH 命令都在 VPS 项目根目录执行。每次重新登录 SSH 后先执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+pwd
+git status --short
+~~~
+
+如果 git status --short 显示生产环境手工修改过受 Git 跟踪的代码，先停止发布并备份差异；不要使用 git reset --hard 覆盖它们。well-known 等未跟踪的 SSL 文件只要不与仓库文件冲突，可以保留。
+
+拉取 GitHub 最新 main：
 
 ~~~bash
 cd /www/wwwroot/img.leomessi.cn
@@ -1123,20 +1145,79 @@ export GIT_SSH_COMMAND='ssh -o IdentitiesOnly=yes -i /root/.ssh/imgleomessi_vps_
 git fetch origin main
 git checkout main
 git pull --ff-only origin main
+git log -1 --oneline
+~~~
 
+命令含义：
+
+- git fetch origin main：只从 GitHub 获取 main 的最新提交，不修改当前网站文件；
+- git checkout main：确认当前部署分支是 main；
+- git pull --ff-only origin main：只允许无分叉的快进更新，不会自动制造合并提交；
+- git log -1 --oneline：确认 VPS 当前实际使用的提交号。
+
+安装 PHP 依赖并发布 Filament 后台资产：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
 composer install --no-dev --prefer-dist --optimize-autoloader
+/www/server/php/83/bin/php artisan filament:upgrade
+/www/server/php/83/bin/php artisan filament:cache-components
+~~~
+
+composer install 按 composer.lock 安装生产依赖；不要执行 composer update。filament:upgrade 重新发布后台 CSS/JavaScript 并清理 Filament 资产相关缓存；filament:cache-components 重新发现后台资源、页面和 Livewire 组件。
+
+如果本次发布修改了 resources/js、resources/css、vite.config.ts、package.json 或 package-lock.json，再在项目根目录执行前端构建；只修改 PHP、迁移、后台资源类或文档时不需要重复构建：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
 npm ci
 npm run build
+test -f public/build/manifest.json && echo "Inertia 前端构建完成"
+~~~
 
+执行数据库迁移和应用缓存刷新：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
 /www/server/php/83/bin/php artisan migrate --force
 /www/server/php/83/bin/php artisan optimize:clear
+/www/server/php/83/bin/php artisan filament:upgrade
+/www/server/php/83/bin/php artisan filament:cache-components
 /www/server/php/83/bin/php artisan config:cache
 /www/server/php/83/bin/php artisan route:cache
 /www/server/php/83/bin/php artisan view:cache
-/www/server/php/83/bin/php artisan queue:restart
 ~~~
 
-然后在宝塔面板重启 PHP-FPM，在进程守护管理器中重启 Worker，并回到项目根目录执行 queue:failed 和日志检查。
+migrate --force 只执行尚未执行的迁移；optimize:clear 清除旧配置、路由、视图和框架缓存；后三条 cache 命令重新生成生产缓存。Filament 两条命令要在 config:cache、route:cache 和 view:cache 之前执行。
+
+发布完成后重启 PHP-FPM、队列 Worker 和队列状态：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan queue:restart
+/www/server/php/83/bin/php artisan queue:failed
+git status --short
+~~~
+
+然后在宝塔面板中：
+
+1. 重启本项目使用的 PHP 8.3 PHP-FPM；
+2. 在“进程守护管理器”中重启本项目 Worker；
+3. 确认 Worker 日志没有启动错误；
+4. 浏览器使用 Ctrl+F5 后检查首页、登录、/admin、/admin/photos 和系统设置；
+5. 如果登录状态异常，先按“后台登录循环”章节检查会话，不要重复创建管理员。
+
+生产发布禁止执行：
+
+~~~bash
+git reset --hard
+git clean -fd
+composer update
+php artisan db:seed --force
+php artisan key:generate --force
+~~~
+
+前两条可能删除生产文件，composer update 会改变锁定依赖，完整 Seeder 会创建开发测试数据，重新生成 APP_KEY 会使现有会话和加密数据失效。
 ## 17. 回滚方案
 
 如果新版本出现严重错误：
@@ -1212,7 +1293,61 @@ grep -E '^(DB_CONNECTION|DB_HOST|DB_PORT|DB_DATABASE|DB_USERNAME)=' .env
 
 不要在命令行参数中直接写数据库密码。检查宝塔数据库用户名权限、数据库名称、MySQL 是否运行和 .env 是否保存成功。
 
-### 登录后台后白屏、没有菜单或设置入口
+### 后台登录循环：输入账号密码后又回到登录页
+
+如果新浏览器输入正确账号密码后页面刷新并再次显示登录页，说明登录后的 Laravel session cookie 没有被下一次请求带回，优先检查生产 .env 的会话配置，而不是重新创建管理员账号。
+
+先在项目根目录查看 Laravel 实际读取的安全配置；不会打印 APP_KEY 内容、数据库密码或 Redis 密码：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan tinker --execute='echo "app_env=".config("app.env").PHP_EOL; echo "app_url=".config("app.url").PHP_EOL; echo "app_key_length=".strlen((string) config("app.key")).PHP_EOL; echo "session_driver=".config("session.driver").PHP_EOL; echo "session_cookie=".config("session.cookie").PHP_EOL; echo "session_domain=".(config("session.domain") ?? "null").PHP_EOL; echo "session_secure=".(config("session.secure") ? "true" : "false").PHP_EOL; echo "session_same_site=".config("session.same_site").PHP_EOL; echo "redis_host=".config("database.redis.default.host").PHP_EOL;'
+~~~
+
+生产单域名建议在 .env 中明确使用以下配置。域名必须替换成实际访问后台的正式 HTTPS 域名：
+
+~~~dotenv
+APP_URL=https://img.leomessi.cn
+
+SESSION_DRIVER=redis
+SESSION_COOKIE=imgleomessi_session
+SESSION_DOMAIN=null
+SESSION_PATH=/
+SESSION_SECURE_COOKIE=true
+SESSION_HTTP_ONLY=true
+SESSION_SAME_SITE=lax
+SESSION_PARTITIONED_COOKIE=false
+~~~
+
+修改 .env 后，在项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+chown www:www .env
+chmod 640 .env
+/www/server/php/83/bin/php artisan optimize:clear
+/www/server/php/83/bin/php artisan config:cache
+~~~
+
+确认 PHP 端实际可以写入和读取 Redis；此命令只写入一个临时测试键并立即删除，不会显示 Redis 密码：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan tinker --execute='$r=app("redis")->connection(); $k="imgleomessi:deploy-session-check"; $r->set($k,"ok","EX",60); echo $r->get($k).PHP_EOL; $r->del($k);'
+~~~
+
+预期输出 ok。如果此命令报 Redis 认证、连接或权限错误，先修复 PHP 的 Redis 连接配置；redis-cli ping 只能证明命令行客户端能连通，不能完全证明 Laravel PHP 端的 Redis 配置正确。
+
+再检查 HTTPS 响应是否下发 session cookie：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+curl -skD - -o /dev/null https://img.leomessi.cn/admin/login | grep -iE '^(HTTP/|set-cookie:|location:)'
+~~~
+
+应看到 Set-Cookie，并且 cookie 名称是 imgleomessi_session。如果没有 Set-Cookie，检查 PHP-FPM 的 .env 缓存、站点 HTTPS 配置和 Laravel 日志。
+
+完成服务器修复后，清除旧浏览器中本站的 Cookie，或直接使用新的无痕窗口重新登录。不要只按 Ctrl+F5：Ctrl+F5 不会删除旧 session cookie。
 
 如果 /admin/login 登录成功，顶部能看到站点名称和头像，但主体区域全白、没有左侧菜单或“系统设置”，这通常不是账号密码问题：登录授权已经通过，优先按“Filament 资产未发布、组件缓存过期、站点运行目录不正确”排查。
 
