@@ -671,3 +671,8 @@ P1 当前已完成基础切片到 P1-15，时间轴浏览、球队 / 生涯阶�
 - 完成 Laravel Redis Worker 前台启动验证；前台命令保持运行后使用 Ctrl+C 停止属于正常操作。
 - 完成宝塔进程守护管理器配置修正：Worker 的 PHP CLI 和 Artisan 均使用绝对路径，避免 ENOENT 与 child process was not spawned；Worker 已正常启动。
 - 部署文档已补充 PHP CLI 函数检查、前台验证、宝塔绝对路径、日志查看和常见故障处理。
+
+### 2026-09-08（生产站点路由回退配置）
+
+- 定位生产首页可访问但其他前台路由返回 Nginx 404 的原因：项目 Laravel 路由存在，站点缺少 Nginx 的 Laravel try_files 回退规则。
+- 部署文档已补充宝塔运行目录、Laravel Nginx 伪静态规则、Nginx 重载和 curl 验证步骤。

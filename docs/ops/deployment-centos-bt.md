@@ -210,6 +210,25 @@ composer diagnose
 - PHP 版本：PHP 8.3
 - 运行用户：`www`
 - 伪静态：使用 Laravel/Nginx 重写规则
+### 5.1.1 Laravel Nginx 伪静态规则
+
+宝塔站点的运行目录必须是：
+
+~~~text
+/www/wwwroot/img.leomessi.cn/public
+~~~
+
+然后在宝塔网站的“伪静态”配置中填写以下 Laravel Nginx 规则。这里只填写 location 规则，不要额外包裹 server、http 或 events 配置：
+
+~~~nginx
+location / {
+    try_files $uri $uri/ /index.php?$query_string;
+}
+~~~
+
+这条规则的作用是：先读取真实存在的静态文件；如果请求路径不是静态文件，就统一交给 Laravel 的 public/index.php 处理。缺少这条规则时，首页可能可以打开，但 /photos、/albums、/topics、/search 等 Laravel 路由会被 Nginx 直接返回 404。
+
+保存伪静态配置后，在宝塔面板重载 Nginx。不要把这段规则写入项目根目录的 .htaccess；当前生产环境使用 Nginx，不依赖 Apache 的 .htaccess。
 - HTTPS：申请并启用正式证书
 
 Laravel 的网站根目录必须是 `public/`，不能直接指向项目根目录，否则可能暴露 `.env`、`composer.json` 和应用源码。
@@ -1167,6 +1186,28 @@ npm run build
 
 然后确认宝塔网站运行目录是 /www/wwwroot/img.leomessi.cn/public，不是项目根目录。
 
+### 其他前台路由返回 Nginx 404
+
+如果首页可以打开，但其他前台路径显示 Nginx 的 404 Not Found，按以下顺序排查：
+
+1. 在宝塔网站设置中确认运行目录是 /www/wwwroot/img.leomessi.cn/public，不是项目根目录。
+2. 确认伪静态中存在 try_files $uri $uri/ /index.php?$query_string;。
+3. 保存配置后重载 Nginx。
+4. 在项目根目录检查 Laravel 路由：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan route:list
+~~~
+
+5. 用浏览器或 curl 验证 /photos、/albums、/search 等路径。若仍是 Nginx 404，查看宝塔站点配置和 Nginx 错误日志；若变成 Laravel 页面或 Laravel 500，则说明伪静态已经生效，应继续按 Laravel 日志排查。
+
+~~~bash
+curl -I https://img.leomessi.cn/photos
+curl -I https://img.leomessi.cn/albums
+~~~
+
+预期不再返回 Nginx 404；具体状态码可能是 200、302 或需要登录时的其他 Laravel 响应。
 ### 图片上传成功但首页不显示
 
 检查图片是否已发布、是否完成必选分类、展示图/缩略图是否生成、COS 对象是否存在、CDN 域名是否正确，以及前台是否读取了当前配置的存储地址。需要查看 Laravel 日志时，在项目根目录执行：

@@ -3,6 +3,7 @@
 ## 2026-09-08
 
 ### Changed
+- 补充生产 Nginx Laravel 伪静态规则和其他前台路由 404 的排查步骤；确认代码路由无需修改。
 - 记录生产 Laravel Worker 的 pcntl 函数禁用、前台启动验证、宝塔 Supervisor 绝对路径和日志配置修复；Worker 已验证正常启动。
 
 - 完成本地 GitHub 首次上传：项目位于 `main` 分支，`origin` 使用 SSH 地址 `git@github.com:xicijiese/imgleomessi.git`；`.env` 未被 Git 跟踪，`.env.example` 不含真实凭证。
