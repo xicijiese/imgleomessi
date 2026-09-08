@@ -598,6 +598,19 @@ cd /www/wwwroot/img.leomessi.cn
 test -f vendor/autoload.php && echo "Composer 依赖安装完成"
 ~~~
 
+Filament 后台使用独立的 CSS、JavaScript 和 Livewire 组件注册缓存。Composer 安装完成后，必须仍在项目根目录执行一次资产发布和组件缓存；这不是 Inertia 前端的 npm run build，不能用前端构建替代：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan filament:upgrade
+/www/server/php/83/bin/php artisan filament:cache-components
+test -f public/css/filament/filament/app.css && echo "Filament CSS 已发布"
+test -f public/js/filament/filament/app.js && echo "Filament JS 已发布"
+test -f bootstrap/cache/filament/panels/admin.php && echo "Filament 组件缓存已生成"
+~~~
+
+filament:upgrade 会重新发布后台资产并清理 Filament 的配置、路由和视图缓存；filament:cache-components 会根据当前代码重新发现后台资源、页面和 Livewire 组件。每次拉取包含 Filament 后台代码或 Composer 依赖的更新后，都要重新执行这两条命令。
+
 如果 composer 不在 PATH 中，应使用宝塔 Composer 的实际绝对路径。不要在生产环境执行 composer update，生产环境必须依据 composer.lock 安装依赖。
 
 ## 9. 创建生产 .env
@@ -802,10 +815,14 @@ cd /www/wwwroot/img.leomessi.cn
 ~~~bash
 cd /www/wwwroot/img.leomessi.cn
 /www/server/php/83/bin/php artisan optimize:clear
+/www/server/php/83/bin/php artisan filament:upgrade
+/www/server/php/83/bin/php artisan filament:cache-components
 /www/server/php/83/bin/php artisan config:cache
 /www/server/php/83/bin/php artisan route:cache
 /www/server/php/83/bin/php artisan view:cache
 ~~~
+
+上面的 Filament 两条命令必须在 config:cache、route:cache 和 view:cache 之前执行。它们负责后台资产和组件发现；npm ci / npm run build 只负责 Inertia 前台资源，两者用途不同。
 
 不要执行完整 db:seed --force。当前完整 Seeder 会创建开发测试账号。生产环境如需初始化固定分类、赞助方案或勋章，必须逐个审核对应 Seeder 后再单独执行。
 
@@ -1194,6 +1211,42 @@ grep -E '^(DB_CONNECTION|DB_HOST|DB_PORT|DB_DATABASE|DB_USERNAME)=' .env
 ~~~
 
 不要在命令行参数中直接写数据库密码。检查宝塔数据库用户名权限、数据库名称、MySQL 是否运行和 .env 是否保存成功。
+
+### 登录后台后白屏、没有菜单或设置入口
+
+如果 /admin/login 登录成功，顶部能看到站点名称和头像，但主体区域全白、没有左侧菜单或“系统设置”，这通常不是账号密码问题：登录授权已经通过，优先按“Filament 资产未发布、组件缓存过期、站点运行目录不正确”排查。
+
+以下命令全部在项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan optimize:clear
+/www/server/php/83/bin/php artisan filament:upgrade
+/www/server/php/83/bin/php artisan filament:cache-components
+/www/server/php/83/bin/php artisan config:cache
+/www/server/php/83/bin/php artisan route:cache
+/www/server/php/83/bin/php artisan view:cache
+test -f public/css/filament/filament/app.css && echo "Filament CSS 存在"
+test -f public/js/filament/filament/app.js && echo "Filament JS 存在"
+test -f bootstrap/cache/filament/panels/admin.php && echo "Filament 组件缓存存在"
+~~~
+
+然后在宝塔网站设置中确认：
+
+1. 网站运行目录是 /www/wwwroot/img.leomessi.cn/public，不是项目根目录；
+2. Nginx 配置没有把 /css/filament/、/js/filament/ 或 /livewire/ 指向其他目录；
+3. 保存后重载 Nginx，并在浏览器按 Ctrl+F5 强制刷新；必要时退出后台后重新登录。
+
+如果仍然白屏，在项目根目录执行下面的只读检查：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+curl -I https://img.leomessi.cn/css/filament/filament/app.css
+curl -I https://img.leomessi.cn/js/filament/filament/app.js
+tail -n 200 storage/logs/laravel.log
+~~~
+
+两个静态资源请求应返回 200，不应返回 Nginx 404 或 403。如果资源返回 404/403，先修正网站运行目录和文件权限；如果资源返回 200 但页面仍白屏，再查看浏览器开发者工具 Console/Network 中是否有 JavaScript 或 Livewire 请求错误，并同时检查 Laravel 日志。不要反复创建管理员账号，也不要执行完整 DatabaseSeeder。
 
 ### 前端页面空白或资源 404
 
