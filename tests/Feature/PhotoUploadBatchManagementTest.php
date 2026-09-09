@@ -48,7 +48,7 @@ class PhotoUploadBatchManagementTest extends TestCase
             'total_count' => 4,
             'success_count' => 4,
         ]);
-        $categoryIds = Category::query()->children()->where('name', '待补充')->pluck('id');
+        $categoryIds = Category::query()->children()->whereIn('parent_id', Category::requiredRootIds())->where('name', '待补充')->pluck('id');
         $publishable = $this->photoInBatch($batch, '可发布图片');
         $publishable->categories()->sync($categoryIds);
 
@@ -56,7 +56,7 @@ class PhotoUploadBatchManagementTest extends TestCase
         $restricted->categories()->sync($categoryIds);
 
         $incomplete = $this->photoInBatch($batch, '分类缺失图片');
-        $incomplete->categories()->sync($categoryIds->take(6));
+        $incomplete->categories()->sync($categoryIds->take(2));
 
         $archived = $this->photoInBatch($batch, '归档图片', ['status' => 'archived']);
         $archived->categories()->sync($categoryIds);
@@ -92,7 +92,7 @@ class PhotoUploadBatchManagementTest extends TestCase
         );
     }
 
-    public function test_standalone_bulk_categories_must_include_one_child_from_each_root(): void
+    public function test_standalone_bulk_categories_must_include_required_root_children(): void
     {
         $this->seed(GalleryTaxonomySeeder::class);
 
@@ -103,10 +103,10 @@ class PhotoUploadBatchManagementTest extends TestCase
             'success_count' => 1,
         ]);
         $photo = $this->photoInBatch($batch, '批量分类测试');
-        $categoryIds = Category::query()->children()->where('name', '待补充')->pluck('id');
+        $categoryIds = Category::query()->children()->whereIn('parent_id', Category::requiredRootIds())->where('name', '待补充')->pluck('id');
         $organizer = app(PhotoBatchOrganizer::class);
 
-        $failed = $organizer->syncStandaloneCategories(collect([$photo]), $categoryIds->take(6)->all());
+        $failed = $organizer->syncStandaloneCategories(collect([$photo]), $categoryIds->take(2)->all());
         $this->assertSame(['updated' => 0, 'failed' => 1], $failed);
         $this->assertSame(0, $photo->categories()->count());
 
@@ -151,7 +151,7 @@ class PhotoUploadBatchManagementTest extends TestCase
             'title' => '2022 世界杯决赛',
             'slug' => '2022-world-cup-final',
         ]);
-        $categoryIds = Category::query()->children()->where('name', '待补充')->pluck('id');
+        $categoryIds = Category::query()->children()->whereIn('parent_id', Category::requiredRootIds())->where('name', '待补充')->pluck('id');
         $album->categories()->sync($categoryIds);
         $batch = PhotoUploadBatch::query()->create([
             'mode' => 'album',
@@ -173,6 +173,8 @@ class PhotoUploadBatchManagementTest extends TestCase
         return Photo::query()->create(array_merge([
             'title' => $title,
             'photo_upload_batch_id' => $batch->id,
+            'display_key' => 'photos/derived/test/display.webp',
+            'thumbnail_key' => 'photos/derived/test/thumbnail.webp',
         ], $attributes));
     }
 }

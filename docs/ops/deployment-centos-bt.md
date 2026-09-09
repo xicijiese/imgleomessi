@@ -5,6 +5,14 @@
 本项目采用 Laravel 单体应用：Nginx 提供 Web 服务，PHP-FPM 运行 Laravel，MySQL 保存业务数据，Redis 提供缓存/会话/队列，宝塔“进程守护管理器”（基于 Supervisor）守护 Laravel 队列 Worker，腾讯云 COS / 数据万象负责生产图片存储和图片处理。
 
 本文档描述生产部署方案；本次已完成 GitHub 首次推送和 VPS 代码拉取演练，但不代表已经完成生产切流。所有带有“确认后执行”的命令，都必须在备份、维护窗口和回滚方案准备完成后执行。
+## 本次已完成规则（2026-09-09）
+
+- local 存储使用 PHP GD 生成展示图和缩略图；COS 存储使用腾讯云数据万象生成相同规格的 WebP 派生图。
+- 展示图最大 2048×2048，缩略图最大 600×600；两种模式统一写入 `display_key` 和 `thumbnail_key`。
+- 每张新上传图片都会创建派生图处理任务，必须由宝塔进程守护管理器中的 Laravel Worker 消费；计划任务 `schedule:run` 不能代替 Worker。
+- 图片缺少展示图或缩略图时不能发布；自动发布还要求 metadata、hash 和最新派生图任务完成。历史失败任务重试成功后按最新任务状态判断。
+- 只在后台修改数据库中的存储方式不要求重启 Worker；修改 PHP 代码、`.env`、配置缓存或 Worker 命令后必须执行 `queue:restart` 并重启宝塔 Worker。
+- local 生产链路必须确认 PHP CLI 已启用 GD 和 WebP；COS 生产链路必须确认 COS、数据万象和 CDN 配置均通过后台检测。
 
 ## 0. 当前生产部署阻塞项
 
@@ -895,7 +903,7 @@ npm run build:ssr
 ~~~
 ## 12. 配置宝塔进程守护管理器队列 Worker
 
-项目的图片派生图、OCR、智能标签、哈希和相似候选等耗时任务必须异步执行，不能依赖用户请求同步完成。
+项目的图片派生图、OCR、哈希和相似候选等耗时任务必须异步执行，不能依赖用户请求同步完成；智能标签当前已停用。
 
 ### 12.1 在项目根目录验证队列环境
 
@@ -903,6 +911,7 @@ npm run build:ssr
 cd /www/wwwroot/img.leomessi.cn
 redis-cli ping
 /www/server/php/83/bin/php -m | grep -i '^redis$'
+/www/server/php/83/bin/php -r 'var_dump(function_exists("imagecreatefromstring")); var_dump(function_exists("imagewebp"));'
 /www/server/php/83/bin/php artisan queue:failed
 ~~~
 
@@ -1088,7 +1097,7 @@ redis-cli ping
 - HTTPS 正常，HTTP 自动跳转 HTTPS。
 - PHP-FPM 使用 PHP 8.3。
 - PHP CLI 与宝塔进程守护管理器 Worker 使用同一套 PHP 8.3。
-- PHP 扩展完整。
+- PHP 扩展完整；若生产选择 local 存储，PHP CLI 必须可用 GD 和 WebP（`imagecreatefromstring`、`imagewebp`）。
 - 上传限制满足实际批量上传需求。
 - storage 和 bootstrap/cache 可由 www 写入。
 
@@ -1109,7 +1118,7 @@ redis-cli ping
 - COS / 数据万象检测通过。
 - 上传一张测试图片后，原图写入 COS。
 - 展示图和缩略图生成成功。
-- SHA-256、OCR、智能标签和相似候选任务状态符合预期。
+- SHA-256、按需 OCR 和相似候选任务状态符合预期；智能标签不再作为当前生产任务。
 - 发布图片后首页、图库列表和详情页可见。
 - 未发布图片不会出现在前台。
 - 当前没有误迁移或误删除本地历史图片。

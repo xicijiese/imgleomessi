@@ -28,7 +28,6 @@ class PhotoUploadService
         $this->storage->diskForKey()->putFileAs("photos/originals/{$directory}", $file, $storedFilename);
 
         $autoOcr = (bool) ($attributes['auto_ocr'] ?? false);
-        $autoLabels = (bool) ($attributes['auto_labels'] ?? false);
 
         $photo = Photo::query()->create(array_merge([
             'title' => $storedFilename,
@@ -68,7 +67,7 @@ class PhotoUploadService
             );
         }
 
-        app(PhotoProcessingService::class)->createDefaultJobs($photo, $autoOcr, $autoLabels);
+        app(PhotoProcessingService::class)->createDefaultJobs($photo, $autoOcr);
 
         return $photo;
     }
@@ -76,9 +75,11 @@ class PhotoUploadService
     private function makeStoredFilename(UploadedFile $file): string
     {
         $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'jpg');
-        $randomCode = Str::upper(Str::random(6));
+        $randomCode = collect(range(1, 6))
+            ->map(fn (): string => chr(random_int(65, 90)))
+            ->implode('');
 
-        return now()->format('Ymd-His').'-'.$randomCode.'.'.$extension;
+        return now()->format('Ymd').'-'.$randomCode.'.'.$extension;
     }
 
     /**

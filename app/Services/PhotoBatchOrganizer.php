@@ -100,7 +100,7 @@ class PhotoBatchOrganizer
     public function publishFailureReason(Photo $photo): string
     {
         if ($photo->status === 'archived') {
-            return "{$photo->title}：已归档图片不能在批次整理页发布。";
+            return "{$photo->title}：已归档图片不能发布。";
         }
 
         if (blank($photo->title)) {
@@ -111,8 +111,12 @@ class PhotoBatchOrganizer
             return "{$photo->title}：版权状态不允许发布。";
         }
 
+        if (blank($photo->display_key) || blank($photo->thumbnail_key)) {
+            return "{$photo->title}：展示图或缩略图尚未生成。";
+        }
+
         if (! $photo->hasCompleteCategorySet()) {
-            return "{$photo->title}：未补齐 7 个主分类子项。";
+            return "{$photo->title}：未补齐必选主分类子项。";
         }
 
         return "{$photo->title}：不满足发布条件。";
@@ -124,18 +128,24 @@ class PhotoBatchOrganizer
     public function isCompleteCategorySet(array $categoryIds): bool
     {
         $categoryIds = collect($categoryIds)->filter()->map(fn (mixed $id): int => (int) $id)->unique();
-        $rootCount = Category::query()->roots()->count();
+        $categories = Category::query()
+            ->whereIn('id', $categoryIds)
+            ->children()
+            ->get(['id', 'parent_id']);
+        $requiredRootIds = Category::requiredRootIds();
 
-        if ($rootCount === 0 || $categoryIds->count() !== $rootCount) {
+        if ($requiredRootIds === [] || $categories->count() !== $categoryIds->count()) {
             return false;
         }
 
-        $selectedParentCount = Category::query()
-            ->whereIn('id', $categoryIds)
-            ->children()
-            ->distinct()
-            ->count('parent_id');
+        $selectedByParent = $categories->groupBy('parent_id');
 
-        return $selectedParentCount === $rootCount;
+        foreach ($requiredRootIds as $rootId) {
+            if ($selectedByParent->get($rootId, collect())->count() !== 1) {
+                return false;
+            }
+        }
+
+        return $selectedByParent->every(fn ($selected): bool => $selected->count() === 1);
     }
 }

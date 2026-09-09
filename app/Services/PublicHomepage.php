@@ -379,7 +379,7 @@ class PublicHomepage
             'type' => 'photo',
             'title' => $photo->title,
             'url' => '/photos/'.$photo->uuid,
-            'image_url' => $this->mediaUrl($photo->display_key ?: $photo->thumbnail_key),
+            'image_url' => $this->mediaUrl($photo->thumbnail_key ?: $photo->display_key),
             'alt' => $photo->title,
         ];
     }
@@ -399,7 +399,7 @@ class PublicHomepage
             'type' => 'album',
             'title' => $album->title,
             'url' => '/albums/'.$album->slug,
-            'image_url' => $coverPhoto instanceof Photo ? $this->mediaUrl($coverPhoto->display_key ?: $coverPhoto->thumbnail_key) : null,
+            'image_url' => $coverPhoto instanceof Photo ? $this->mediaUrl($coverPhoto->thumbnail_key ?: $coverPhoto->display_key) : null,
             'alt' => $album->title,
         ];
     }

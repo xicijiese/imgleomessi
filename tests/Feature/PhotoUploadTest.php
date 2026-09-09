@@ -63,7 +63,7 @@ class PhotoUploadTest extends TestCase
         ]);
 
         $this->assertSame('messi-final.JPG', $photo->original_filename);
-        $this->assertMatchesRegularExpression('/^\d{8}-\d{6}-[A-Z0-9]{6}\.jpg$/', $photo->stored_filename);
+        $this->assertMatchesRegularExpression('/^\d{8}-[A-Z]{6}\.jpg$/', $photo->stored_filename);
         $this->assertSame($photo->stored_filename, $photo->title);
         $this->assertSame('draft', $photo->status);
         $this->assertFalse($photo->publish_after_processing);

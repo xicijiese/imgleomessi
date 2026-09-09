@@ -14,6 +14,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -50,7 +51,7 @@ class CategoryResource extends Resource
                     ->required()
                     ->searchable()
                     ->preload()
-                    ->helperText('主分类由系统固定，这里只允许维护 7 个主分类下的子分类。'),
+                    ->helperText('选择所属主分类后，仅维护该主分类下的子分类；必选主分类用 * 标记。'),
                 TextInput::make('name')
                     ->label('子分类名称')
                     ->required()
@@ -107,6 +108,7 @@ class CategoryResource extends Resource
             ])
             ->filters([
                 SelectFilter::make('parent_id')
+                    ->default(fn (): ?int => Category::query()->roots()->orderBy('sort_order')->value('id'))
                     ->label('主分类')
                     ->options(fn (): array => Category::query()
                         ->roots()
@@ -116,7 +118,7 @@ class CategoryResource extends Resource
                 SelectFilter::make('visibility')
                     ->label('可见性')
                     ->options(Category::VISIBILITIES),
-            ])
+            ], layout: FiltersLayout::AboveContent)
             ->defaultSort('sort_order')
             ->recordActions([
                 EditAction::make(),

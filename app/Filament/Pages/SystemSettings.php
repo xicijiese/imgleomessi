@@ -10,7 +10,6 @@ use App\Services\HomepageSettings;
 use App\Services\PhotoStorage;
 use App\Services\StorageSettings;
 use App\Services\StorageLaunchCheck;
-use App\Services\TencentDataWanxiangService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
@@ -461,7 +460,7 @@ class SystemSettings extends Page
                     }
                 }),
             Action::make('checkCloudConnectivity')
-                ->label('检测 COS / 数据万象')
+                ->label('检测 COS / 图片处理')
                 ->color('info')
                 ->form([
                     Select::make('photo_id')
@@ -476,17 +475,13 @@ class SystemSettings extends Page
                             ])
                             ->all())
                         ->required()
-                        ->helperText('必须选择原图已经存在于当前 COS 存储桶中的图片；本地存储图片不能用于此检测。会临时验证 COS 读写，并调用一次数据万象图片标签接口，不会修改图片标签。'),
+                        ->helperText('必须选择原图已经存在于当前 COS 存储桶中的图片；本地存储图片不能用于此检测。此操作只验证 COS 读写和原图可访问性。'),
                 ])
                 ->requiresConfirmation()
-                ->modalHeading('检测 COS / 数据万象真实连通性')
-                ->modalDescription('此操作会向你配置的 COS 写入并删除临时文件，并对所选图片发起一次数据万象标签识别请求，可能产生少量云服务费用。')
-                ->action(function (array $data, PhotoStorage $storage, TencentDataWanxiangService $dataWanxiang): void {
+                ->modalHeading('检测 COS / 图片处理真实连通性')
+                ->modalDescription('此操作会向你配置的 COS 写入并删除临时文件，并检查所选图片的原图对象。')
+                ->action(function (array $data, PhotoStorage $storage): void {
                     try {
-                        if (! $dataWanxiang->enabled()) {
-                            throw new \RuntimeException('请先在存储设置中选择 COS、填写完整凭证并开启数据万象处理。');
-                        }
-
                         $photo = Photo::query()->find((int) ($data['photo_id'] ?? 0));
 
                         if (! $photo instanceof Photo || blank($photo->original_key)) {
@@ -496,7 +491,7 @@ class SystemSettings extends Page
                         if (! $storage->cosObjectExists($photo->original_key)) {
                             Notification::make()
                                 ->title('验证图片不在当前 COS 存储桶中')
-                                ->body('请先将这张图片上传到当前 COS 存储方式，再选择它进行数据万象验证。')
+                                ->body('请先将这张图片上传到当前 COS 存储方式，再进行检测。')
                                 ->danger()
                                 ->send();
 
@@ -504,11 +499,10 @@ class SystemSettings extends Page
                         }
 
                         $storage->healthCheck();
-                        $labels = $dataWanxiang->recognizeLabels($photo);
 
                         Notification::make()
-                            ->title('COS / 数据万象连通性检查通过')
-                            ->body('COS 读写正常，数据万象标签接口已返回。识别到 '.count($labels).' 个标签。')
+                            ->title('COS / 图片处理连通性检查通过')
+                            ->body('COS 读写正常，所选图片原图对象可访问。')
                             ->success()
                             ->send();
                     } catch (Throwable $throwable) {
@@ -516,7 +510,7 @@ class SystemSettings extends Page
 
                         Notification::make()
                             ->title('COS / 数据万象连通性检查失败')
-                            ->body('请检查存储方式、SecretId、SecretKey、地域、Bucket、数据万象开关和验证图片；详细异常已记录到后台日志。')
+                            ->body('请检查存储方式、SecretId、SecretKey、地域、Bucket 和验证图片；详细异常已记录到后台日志。')
                             ->danger()
                             ->send();
                     }

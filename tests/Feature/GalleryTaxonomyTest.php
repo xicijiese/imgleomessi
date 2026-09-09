@@ -20,8 +20,10 @@ class GalleryTaxonomyTest extends TestCase
         $this->seed(GalleryTaxonomySeeder::class);
         $this->seed(GalleryTaxonomySeeder::class);
 
-        $this->assertSame(7, Category::query()->roots()->count());
-        $this->assertSame(14, Category::query()->count());
+        $this->assertSame(8, Category::query()->roots()->count());
+        $this->assertSame(16, Category::query()->count());
+
+        $this->assertSame(Category::REQUIRED_ROOT_SLUGS, Category::query()->requiredForPublish()->pluck('slug')->all());
 
         foreach (Category::ROOT_CATEGORIES as $slug => $name) {
             $root = Category::query()->where('slug', $slug)->firstOrFail();

@@ -34,6 +34,7 @@ class PublicHomepageTest extends TestCase
             'status' => 'published',
             'published_at' => now()->subDays(10),
             'display_key' => 'photos/display/pinned.webp',
+            'thumbnail_key' => 'photos/thumb/pinned.webp',
         ]);
         $recent = Photo::query()->create([
             'title' => '最新发布图片',
@@ -67,7 +68,7 @@ class PublicHomepageTest extends TestCase
                 ->component('Welcome')
                 ->has('home.latest_photos.items', 2)
                 ->where('home.latest_photos.items.0.title', '指定置顶图片')
-                ->where('home.latest_photos.items.0.image_url', '/storage/photos/display/pinned.webp')
+                ->where('home.latest_photos.items.0.image_url', '/storage/photos/thumb/pinned.webp')
                 ->where('home.latest_photos.items.1.title', '最新发布图片')
                 ->where('home.latest_photos.items.1.image_url', '/storage/photos/thumb/recent.webp')
             );

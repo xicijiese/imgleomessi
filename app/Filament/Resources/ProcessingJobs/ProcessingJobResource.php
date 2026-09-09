@@ -11,6 +11,7 @@ use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Forms\Components\DateTimePicker;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -40,6 +41,16 @@ class ProcessingJobResource extends Resource
 
     protected static ?int $navigationSort = 10;
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->where('type', '!=', 'labels');
+    }
+
+    private static function activeTypeOptions(): array
+    {
+        return array_diff_key(ProcessingJob::TYPES, ['labels' => true]);
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema
@@ -58,7 +69,7 @@ class ProcessingJobResource extends Resource
                     ->preload(),
                 Select::make('type')
                     ->label('任务类型')
-                    ->options(ProcessingJob::TYPES)
+                    ->options(self::activeTypeOptions())
                     ->required(),
                 Select::make('status')
                     ->label('状态')
@@ -133,7 +144,7 @@ class ProcessingJobResource extends Resource
             ->filters([
                 SelectFilter::make('type')
                     ->label('任务类型')
-                    ->options(ProcessingJob::TYPES),
+                    ->options(self::activeTypeOptions()),
                 SelectFilter::make('status')
                     ->label('状态')
                     ->options(ProcessingJob::STATUSES),

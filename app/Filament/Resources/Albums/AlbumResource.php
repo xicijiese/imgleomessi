@@ -71,7 +71,7 @@ class AlbumResource extends Resource
                     ->searchable()
                     ->required()
                     ->rules([self::completeCategorySetRule()])
-                    ->helperText('必须从 7 个固定主分类中各选择 1 个子分类。'),
+                    ->helperText('发布前必须选择：生涯阶段、年份、场景；赛事、赛季、图片类型、来源平台可选。'),
                 Select::make('status')
                     ->label('状态')
                     ->options(Album::STATUSES)
@@ -141,23 +141,37 @@ class AlbumResource extends Resource
     {
         return function (string $attribute, mixed $value, Closure $fail): void {
             $categoryIds = collect($value)->filter()->map(fn (mixed $id): int => (int) $id)->unique();
-            $rootCount = Category::query()->roots()->count();
 
-            if ($rootCount === 0 || $categoryIds->count() !== $rootCount) {
-                $fail('相册必须从每个固定主分类下各选择 1 个子分类。');
+            if ($categoryIds->isEmpty()) {
+                return;
+            }
+
+            $categories = Category::query()
+                ->whereIn('id', $categoryIds)
+                ->children()
+                ->get(['id', 'parent_id']);
+
+            if ($categories->count() !== $categoryIds->count()) {
+                $fail('只能选择子分类。');
 
                 return;
             }
 
-            $selectedParentCount = Category::query()
-                ->whereIn('id', $categoryIds)
-                ->children()
-                ->distinct()
-                ->count('parent_id');
+            $selectedByParent = $categories->groupBy('parent_id');
 
-            if ($selectedParentCount !== $rootCount) {
-                $fail('相册必须从每个固定主分类下各选择 1 个子分类。');
+            foreach (Category::requiredRootIds() as $rootId) {
+                if ($selectedByParent->get($rootId, collect())->count() !== 1) {
+                    $fail('相册发布前必须选择生涯阶段、年份和场景各一个子分类。');
+
+                    return;
+                }
+            }
+
+            if ($selectedByParent->contains(fn ($selected): bool => $selected->count() > 1)) {
+                $fail('每个主分类最多选择一个子分类。');
             }
         };
     }
+
+
 }

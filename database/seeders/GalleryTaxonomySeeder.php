@@ -17,10 +17,13 @@ class GalleryTaxonomySeeder extends Seeder
                 [
                     'parent_id' => null,
                     'name' => $name,
-                    'description' => '系统固定主分类，Phase 1 不允许在后台新增第 8 个主分类。',
+                    'description' => in_array($slug, Category::REQUIRED_ROOT_SLUGS, true)
+                        ? '发布时必填的主分类；子分类可由管理员继续维护。'
+                        : '可选资料维度；子分类可由管理员继续维护。',
                     'sort_order' => $sortOrder,
                     'visibility' => 'public',
                     'is_system' => true,
+                    'required_for_publish' => in_array($slug, Category::REQUIRED_ROOT_SLUGS, true),
                 ],
             );
 

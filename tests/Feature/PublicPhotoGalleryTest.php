@@ -38,7 +38,7 @@ class PublicPhotoGalleryTest extends TestCase
                 ->component('Photos/Index')
                 ->where('gallery.site.name', '梅西影像档案库')
                 ->where('gallery.filters.sort', 'published_desc')
-                ->has('gallery.filter_options.category_groups', 7)
+                ->has('gallery.filter_options.category_groups', 8)
                 ->has('gallery.photos.data', 1)
                 ->where('gallery.photos.data.0.title', '公开图库图片')
                 ->where('gallery.photos.data.0.image_url', '/storage/photos/display/public.webp')

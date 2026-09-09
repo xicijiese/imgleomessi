@@ -54,6 +54,8 @@ class PhotoManagementTest extends TestCase
     {
         $photo = Photo::query()->create([
             'title' => '2022 世界杯决赛捧杯',
+            'display_key' => 'photos/derived/test/display.webp',
+            'thumbnail_key' => 'photos/derived/test/thumbnail.webp',
         ]);
 
         $this->assertNotEmpty($photo->uuid);
@@ -100,21 +102,27 @@ class PhotoManagementTest extends TestCase
         $this->assertTrue($photo->albums()->whereKey($album->id)->exists());
     }
 
-    public function test_photo_requires_one_child_category_from_each_root_category_before_publish(): void
+    public function test_photo_requires_the_three_required_root_categories_before_publish(): void
     {
         $this->seed(GalleryTaxonomySeeder::class);
 
         $photo = Photo::query()->create([
             'title' => '2022 世界杯决赛捧杯',
+            'display_key' => 'photos/derived/test/display.webp',
+            'thumbnail_key' => 'photos/derived/test/thumbnail.webp',
         ]);
-        $categoryIds = Category::query()->children()->where('name', '待补充')->pluck('id');
+        $requiredCategoryIds = Category::query()
+            ->children()
+            ->whereIn('parent_id', Category::requiredRootIds())
+            ->where('name', '待补充')
+            ->pluck('id');
 
-        $photo->categories()->sync($categoryIds->take(6));
+        $photo->categories()->sync($requiredCategoryIds->take(2));
         $this->assertFalse($photo->hasCompleteCategorySet());
         $this->assertFalse($photo->publish());
         $this->assertSame('draft', $photo->refresh()->status);
 
-        $photo->categories()->sync($categoryIds);
+        $photo->categories()->sync($requiredCategoryIds);
         $this->assertTrue($photo->hasCompleteCategorySet());
         $this->assertTrue($photo->publish());
         $this->assertSame('published', $photo->refresh()->status);

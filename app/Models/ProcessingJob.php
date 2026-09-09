@@ -12,10 +12,9 @@ class ProcessingJob extends Model
         'metadata' => '基础信息读取',
         'hash' => '文件哈希计算',
         'ocr_placeholder' => 'OCR 预留',
-        'datawanxiang_derivatives' => '数据万象生成展示图 / 缩略图',
+        'datawanxiang_derivatives' => '生成展示图 / 缩略图',
         'similarity' => '生成相似候选',
         'ocr' => '数据万象 OCR 识别',
-        'labels' => '数据万象智能标签识别',
     ];
 
     public const STATUSES = [

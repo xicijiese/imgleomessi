@@ -35,7 +35,7 @@ class PublicAlbumIndexTest extends TestCase
                 ->component('Albums/Index')
                 ->where('albumIndex.site.name', '梅西影像档案库')
                 ->where('albumIndex.filters.sort', 'default')
-                ->has('albumIndex.filter_options.category_groups', 7)
+                ->has('albumIndex.filter_options.category_groups', 8)
                 ->has('albumIndex.albums.data', 1)
                 ->where('albumIndex.albums.data.0.title', '2022 世界杯决赛')
                 ->where('albumIndex.albums.data.0.url', '/albums/2022-world-cup-final')

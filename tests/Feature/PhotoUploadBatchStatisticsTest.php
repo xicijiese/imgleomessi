@@ -33,6 +33,6 @@ class PhotoUploadBatchStatisticsTest extends TestCase
 
         $this->assertSame(1, $record->pending_processing_jobs_count);
         $this->assertSame(1, $record->running_processing_jobs_count);
-        $this->assertSame(1, $record->failed_processing_jobs_count);
+        $this->assertSame(0, $record->failed_processing_jobs_count);
     }
 }

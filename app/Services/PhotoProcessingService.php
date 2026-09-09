@@ -14,6 +14,7 @@ class PhotoProcessingService
 {
     public function __construct(
         private readonly PhotoStorage $storage,
+        private readonly LocalPhotoDerivativeService $localDerivatives,
         private readonly TencentDataWanxiangService $dataWanxiang,
         private readonly PhotoSimilarityService $similarity,
     ) {}
@@ -21,20 +22,12 @@ class PhotoProcessingService
     /**
      * @return array<int, ProcessingJob>
      */
-    public function createDefaultJobs(Photo $photo, bool $autoOcr = false, bool $autoLabels = false): array
+    public function createDefaultJobs(Photo $photo, bool $autoOcr = false): array
     {
-        $types = ['metadata', 'hash'];
+        $types = ['metadata', 'hash', 'datawanxiang_derivatives'];
 
-        if ($this->dataWanxiang->enabled()) {
-            $types[] = 'datawanxiang_derivatives';
-
-            if ($autoOcr) {
-                $types[] = 'ocr';
-            }
-
-            if ($autoLabels) {
-                $types[] = 'labels';
-            }
+        if ($autoOcr && $this->dataWanxiang->enabled()) {
+            $types[] = 'ocr';
         }
 
         $jobs = collect($types)
@@ -66,6 +59,23 @@ class PhotoProcessingService
         );
     }
 
+    public function queueDerivatives(Photo $photo): ProcessingJob
+    {
+        $activeJob = $photo->processingJobs()
+            ->where('type', 'datawanxiang_derivatives')
+            ->whereIn('status', ['pending', 'running'])
+            ->latest('id')
+            ->first();
+
+        if ($activeJob instanceof ProcessingJob) {
+            return $activeJob;
+        }
+
+        $job = $this->createJob($photo, 'datawanxiang_derivatives');
+        ProcessPhotoAnalysisJob::dispatch($job->id);
+
+        return $job;
+    }
     public function queueOcr(Photo $photo): ProcessingJob
     {
         $job = $this->createJob($photo, 'ocr');
@@ -73,15 +83,6 @@ class PhotoProcessingService
 
         return $job;
     }
-
-    public function queueLabels(Photo $photo): ProcessingJob
-    {
-        $job = $this->createJob($photo, 'labels');
-        ProcessPhotoAnalysisJob::dispatch($job->id);
-
-        return $job;
-    }
-
     public function queueSimilarity(Photo $photo): ProcessingJob
     {
         $job = $this->createJob($photo, 'similarity');
@@ -108,10 +109,9 @@ class PhotoProcessingService
             match ($job->type) {
                 'metadata', 'hash' => $this->analyze($job->photo),
                 'ocr_placeholder' => $this->markPlaceholder($job->photo),
-                'datawanxiang_derivatives' => $this->processDataWanxiang($job->photo),
+                'datawanxiang_derivatives' => $this->processDerivatives($job->photo),
                 'similarity' => $this->processSimilarity($job->photo),
                 'ocr' => $this->processOcr($job->photo),
-                'labels' => $this->processLabels($job->photo),
                 default => throw new RuntimeException('未知图片处理任务类型：'.$job->type),
             };
 
@@ -138,7 +138,9 @@ class PhotoProcessingService
 
         $jobs = $photo->processingJobs()
             ->whereIn('type', ['metadata', 'hash', 'datawanxiang_derivatives'])
+            ->latest('id')
             ->get()
+            ->unique('type')
             ->keyBy('type');
 
         foreach (['metadata', 'hash'] as $type) {
@@ -191,18 +193,6 @@ class PhotoProcessingService
             ],
         );
     }
-
-    public function clearLabels(Photo $photo): void
-    {
-        PhotoAnalysisResult::query()->updateOrCreate(
-            ['photo_id' => $photo->id],
-            [
-                'ci_labels_json' => null,
-                'error_message' => null,
-            ],
-        );
-    }
-
     public function duplicateCount(Photo $photo): int
     {
         $hash = $photo->analysisResult?->sha256_hash;
@@ -243,29 +233,16 @@ class PhotoProcessingService
             ],
         );
     }
-
-    private function processLabels(Photo $photo): void
-    {
-        $labels = $this->dataWanxiang->recognizeLabels($photo);
-
-        PhotoAnalysisResult::query()->updateOrCreate(
-            ['photo_id' => $photo->id],
-            [
-                'ci_labels_json' => $labels === [] ? null : $labels,
-                'error_message' => null,
-                'processed_at' => now(),
-            ],
-        );
-    }
-
     private function processSimilarity(Photo $photo): void
     {
         $this->similarity->generateCandidates($photo);
     }
 
-    private function processDataWanxiang(Photo $photo): void
+    private function processDerivatives(Photo $photo): void
     {
-        $keys = $this->dataWanxiang->generateDerivatives($photo);
+        $keys = $this->storage->activeDiskName() === 'cos'
+            ? $this->dataWanxiang->generateDerivatives($photo)
+            : $this->localDerivatives->generate($photo);
 
         $photo->update($keys);
     }

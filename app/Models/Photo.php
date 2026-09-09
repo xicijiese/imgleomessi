@@ -170,13 +170,21 @@ public function albums(): BelongsToMany
     public function hasCompleteCategorySet(): bool
     {
         $categories = $this->categories()->children()->get(['categories.id', 'categories.parent_id']);
-        $rootCount = Category::query()->roots()->count();
+        $requiredRootIds = Category::requiredRootIds();
 
-        if ($rootCount === 0 || $categories->count() !== $rootCount) {
+        if ($requiredRootIds === []) {
             return false;
         }
 
-        return $categories->pluck('parent_id')->unique()->count() === $rootCount;
+        $selectedByParent = $categories->groupBy('parent_id');
+
+        foreach ($requiredRootIds as $rootId) {
+            if ($selectedByParent->get($rootId, collect())->count() !== 1) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function canBePublished(): bool
@@ -190,6 +198,10 @@ public function albums(): BelongsToMany
         }
 
         if (in_array($this->copyright_status, ['restricted', 'remove_requested'], true)) {
+            return false;
+        }
+
+        if (blank($this->display_key) || blank($this->thumbnail_key)) {
             return false;
         }
 

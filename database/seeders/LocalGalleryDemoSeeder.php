@@ -154,6 +154,13 @@ class LocalGalleryDemoSeeder extends Seeder
                 'celebration-photo' => '庆祝图',
                 'group-photo' => '合影图',
             ],
+            'person-relation' => [
+                'teammate-relation' => '队友',
+                'coach-relation' => '教练',
+                'family-relation' => '家人',
+                'opponent-relation' => '对手',
+                'celebrity-relation' => '名人合影',
+            ],
             'source-platform' => [
                 'instagram-source' => 'Instagram',
                 'x-source' => 'X / Twitter',

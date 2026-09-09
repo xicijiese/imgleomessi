@@ -92,10 +92,10 @@ class PhotoProcessingTest extends TestCase
             UploadedFile::fake()->image('messi-upload.jpg', 900, 600),
         );
 
-        $this->assertSame(2, $photo->processingJobs()->count());
+        $this->assertSame(3, $photo->processingJobs()->count());
         $this->assertTrue($photo->processingJobs()->where('type', 'metadata')->where('status', 'pending')->exists());
         $this->assertTrue($photo->processingJobs()->where('type', 'hash')->where('status', 'pending')->exists());
-        Queue::assertPushed(ProcessPhotoAnalysisJob::class, 2);
+        Queue::assertPushed(ProcessPhotoAnalysisJob::class, 3);
     }
 
     public function test_cos_datawanxiang_switch_adds_a_derivative_processing_job(): void
@@ -123,25 +123,52 @@ class PhotoProcessingTest extends TestCase
         Queue::assertPushed(ProcessPhotoAnalysisJob::class, 3);
     }
 
-    public function test_upload_processing_options_can_queue_ocr_and_labels(): void
+    public function test_default_processing_does_not_create_smart_label_job(): void
     {
         $photo = Photo::query()->create([
-            'title' => '自动识别任务测试',
-            'original_key' => 'photos/originals/auto.jpg',
+            'title' => '停用智能标签测试',
+            'original_key' => 'photos/originals/no-labels.jpg',
         ]);
         $wanxiang = Mockery::mock(TencentDataWanxiangService::class);
         $wanxiang->shouldReceive('enabled')->once()->andReturn(true);
         $this->app->instance(TencentDataWanxiangService::class, $wanxiang);
 
-        $jobs = app(PhotoProcessingService::class)->createDefaultJobs($photo, true, true);
+        $jobs = app(PhotoProcessingService::class)->createDefaultJobs($photo, true);
 
-        $this->assertSame(['metadata', 'hash', 'datawanxiang_derivatives', 'ocr', 'labels'], collect($jobs)->map->type->all());
-        $this->assertSame(5, $photo->processingJobs()->count());
-        Queue::assertPushed(ProcessPhotoAnalysisJob::class, 5);
+        $this->assertSame(['metadata', 'hash', 'datawanxiang_derivatives', 'ocr'], collect($jobs)->map->type->all());
+        $this->assertFalse($photo->processingJobs()->where('type', 'labels')->exists());
     }
+    public function test_local_processing_generates_display_and_thumbnail_webp_files(): void
+    {
+        $image = UploadedFile::fake()->image('local-derivatives.jpg', 1200, 800);
+        $originalKey = 'photos/originals/local-derivatives.jpg';
+        Storage::disk('public')->put($originalKey, file_get_contents($image->getRealPath()));
 
+        $photo = Photo::query()->create([
+            'title' => '本地派生图测试',
+            'original_key' => $originalKey,
+        ]);
+
+        $service = app(PhotoProcessingService::class);
+        $processed = $service->process($service->createJob($photo, 'datawanxiang_derivatives'));
+
+        $this->assertSame('done', $processed->status);
+        $photo->refresh();
+        $this->assertSame('photos/derived/'.$photo->uuid.'/display.webp', $photo->display_key);
+        $this->assertSame('photos/derived/'.$photo->uuid.'/thumbnail.webp', $photo->thumbnail_key);
+        Storage::disk('public')->assertExists($photo->display_key);
+        Storage::disk('public')->assertExists($photo->thumbnail_key);
+
+        $displayInfo = getimagesizefromstring(Storage::disk('public')->get($photo->display_key));
+        $thumbnailInfo = getimagesizefromstring(Storage::disk('public')->get($photo->thumbnail_key));
+        $this->assertSame('image/webp', $displayInfo['mime']);
+        $this->assertSame('image/webp', $thumbnailInfo['mime']);
+        $this->assertSame(1200, $displayInfo[0]);
+        $this->assertSame(600, $thumbnailInfo[0]);
+    }
     public function test_required_processing_completion_can_publish_photo_automatically(): void
     {
+        $this->configureCosDataWanxiang();
         $this->seed(\Database\Seeders\GalleryTaxonomySeeder::class);
         $photo = Photo::query()->create([
             'title' => '处理完成自动发布测试',
@@ -172,8 +199,38 @@ class PhotoProcessingTest extends TestCase
         $this->assertFalse($photo->publish_after_processing);
         $this->assertNotNull($photo->published_at);
     }
+    public function test_latest_successful_derivative_job_can_auto_publish_after_previous_failure(): void
+    {
+        $this->seed(\Database\Seeders\GalleryTaxonomySeeder::class);
+        $image = UploadedFile::fake()->image('retry-auto-publish.jpg', 800, 600);
+        $originalKey = 'photos/originals/retry-auto-publish.jpg';
+        Storage::disk('public')->put($originalKey, file_get_contents($image->getRealPath()));
+
+        $photo = Photo::query()->create([
+            'title' => '重试后自动发布测试',
+            'status' => 'draft',
+            'copyright_status' => 'credited',
+            'publish_after_processing' => true,
+            'original_key' => $originalKey,
+        ]);
+        $photo->categories()->sync(\App\Models\Category::query()->children()->where('name', '待补充')->pluck('id')->all());
+
+        $processing = app(PhotoProcessingService::class);
+        $processing->createJob($photo, 'metadata')->update(['status' => 'done', 'processed_at' => now()]);
+        $processing->createJob($photo, 'hash')->update(['status' => 'done', 'processed_at' => now()]);
+        $failed = $processing->createJob($photo, 'datawanxiang_derivatives');
+        $failed->update(['status' => 'failed', 'error_message' => '第一次处理失败']);
+        $successful = $processing->createJob($photo, 'datawanxiang_derivatives');
+
+        $processed = $processing->process($successful);
+
+        $this->assertSame('done', $processed->status);
+        $this->assertSame('published', $photo->refresh()->status);
+    }
+
     public function test_datawanxiang_processing_writes_display_and_thumbnail_keys(): void
     {
+        $this->configureCosDataWanxiang();
         $photo = Photo::query()->create([
             'title' => '数据万象派生图测试',
             'original_key' => 'photos/originals/test.jpg',
@@ -198,6 +255,7 @@ class PhotoProcessingTest extends TestCase
 
     public function test_datawanxiang_failure_is_recorded_and_manual_retry_can_succeed(): void
     {
+        $this->configureCosDataWanxiang();
         $photo = Photo::query()->create([
             'title' => '数据万象失败重试测试',
             'original_key' => 'photos/originals/test.jpg',
@@ -405,102 +463,6 @@ class PhotoProcessingTest extends TestCase
 
         $this->assertSame("Messi\nBarcelona", $text);
     }
-    public function test_labels_processing_writes_labels_and_manual_retry_can_succeed(): void
-    {
-        $photo = Photo::query()->create([
-            'title' => '智能标签测试图片',
-            'original_key' => 'labels/test.jpg',
-        ]);
-        $attempt = 0;
-        $service = Mockery::mock(TencentDataWanxiangService::class);
-        $service->shouldReceive('recognizeLabels')
-            ->twice()
-            ->with(Mockery::on(fn (Photo $candidate): bool => $candidate->is($photo)))
-            ->andReturnUsing(function () use (&$attempt): array {
-                $attempt++;
-
-                if ($attempt === 1) {
-                    throw new \RuntimeException('标签请求失败');
-                }
-
-                return [[
-                    'name' => 'football',
-                    'confidence' => 96,
-                    'first_category' => '运动',
-                    'second_category' => '足球',
-                ]];
-            });
-        $this->app->instance(TencentDataWanxiangService::class, $service);
-
-        $processing = app(PhotoProcessingService::class);
-        $failed = $processing->process($processing->createJob($photo, 'labels'));
-
-        $this->assertSame('failed', $failed->status);
-        $this->assertSame('标签请求失败', $failed->error_message);
-
-        $retried = $processing->retry($failed);
-
-        $this->assertSame('done', $retried->status);
-        $this->assertSame([[
-            'name' => 'football',
-            'confidence' => 96,
-            'first_category' => '运动',
-            'second_category' => '足球',
-        ]], $photo->refresh()->analysisResult?->ci_labels_json);
-
-        app(PhotoProcessingService::class)->clearLabels($photo->refresh());
-
-        $this->assertNull($photo->refresh()->analysisResult?->ci_labels_json);
-    }
-
-    public function test_datawanxiang_service_builds_label_request_and_extracts_labels(): void
-    {
-        Setting::setValue('storage', 'config', [
-            'mode' => 'cos',
-            'cos' => [
-                'secret_id' => 'test-secret-id',
-                'secret_key' => encrypt('test-secret-key'),
-                'region' => 'ap-guangzhou',
-                'bucket' => 'testbucket-1250000000',
-                'cdn_url' => '',
-                'datawanxiang_enabled' => true,
-            ],
-        ]);
-        $photo = Photo::query()->create([
-            'title' => '数据万象标签 SDK 测试',
-            'original_key' => 'photos/originals/labels.jpg',
-        ]);
-        $client = Mockery::mock(Client::class);
-        $client->shouldReceive('detectLabelProcess')
-            ->once()
-            ->with(Mockery::on(function (array $arguments) use ($photo): bool {
-                return $arguments === [
-                    'Bucket' => 'testbucket-1250000000',
-                    'Key' => $photo->original_key,
-                    'Scenes' => '',
-                ];
-            }))
-            ->andReturn([
-                'Labels' => [
-                    [
-                        'Name' => 'football',
-                        'Confidence' => 96,
-                        'FirstCategory' => '运动',
-                        'SecondCategory' => '足球',
-                    ],
-                ],
-            ]);
-
-        $labels = (new TencentDataWanxiangService(app(\App\Services\StorageSettings::class), $client))
-            ->recognizeLabels($photo);
-
-        $this->assertSame([[
-            'name' => 'football',
-            'confidence' => 96,
-            'first_category' => '运动',
-            'second_category' => '足球',
-        ]], $labels);
-    }
     public function test_similarity_processing_stores_perceptual_hash_and_candidate_review(): void
     {
         $image = UploadedFile::fake()->image('same-image.jpg', 32, 32);
@@ -563,6 +525,20 @@ class PhotoProcessingTest extends TestCase
         $this->assertNotEmpty($photo->refresh()->analysisResult?->perceptual_hash);
     }
 
+    private function configureCosDataWanxiang(): void
+    {
+        Setting::setValue('storage', 'config', [
+            'mode' => 'cos',
+            'cos' => [
+                'secret_id' => 'test-secret-id',
+                'secret_key' => encrypt('test-secret-key'),
+                'region' => 'ap-guangzhou',
+                'bucket' => 'testbucket-1250000000',
+                'cdn_url' => '',
+                'datawanxiang_enabled' => true,
+            ],
+        ]);
+    }
     public function test_admin_can_visit_similarity_candidate_resource(): void
     {
         $this->actingAs(User::factory()->create());

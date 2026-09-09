@@ -78,7 +78,7 @@ class PublicPhotoDetailTest extends TestCase
                 ->missing('photoDetail.photo.source.internal_note')
                 ->missing('photoDetail.photo.original_key')
                 ->missing('photoDetail.photo.stored_filename')
-                ->has('photoDetail.photo.categories', 7)
+                ->has('photoDetail.photo.categories', 8)
                 ->where('photoDetail.photo.tags.0.name', '捧杯')
                 ->where('photoDetail.photo.albums.0.url', '/albums/world-cup-final')
                 ->where('photoDetail.context.type', 'gallery')

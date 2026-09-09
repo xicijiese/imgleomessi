@@ -42,7 +42,7 @@ class AlbumManagementTest extends TestCase
         $this->assertSame('draft', $album->status);
     }
 
-    public function test_album_requires_one_child_category_from_each_root_category(): void
+    public function test_album_requires_one_child_category_from_each_required_root_category(): void
     {
         $this->seed(GalleryTaxonomySeeder::class);
 
@@ -53,13 +53,14 @@ class AlbumManagementTest extends TestCase
 
         $pendingChildren = Category::query()
             ->children()
+            ->whereIn('parent_id', Category::requiredRootIds())
             ->where('name', '待补充')
             ->pluck('id');
 
         $album->categories()->sync($pendingChildren);
         $this->assertTrue($album->hasCompleteCategorySet());
 
-        $album->categories()->sync($pendingChildren->take(6));
+        $album->categories()->sync($pendingChildren->take(2));
         $this->assertFalse($album->hasCompleteCategorySet());
     }
 

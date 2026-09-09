@@ -51,7 +51,7 @@ class PublicAlbumDetailTest extends TestCase
                 ->where('albumDetail.album.description', '阿根廷夺冠夜相册')
                 ->where('albumDetail.album.public_photos_count', 1)
                 ->where('albumDetail.album.cover_image_url', '/storage/photos/display/world-cup-final.webp')
-                ->has('albumDetail.album.categories', 7)
+                ->has('albumDetail.album.categories', 8)
                 ->has('albumDetail.photos.data', 1)
                 ->where('albumDetail.photos.data.0.title', '世界杯决赛捧杯')
                 ->where('albumDetail.photos.data.0.url', '/photos/'.$photo->uuid.'?album=2022-world-cup-final')

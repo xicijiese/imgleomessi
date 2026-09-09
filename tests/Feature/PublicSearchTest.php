@@ -33,7 +33,7 @@ class PublicSearchTest extends TestCase
                 ->component('Search/Index')
                 ->where('search.site.name', '梅西影像档案库')
                 ->where('search.filters.sort', 'published_desc')
-                ->has('search.filter_options.category_groups', 7)
+                ->has('search.filter_options.category_groups', 8)
                 ->has('search.photos.data', 1)
                 ->where('search.photos.data.0.title', '公开图库图片')
                 ->where('search.photos.data.0.image_url', '/storage/photos/display/public.webp')
