@@ -1223,6 +1223,18 @@ git status --short
 4. 浏览器使用 Ctrl+F5 后检查首页、登录、/admin、/admin/photos 和系统设置；
 5. 如果登录状态异常，先按“后台登录循环”章节检查会话，不要重复创建管理员。
 
+### 16.2 本次分类字典的增量同步
+
+本次只新增或补齐 `categories` 数据，没有新增数据库表结构，因此不需要为分类清单单独创建 migration。代码拉取完成后，在 VPS 项目根目录执行定向、幂等 Seeder：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan db:seed --class=GalleryTaxonomySeeder --force
+/www/server/php/83/bin/php artisan optimize:clear
+~~~
+
+该命令只同步 8 个默认主分类及其子分类，并保留已有图片/相册分类关系；不要在生产执行完整 `php artisan db:seed --force`。本次分类数据本身不需要重启 Worker；如果同时发布了 PHP 代码，则仍按上面的发布流程执行 `queue:restart` 并重启宝塔 Worker。
+
 生产发布禁止执行：
 
 ~~~bash

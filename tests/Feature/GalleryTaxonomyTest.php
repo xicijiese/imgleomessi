@@ -18,10 +18,24 @@ class GalleryTaxonomyTest extends TestCase
     public function test_gallery_taxonomy_seeder_creates_fixed_root_categories_with_pending_children(): void
     {
         $this->seed(GalleryTaxonomySeeder::class);
+        $firstCount = Category::query()->count();
         $this->seed(GalleryTaxonomySeeder::class);
 
         $this->assertSame(8, Category::query()->roots()->count());
-        $this->assertSame(16, Category::query()->count());
+        $this->assertSame($firstCount, Category::query()->count());
+
+        foreach (GalleryTaxonomySeeder::CHILDREN as $rootSlug => $children) {
+            $root = Category::query()->where('slug', $rootSlug)->firstOrFail();
+
+            foreach ($children as $child) {
+                $this->assertDatabaseHas('categories', [
+                    'parent_id' => $root->id,
+                    'slug' => $child['slug'],
+                    'name' => $child['name'],
+                    'visibility' => 'public',
+                ]);
+            }
+        }
 
         $this->assertSame(Category::REQUIRED_ROOT_SLUGS, Category::query()->requiredForPublish()->pluck('slug')->all());
 
