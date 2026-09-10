@@ -232,10 +232,10 @@ onUnmounted(() => {
         ]"
     >
         <div
-            class="mx-auto hidden h-20 max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-6 px-4 sm:px-6 lg:grid lg:px-8"
+            class="mx-auto hidden h-20 max-w-7xl grid-cols-[auto_minmax(0,1fr)_minmax(320px,1.2fr)] items-center gap-5 px-4 sm:px-6 lg:grid lg:px-8"
         >
             <nav
-                class="flex min-w-0 items-center gap-5 text-sm font-medium"
+                class="order-2 flex min-w-0 items-center gap-5 text-base font-medium"
                 aria-label="主导航"
             >
                 <Link
@@ -250,14 +250,15 @@ onUnmounted(() => {
 
             <Link
                 href="/"
-                class="flex min-w-0 shrink-0 items-center justify-center gap-3"
+                class="group relative order-1 flex min-w-0 shrink-0 items-center justify-start gap-3"
                 aria-label="返回首页"
+                :title="site.name"
             >
                 <img
                     v-if="site.logo_url"
                     :src="site.logo_url"
                     :alt="site.name"
-                    class="h-10 w-10 rounded-sm object-cover"
+                    class="h-10 w-auto max-w-[10rem] rounded-sm object-contain"
                 />
                 <span
                     v-else
@@ -265,12 +266,14 @@ onUnmounted(() => {
                 >
                     M
                 </span>
-                <span class="max-w-48 truncate text-lg font-semibold">{{
-                    site.name
-                }}</span>
+                <span
+                    class="pointer-events-none absolute top-full left-0 z-20 mt-2 whitespace-nowrap rounded-sm bg-[#094067] px-3 py-2 text-sm font-medium text-[#fffffe] opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+                >
+                    {{ site.name }}
+                </span>
             </Link>
 
-            <div class="flex min-w-0 items-center justify-end gap-3">
+            <div class="order-3 flex min-w-0 items-center justify-end gap-3">
                 <form
                     class="relative flex max-w-md min-w-[220px] flex-1 items-center rounded-full border px-4 py-2 transition"
                     :class="
@@ -286,7 +289,7 @@ onUnmounted(() => {
                         v-model="searchQuery"
                         type="search"
                         :placeholder="site.search_placeholder"
-                        class="w-full bg-transparent text-sm outline-none placeholder:text-current/70"
+                        class="w-full bg-transparent text-base outline-none placeholder:text-current/70"
                         aria-label="搜索图片、相册、赛事或年份"
                         autocomplete="off"
                         @focus="openSuggestions"
@@ -326,7 +329,7 @@ onUnmounted(() => {
                 </form>
 
                 <nav
-                    class="flex shrink-0 items-center gap-2 text-sm font-medium"
+                    class="flex shrink-0 items-center gap-2 text-base font-medium"
                     aria-label="账号入口"
                 >
                     <template v-if="currentUser">
@@ -389,14 +392,15 @@ onUnmounted(() => {
         >
             <Link
                 href="/"
-                class="flex min-w-0 shrink-0 items-center gap-3"
+                class="group relative flex min-w-0 shrink-0 items-center gap-3"
                 aria-label="返回首页"
+                :title="site.name"
             >
                 <img
                     v-if="site.logo_url"
                     :src="site.logo_url"
                     :alt="site.name"
-                    class="h-10 w-10 rounded-sm object-cover"
+                    class="h-10 w-auto max-w-[10rem] rounded-sm object-contain"
                 />
                 <span
                     v-else
@@ -404,9 +408,11 @@ onUnmounted(() => {
                 >
                     M
                 </span>
-                <span class="truncate text-base font-semibold sm:text-lg">{{
-                    site.name
-                }}</span>
+                <span
+                    class="pointer-events-none absolute top-full left-0 z-20 mt-2 whitespace-nowrap rounded-sm bg-[#094067] px-3 py-2 text-sm font-medium text-[#fffffe] opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+                >
+                    {{ site.name }}
+                </span>
             </Link>
 
             <button
@@ -491,20 +497,20 @@ onUnmounted(() => {
                 <template v-if="currentUser">
                     <Link
                         href="/me"
-                        class="rounded-sm border border-[#90b4ce]/60 px-4 py-2 text-sm font-semibold hover:border-[#3da9fc] hover:text-[#3da9fc]"
+                        class="rounded-sm border border-[#90b4ce]/60 px-4 py-2 text-base font-semibold hover:border-[#3da9fc] hover:text-[#3da9fc]"
                         @click="mobileMenuOpen = false"
                         >个人中心</Link
                     >
                     <a
                         v-if="canAccessAdmin"
                         href="/admin"
-                        class="rounded-sm border border-[#90b4ce]/60 px-4 py-2 text-sm font-semibold hover:border-[#3da9fc] hover:text-[#3da9fc]"
+                        class="rounded-sm border border-[#90b4ce]/60 px-4 py-2 text-base font-semibold hover:border-[#3da9fc] hover:text-[#3da9fc]"
                         @click="mobileMenuOpen = false"
                         >管理后台</a
                     >
                     <button
                         type="button"
-                        class="rounded-sm border border-[#90b4ce]/60 px-4 py-2 text-sm font-semibold hover:border-[#3da9fc] hover:text-[#3da9fc]"
+                        class="rounded-sm border border-[#90b4ce]/60 px-4 py-2 text-base font-semibold hover:border-[#3da9fc] hover:text-[#3da9fc]"
                         @click="handleLogout"
                     >
                         退出登录
@@ -515,7 +521,7 @@ onUnmounted(() => {
                     v-for="link in guestAccountLinks"
                     :key="link.label"
                     :href="link.url"
-                    class="rounded-sm border border-[#90b4ce]/60 px-4 py-2 text-sm font-semibold hover:border-[#3da9fc] hover:text-[#3da9fc]"
+                    class="rounded-sm border border-[#90b4ce]/60 px-4 py-2 text-base font-semibold hover:border-[#3da9fc] hover:text-[#3da9fc]"
                     @click="mobileMenuOpen = false"
                 >
                     {{ link.label }}
