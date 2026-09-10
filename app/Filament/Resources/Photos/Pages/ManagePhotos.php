@@ -60,7 +60,7 @@ class ManagePhotos extends ManageRecords
                                 ->label('标签名')
                                 ->required()
                                 ->maxLength(255)
-                                ->unique(),
+                                ->unique(table: 'tags', column: 'name'),
                         ])
                         ->createOptionUsing(fn (array $data): int => (int) Tag::query()->create($data)->getKey())
                         ->helperText('可输入关键词搜索，输入不存在的标签后可直接创建。'),
