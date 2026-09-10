@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Album;
 use App\Models\Category;
 use App\Models\Photo;
-use App\Models\Source;
 use App\Models\Tag;
 use Database\Seeders\GalleryTaxonomySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -87,7 +86,6 @@ class PublicSearchTest extends TestCase
         $worldCup = Category::query()->children()->where('parent_id', $competition->id)->firstOrFail();
         $tag = Tag::query()->create([
             'name' => '夺冠',
-            'type' => '荣誉',
             'sort_order' => 10,
         ]);
         $album = Album::query()->create([
@@ -142,22 +140,17 @@ class PublicSearchTest extends TestCase
             );
     }
 
-
     public function test_search_reuses_p1_15_advanced_metadata_filters(): void
     {
-        $source = Source::query()->create([
-            'original_url' => 'https://example.com/search-source',
-            'is_enabled' => true,
-        ]);
+        $sourceUrl = 'https://example.com/search-source';
         $peopleTag = Tag::query()->create([
             'name' => '家人同框',
-            'type' => '人物关系',
         ]);
 
         $matching = Photo::query()->create([
             'title' => '搜索高级筛选命中图片',
             'status' => 'published',
-            'source_id' => $source->id,
+            'source_url' => $sourceUrl,
             'copyright_status' => 'credited',
             'watermark_status' => 'none',
             'width' => 1200,
@@ -169,7 +162,7 @@ class PublicSearchTest extends TestCase
         $other = Photo::query()->create([
             'title' => '水印状态不同不应命中',
             'status' => 'published',
-            'source_id' => $source->id,
+            'source_url' => $sourceUrl,
             'copyright_status' => 'credited',
             'watermark_status' => 'present',
             'width' => 1200,
@@ -184,7 +177,7 @@ class PublicSearchTest extends TestCase
             'orientation' => 'portrait',
             'resolution' => 'standard',
             'watermark_status' => 'none',
-            'people_tags' => [$peopleTag->id],
+            'tags' => [$peopleTag->id],
         ]);
 
         $this->get('/search?'.$query)
@@ -192,13 +185,12 @@ class PublicSearchTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Search/Index')
                 ->where('search.filters.source_mode', 'has')
-                ->where('search.filters.source_id', null)
                 ->where('search.filters.copyright_status', 'credited')
                 ->where('search.filters.orientation', 'portrait')
                 ->where('search.filters.resolution', 'standard')
                 ->where('search.filters.watermark_status', 'none')
-                ->where('search.filters.people_tags.0', $peopleTag->id)
-                ->has('search.filter_options.people_tags', 1)
+                ->where('search.filters.tags.0', $peopleTag->id)
+                ->has('search.filter_options.tags', 1)
                 ->has('search.photos.data', 1)
                 ->where('search.photos.data.0.title', '搜索高级筛选命中图片')
                 ->where('search.photos.data.0.resolution_label', '普通')
@@ -206,6 +198,7 @@ class PublicSearchTest extends TestCase
                 ->where('search.photos.data.0.watermark_status_label', '无水印')
             );
     }
+
     public function test_search_does_not_match_original_or_stored_file_names(): void
     {
         Photo::query()->create([

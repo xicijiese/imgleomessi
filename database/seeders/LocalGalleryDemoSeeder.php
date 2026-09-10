@@ -11,7 +11,6 @@ use App\Models\PhotoFavorite;
 use App\Models\PhotoLike;
 use App\Models\PhotoShare;
 use App\Models\Setting;
-use App\Models\Source;
 use App\Models\SponsorshipOrder;
 use App\Models\SponsorshipPlan;
 use App\Models\Tag;
@@ -49,18 +48,10 @@ class LocalGalleryDemoSeeder extends Seeder
 
         $categories = $this->demoCategories();
         $tags = $this->demoTags();
-        $source = Source::query()->firstOrCreate(
-            ['original_url' => 'local://messi-gallery-demo'],
-            [
-                'published_at' => now(),
-                'copyright_note' => '本地测试素材，仅用于开发环境页面效果验收。',
-                'internal_note' => '由 LocalGalleryDemoSeeder 根据 .scratch/messi-gallery/test-images 生成。',
-                'is_enabled' => true,
-            ],
-        );
+        $sourceUrl = 'https://example.com/messi-gallery-demo';
 
         $photos = collect($images)
-            ->map(fn (string $path, int $index): Photo => $this->upsertPhoto($path, $index, $categories, $tags, $source))
+            ->map(fn (string $path, int $index): Photo => $this->upsertPhoto($path, $index, $categories, $tags, $sourceUrl))
             ->values();
 
         $albums = collect($this->albumPlans($categories))
@@ -200,22 +191,21 @@ class LocalGalleryDemoSeeder extends Seeder
     private function demoTags(): array
     {
         $plans = [
-            ['name' => '庆祝', 'type' => '动作'],
-            ['name' => '冲刺', 'type' => '动作'],
-            ['name' => '专注', 'type' => '情绪'],
-            ['name' => '高光', 'type' => '画质'],
-            ['name' => '队友同框', 'type' => '人物关系'],
-            ['name' => '冠军时刻', 'type' => '荣誉'],
-            ['name' => '赛前热身', 'type' => '画面内容'],
-            ['name' => '球衣', 'type' => '服装/装备'],
-            ['name' => '球场', 'type' => '地点'],
+            ['name' => '庆祝'],
+            ['name' => '冲刺'],
+            ['name' => '专注'],
+            ['name' => '高光'],
+            ['name' => '队友同框'],
+            ['name' => '冠军时刻'],
+            ['name' => '赛前热身'],
+            ['name' => '球衣'],
+            ['name' => '球场'],
         ];
 
         return collect($plans)
             ->map(fn (array $plan, int $index): Tag => Tag::query()->updateOrCreate(
                 ['name' => $plan['name']],
                 [
-                    'type' => $plan['type'],
                     'description' => '本地演示标签，用于前台筛选和详情页展示。',
                     'sort_order' => ($index + 1) * 10,
                 ],
@@ -227,7 +217,7 @@ class LocalGalleryDemoSeeder extends Seeder
      * @param  array<string, array<string, Category>>  $categories
      * @param  array<int, Tag>  $tags
      */
-    private function upsertPhoto(string $path, int $index, array $categories, array $tags, Source $source): Photo
+    private function upsertPhoto(string $path, int $index, array $categories, array $tags, string $sourceUrl): Photo
     {
         $basename = basename($path);
         $storedFilename = 'demo-'.$basename;
@@ -250,7 +240,7 @@ class LocalGalleryDemoSeeder extends Seeder
             'original_filename' => $basename,
             'taken_at' => $publishedAt,
             'event_date' => $publishedAt->toDateString(),
-            'source_id' => $source->id,
+            'source_url' => $sourceUrl,
             'copyright_status' => 'credited',
             'status' => 'published',
             'width' => $width,

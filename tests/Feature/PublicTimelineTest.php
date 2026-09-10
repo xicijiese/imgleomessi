@@ -78,7 +78,6 @@ class PublicTimelineTest extends TestCase
         $worldCup = Category::query()->children()->where('parent_id', $competition->id)->firstOrFail();
         $tag = Tag::query()->create([
             'name' => '夺冠',
-            'type' => '荣誉',
             'sort_order' => 10,
         ]);
 

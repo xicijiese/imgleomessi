@@ -46,7 +46,7 @@ class Photo extends Model
         'stored_filename',
         'taken_at',
         'event_date',
-        'source_id',
+        'source_url',
         'copyright_status',
         'watermark_status',
         'status',
@@ -68,7 +68,7 @@ class Photo extends Model
         return [
             'taken_at' => 'datetime',
             'event_date' => 'date',
-            'source_id' => 'integer',
+
             'width' => 'integer',
             'height' => 'integer',
             'file_size' => 'integer',
@@ -86,11 +86,6 @@ class Photo extends Model
                 $photo->uuid = (string) Str::uuid();
             }
         });
-    }
-
-    public function source(): BelongsTo
-    {
-        return $this->belongsTo(Source::class);
     }
 
     public function uploader(): BelongsTo
@@ -113,11 +108,7 @@ class Photo extends Model
         return $this->belongsToMany(Tag::class, 'photo_tag');
     }
 
-        public function opponents(): BelongsToMany
-    {
-        return $this->belongsToMany(Opponent::class, 'opponent_photo');
-    }
-public function albums(): BelongsToMany
+    public function albums(): BelongsToMany
     {
         return $this->belongsToMany(Album::class, 'album_photo');
     }

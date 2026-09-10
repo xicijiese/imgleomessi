@@ -5,11 +5,10 @@ namespace Tests\Feature;
 use App\Models\Album;
 use App\Models\Category;
 use App\Models\Comment;
+use App\Models\Photo;
 use App\Models\PhotoFavorite;
 use App\Models\PhotoLike;
 use App\Models\PhotoShare;
-use App\Models\Photo;
-use App\Models\Source;
 use App\Models\Tag;
 use App\Models\User;
 use Database\Seeders\GalleryTaxonomySeeder;
@@ -92,7 +91,6 @@ class PublicPhotoGalleryTest extends TestCase
         $worldCup = Category::query()->children()->where('parent_id', $competition->id)->firstOrFail();
         $tag = Tag::query()->create([
             'name' => '夺冠',
-            'type' => '荣誉',
             'sort_order' => 10,
         ]);
         $album = Album::query()->create([
@@ -147,23 +145,18 @@ class PublicPhotoGalleryTest extends TestCase
             );
     }
 
-
     public function test_photo_gallery_filters_by_p1_15_advanced_metadata_and_sorts_by_hot_score(): void
     {
-        $source = Source::query()->create([
-            'original_url' => 'https://example.com/official-gallery',
-            'is_enabled' => true,
-        ]);
+        $sourceUrl = 'https://example.com/gallery-source';
         $peopleTag = Tag::query()->create([
             'name' => '队友同框',
-            'type' => '人物关系',
         ]);
         $user = User::factory()->create();
 
         $matching = Photo::query()->create([
             'title' => '高级筛选命中图片',
             'status' => 'published',
-            'source_id' => $source->id,
+            'source_url' => $sourceUrl,
             'copyright_status' => 'credited',
             'watermark_status' => 'present',
             'width' => 3200,
@@ -175,7 +168,7 @@ class PublicPhotoGalleryTest extends TestCase
         $sameFiltersLowerScore = Photo::query()->create([
             'title' => '同条件低热度图片',
             'status' => 'published',
-            'source_id' => $source->id,
+            'source_url' => $sourceUrl,
             'copyright_status' => 'credited',
             'watermark_status' => 'present',
             'width' => 3000,
@@ -187,7 +180,7 @@ class PublicPhotoGalleryTest extends TestCase
         Photo::query()->create([
             'title' => '竖图不应命中',
             'status' => 'published',
-            'source_id' => $source->id,
+            'source_url' => $sourceUrl,
             'copyright_status' => 'credited',
             'watermark_status' => 'present',
             'width' => 1200,
@@ -212,12 +205,12 @@ class PublicPhotoGalleryTest extends TestCase
         ]);
 
         $query = http_build_query([
-            'source_id' => $source->id,
+            'source_mode' => 'has',
             'copyright_status' => 'credited',
             'orientation' => 'landscape',
             'resolution' => 'ultra',
             'watermark_status' => 'present',
-            'people_tags' => [$peopleTag->id],
+            'tags' => [$peopleTag->id],
             'sort' => 'hot_desc',
         ]);
 
@@ -225,16 +218,15 @@ class PublicPhotoGalleryTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Photos/Index')
-                ->where('gallery.filters.source_mode', 'specific')
-                ->where('gallery.filters.source_id', $source->id)
+                ->where('gallery.filters.source_mode', 'has')
                 ->where('gallery.filters.copyright_status', 'credited')
                 ->where('gallery.filters.orientation', 'landscape')
                 ->where('gallery.filters.resolution', 'ultra')
                 ->where('gallery.filters.watermark_status', 'present')
-                ->where('gallery.filters.people_tags.0', $peopleTag->id)
+                ->where('gallery.filters.tags.0', $peopleTag->id)
                 ->where('gallery.filters.sort', 'hot_desc')
-                ->has('gallery.filter_options.sources', 1)
-                ->has('gallery.filter_options.people_tags', 1)
+                ->has('gallery.filter_options.tags', 1)
+                ->has('gallery.filter_options.people_tags', 0)
                 ->has('gallery.photos.data', 2)
                 ->where('gallery.photos.data.0.title', '高级筛选命中图片')
                 ->where('gallery.photos.data.0.resolution_label', '超清')
@@ -243,7 +235,6 @@ class PublicPhotoGalleryTest extends TestCase
                 ->where('gallery.photos.data.1.title', '同条件低热度图片')
             );
     }
-
 
     public function test_photo_gallery_sorts_by_event_date(): void
     {
@@ -305,11 +296,7 @@ class PublicPhotoGalleryTest extends TestCase
 
     public function test_photo_gallery_keeps_card_payload_minimal_and_filters_album_options(): void
     {
-        $source = Source::query()->create([
-            'original_url' => 'https://example.com/source',
-            'copyright_note' => '公开来源说明',
-            'internal_note' => '后台内部备注',
-        ]);
+        $sourceUrl = 'https://example.com/gallery-source';
         $publicAlbum = Album::query()->create([
             'title' => '公开有效相册',
             'slug' => 'public-album',
@@ -338,7 +325,7 @@ class PublicPhotoGalleryTest extends TestCase
         $publicPhoto = Photo::query()->create([
             'title' => '公开图片',
             'status' => 'published',
-            'source_id' => $source->id,
+            'source_url' => $sourceUrl,
             'original_key' => 'photos/original/private.jpg',
             'stored_filename' => 'system-private.webp',
             'published_at' => now(),

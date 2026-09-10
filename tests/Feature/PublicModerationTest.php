@@ -62,7 +62,7 @@ class PublicModerationTest extends TestCase
         ]);
         $this->assertDatabaseHas('comments', [
             'photo_id' => $photo->id,
-            'type' => 'correction',
+            'type' => 'discussion',
             'status' => 'pending',
             'risk_level' => 'high',
         ]);

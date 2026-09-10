@@ -6,7 +6,6 @@ use App\Filament\Resources\Albums\Pages\ManageAlbums;
 use App\Models\Album;
 use App\Models\Category;
 use BackedEnum;
-use Closure;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DateTimePicker;
@@ -14,12 +13,13 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use UnitEnum;
 
@@ -53,25 +53,10 @@ class AlbumResource extends Resource
                     ->maxLength(255)
                     ->unique(ignoreRecord: true)
                     ->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? Str::slug($state) : null),
-                Select::make('categories')
-                    ->label('相册分类')
-                    ->relationship(
-                        name: 'categories',
-                        titleAttribute: 'name',
-                        modifyQueryUsing: fn (Builder $query): Builder => $query
-                            ->children()
-                            ->with('parent')
-                            ->orderBy('parent_id')
-                            ->orderBy('sort_order')
-                            ->orderBy('id'),
-                    )
-                    ->getOptionLabelFromRecordUsing(fn (Category $record): string => ($record->parent?->name ?? '未分组').' / '.$record->name)
-                    ->multiple()
-                    ->preload()
-                    ->searchable()
-                    ->required()
-                    ->rules([self::completeCategorySetRule()])
-                    ->helperText('发布前必须选择：生涯阶段、年份、场景；赛事、赛季、图片类型、来源平台可选。'),
+                Section::make('相册分类')
+                    ->schema(self::categorySelectors())
+                    ->columns(2)
+                    ->columnSpanFull(),
                 Select::make('status')
                     ->label('状态')
                     ->options(Album::STATUSES)
@@ -125,7 +110,16 @@ class AlbumResource extends Resource
             ])
             ->defaultSort('sort_order')
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->mutateRecordDataUsing(fn (array $data, Album $record): array => [
+                        ...$data,
+                        ...self::categoryFormDataFromRecord($record),
+                    ])
+                    ->using(function (array $data, Album $record): void {
+                        $categoryIds = self::categoryIdsFromFormData($data);
+                        $record->update(Arr::except($data, self::categoryFieldNames()));
+                        $record->categories()->sync($categoryIds);
+                    }),
                 DeleteAction::make(),
             ]);
     }
@@ -137,41 +131,91 @@ class AlbumResource extends Resource
         ];
     }
 
-    private static function completeCategorySetRule(): Closure
+    /**
+     * 为每个主分类提供独立的子分类选择器，避免所有子分类混在一个下拉中。
+     *
+     * @return array<int, Select>
+     */
+    private static function categorySelectors(): array
     {
-        return function (string $attribute, mixed $value, Closure $fail): void {
-            $categoryIds = collect($value)->filter()->map(fn (mixed $id): int => (int) $id)->unique();
-
-            if ($categoryIds->isEmpty()) {
-                return;
-            }
-
-            $categories = Category::query()
-                ->whereIn('id', $categoryIds)
-                ->children()
-                ->get(['id', 'parent_id']);
-
-            if ($categories->count() !== $categoryIds->count()) {
-                $fail('只能选择子分类。');
-
-                return;
-            }
-
-            $selectedByParent = $categories->groupBy('parent_id');
-
-            foreach (Category::requiredRootIds() as $rootId) {
-                if ($selectedByParent->get($rootId, collect())->count() !== 1) {
-                    $fail('相册发布前必须选择生涯阶段、年份和场景各一个子分类。');
-
-                    return;
-                }
-            }
-
-            if ($selectedByParent->contains(fn ($selected): bool => $selected->count() > 1)) {
-                $fail('每个主分类最多选择一个子分类。');
-            }
-        };
+        return Category::query()
+            ->roots()
+            ->with('children')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(function (Category $root): Select {
+                return Select::make(self::categoryFieldName((int) $root->id))
+                    ->label($root->name)
+                    ->options($root->children
+                        ->where('visibility', 'public')
+                        ->mapWithKeys(fn (Category $child): array => [$child->id => $child->name])
+                        ->all())
+                    ->searchable()
+                    ->preload()
+                    ->required($root->required_for_publish)
+                    ->markAsRequired($root->required_for_publish)
+                    ->helperText($root->required_for_publish ? '发布前必须选择一个子分类。' : '可选；有可靠资料时再补充。');
+            })
+            ->all();
     }
 
+    private static function categoryFieldName(int $rootId): string
+    {
+        return 'category_root_'.$rootId;
+    }
 
+    /**
+     * @return array<int, string>
+     */
+    private static function categoryFieldNames(): array
+    {
+        return Category::query()
+            ->roots()
+            ->pluck('id')
+            ->map(fn (mixed $id): string => self::categoryFieldName((int) $id))
+            ->all();
+    }
+
+    /**
+     * 提供给相册创建动作使用的分类字段名。
+     *
+     * @return array<int, string>
+     */
+    public static function categoryFieldNamesForForm(): array
+    {
+        return self::categoryFieldNames();
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public static function categoryIdsFromFormData(array $data): array
+    {
+        return collect(self::categoryFieldNames())
+            ->map(fn (string $field): mixed => $data[$field] ?? null)
+            ->filter()
+            ->map(fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, int|null>
+     */
+    private static function categoryFormDataFromRecord(Album $record): array
+    {
+        $selectedByRoot = $record->categories()
+            ->children()
+            ->pluck('categories.id', 'parent_id');
+
+        return Category::query()
+            ->roots()
+            ->pluck('id')
+            ->mapWithKeys(fn (mixed $rootId): array => [
+                self::categoryFieldName((int) $rootId) => $selectedByRoot->get((int) $rootId),
+            ])
+            ->all();
+    }
 }

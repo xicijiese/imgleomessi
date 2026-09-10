@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Filament\Resources\Categories\CategoryResource;
 use App\Filament\Resources\Tags\TagResource;
 use App\Models\Category;
-use App\Models\Tag;
 use App\Models\User;
 use Database\Seeders\GalleryTaxonomySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -53,20 +52,6 @@ class GalleryTaxonomyTest extends TestCase
                 'is_system' => true,
             ]);
         }
-    }
-
-    public function test_tags_use_the_confirmed_phase_one_types(): void
-    {
-        $this->assertSame([
-            '动作',
-            '情绪',
-            '画质',
-            '人物关系',
-            '荣誉',
-            '画面内容',
-            '服装/装备',
-            '地点',
-        ], array_values(Tag::TYPES));
     }
 
     public function test_admin_can_visit_category_and_tag_resources(): void

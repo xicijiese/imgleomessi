@@ -7,7 +7,6 @@ use App\Models\Album;
 use App\Models\Category;
 use App\Models\Photo;
 use App\Models\PhotoUploadBatch;
-use App\Models\Source;
 use App\Models\Tag;
 use App\Models\User;
 use App\Services\PhotoBatchOrganizer;
@@ -117,9 +116,7 @@ class PhotoUploadBatchManagementTest extends TestCase
 
     public function test_batch_common_fields_can_be_applied_to_selected_photos(): void
     {
-        $source = Source::query()->create([
-            'original_url' => 'https://example.com/source',
-        ]);
+        $sourceUrl = 'https://example.com/source';
         $batch = PhotoUploadBatch::query()->create([
             'mode' => 'standalone',
             'status' => 'completed',
@@ -132,13 +129,13 @@ class PhotoUploadBatchManagementTest extends TestCase
         ]);
 
         $result = app(PhotoBatchOrganizer::class)->updateCommonFields($photos, [
-            'source_id' => $source->id,
+            'source_url' => $sourceUrl,
             'copyright_status' => 'credited',
             'event_date' => '2022-12-18',
         ]);
 
         $this->assertSame(['updated' => 2], $result);
-        $this->assertSame(2, Photo::query()->where('source_id', $source->id)->count());
+        $this->assertSame(2, Photo::query()->where('source_url', $sourceUrl)->count());
         $this->assertSame(2, Photo::query()->where('copyright_status', 'credited')->count());
         $this->assertSame(2, Photo::query()->whereDate('event_date', '2022-12-18')->count());
     }

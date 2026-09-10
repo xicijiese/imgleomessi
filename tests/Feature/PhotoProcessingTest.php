@@ -2,26 +2,29 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\PhotoSimilarityCandidates\PhotoSimilarityCandidateResource;
 use App\Filament\Resources\ProcessingJobs\ProcessingJobResource;
 use App\Jobs\ProcessPhotoAnalysisJob;
+use App\Models\Category;
 use App\Models\Photo;
 use App\Models\PhotoAnalysisResult;
 use App\Models\PhotoSimilarityCandidate;
 use App\Models\ProcessingJob;
 use App\Models\Setting;
 use App\Models\User;
-
 use App\Services\PhotoProcessingService;
 use App\Services\PhotoSimilarityService;
 use App\Services\PhotoUploadService;
+use App\Services\StorageSettings;
 use App\Services\TencentDataWanxiangService;
+use Database\Seeders\GalleryTaxonomySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Mockery;
-use Qcloud\Cos\Client;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
+use Qcloud\Cos\Client;
 use Tests\TestCase;
 
 class PhotoProcessingTest extends TestCase
@@ -138,6 +141,7 @@ class PhotoProcessingTest extends TestCase
         $this->assertSame(['metadata', 'hash', 'datawanxiang_derivatives', 'ocr'], collect($jobs)->map->type->all());
         $this->assertFalse($photo->processingJobs()->where('type', 'labels')->exists());
     }
+
     public function test_local_processing_generates_display_and_thumbnail_webp_files(): void
     {
         $image = UploadedFile::fake()->image('local-derivatives.jpg', 1200, 800);
@@ -166,10 +170,11 @@ class PhotoProcessingTest extends TestCase
         $this->assertSame(1200, $displayInfo[0]);
         $this->assertSame(600, $thumbnailInfo[0]);
     }
+
     public function test_required_processing_completion_can_publish_photo_automatically(): void
     {
         $this->configureCosDataWanxiang();
-        $this->seed(\Database\Seeders\GalleryTaxonomySeeder::class);
+        $this->seed(GalleryTaxonomySeeder::class);
         $photo = Photo::query()->create([
             'title' => '处理完成自动发布测试',
             'status' => 'draft',
@@ -177,7 +182,7 @@ class PhotoProcessingTest extends TestCase
             'publish_after_processing' => true,
             'original_key' => 'photos/originals/auto-publish.jpg',
         ]);
-        $photo->categories()->sync(\App\Models\Category::query()->children()->where('name', '待补充')->pluck('id')->all());
+        $photo->categories()->sync(Category::query()->children()->where('name', '待补充')->pluck('id')->all());
         $wanxiang = Mockery::mock(TencentDataWanxiangService::class);
         $wanxiang->shouldReceive('generateDerivatives')
             ->once()
@@ -199,9 +204,10 @@ class PhotoProcessingTest extends TestCase
         $this->assertFalse($photo->publish_after_processing);
         $this->assertNotNull($photo->published_at);
     }
+
     public function test_latest_successful_derivative_job_can_auto_publish_after_previous_failure(): void
     {
-        $this->seed(\Database\Seeders\GalleryTaxonomySeeder::class);
+        $this->seed(GalleryTaxonomySeeder::class);
         $image = UploadedFile::fake()->image('retry-auto-publish.jpg', 800, 600);
         $originalKey = 'photos/originals/retry-auto-publish.jpg';
         Storage::disk('public')->put($originalKey, file_get_contents($image->getRealPath()));
@@ -213,7 +219,7 @@ class PhotoProcessingTest extends TestCase
             'publish_after_processing' => true,
             'original_key' => $originalKey,
         ]);
-        $photo->categories()->sync(\App\Models\Category::query()->children()->where('name', '待补充')->pluck('id')->all());
+        $photo->categories()->sync(Category::query()->children()->where('name', '待补充')->pluck('id')->all());
 
         $processing = app(PhotoProcessingService::class);
         $processing->createJob($photo, 'metadata')->update(['status' => 'done', 'processed_at' => now()]);
@@ -290,6 +296,7 @@ class PhotoProcessingTest extends TestCase
         $this->assertSame('done', $retried->status);
         $this->assertSame('photos/derived/'.$photo->uuid.'/display.webp', $photo->refresh()->display_key);
     }
+
     public function test_datawanxiang_service_builds_two_persistent_image_rules(): void
     {
         Setting::setValue('storage', 'config', [
@@ -330,7 +337,7 @@ class PhotoProcessingTest extends TestCase
                 ],
             ]);
 
-        $result = (new TencentDataWanxiangService(app(\App\Services\StorageSettings::class), $client))
+        $result = (new TencentDataWanxiangService(app(StorageSettings::class), $client))
             ->generateDerivatives($photo);
 
         $this->assertSame([
@@ -338,6 +345,7 @@ class PhotoProcessingTest extends TestCase
             'thumbnail_key' => $thumbnailKey,
         ], $result);
     }
+
     public function test_processing_hash_job_stores_analysis_result_and_duplicate_warning(): void
     {
         $service = app(PhotoProcessingService::class);
@@ -458,11 +466,12 @@ class PhotoProcessingTest extends TestCase
                 ],
             ]);
 
-        $text = (new TencentDataWanxiangService(app(\App\Services\StorageSettings::class), $client))
+        $text = (new TencentDataWanxiangService(app(StorageSettings::class), $client))
             ->recognizeText($photo);
 
         $this->assertSame("Messi\nBarcelona", $text);
     }
+
     public function test_similarity_processing_stores_perceptual_hash_and_candidate_review(): void
     {
         $image = UploadedFile::fake()->image('same-image.jpg', 32, 32);
@@ -539,13 +548,15 @@ class PhotoProcessingTest extends TestCase
             ],
         ]);
     }
+
     public function test_admin_can_visit_similarity_candidate_resource(): void
     {
         $this->actingAs(User::factory()->create());
 
-        $this->get(\App\Filament\Resources\PhotoSimilarityCandidates\PhotoSimilarityCandidateResource::getUrl())
+        $this->get(PhotoSimilarityCandidateResource::getUrl())
             ->assertOk();
     }
+
     public function test_admin_can_visit_processing_job_resource(): void
     {
         ProcessingJob::query()->create([

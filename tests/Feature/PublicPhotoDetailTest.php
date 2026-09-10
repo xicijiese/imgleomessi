@@ -6,7 +6,6 @@ use App\Models\Album;
 use App\Models\Category;
 use App\Models\Photo;
 use App\Models\Setting;
-use App\Models\Source;
 use App\Models\Tag;
 use App\Services\HomepageSettings;
 use Database\Seeders\GalleryTaxonomySeeder;
@@ -23,21 +22,14 @@ class PublicPhotoDetailTest extends TestCase
     {
         $this->seed(GalleryTaxonomySeeder::class);
 
-        $source = Source::query()->create([
-            'original_url' => 'https://example.com/messi-photo',
-            'published_at' => '2022-12-18 20:00:00',
-            'copyright_note' => '来源已标注',
-            'internal_note' => '只给后台看的内部备注',
-            'is_enabled' => true,
-        ]);
+        $sourceUrl = 'https://example.com/messi-photo';
         $tag = Tag::query()->create([
             'name' => '捧杯',
-            'type' => '荣誉',
             'sort_order' => 10,
         ]);
         $photo = $this->publicPhoto('世界杯决赛捧杯', [
             'description' => '梅西在世界杯决赛后捧起奖杯。',
-            'source_id' => $source->id,
+            'source_url' => $sourceUrl,
             'copyright_status' => 'credited',
             'display_key' => 'photos/display/world-cup.webp',
             'thumbnail_key' => 'photos/thumb/world-cup.webp',
@@ -72,10 +64,7 @@ class PublicPhotoDetailTest extends TestCase
                 ->where('photoDetail.photo.mime_type', 'image/jpeg')
                 ->where('photoDetail.photo.file_size_label', '2 MB')
                 ->where('photoDetail.photo.copyright_status.label', '已标注来源')
-                ->where('photoDetail.photo.source.original_url', 'https://example.com/messi-photo')
-                ->where('photoDetail.photo.source.published_at', '2022-12-18')
-                ->where('photoDetail.photo.source.copyright_note', '来源已标注')
-                ->missing('photoDetail.photo.source.internal_note')
+                ->where('photoDetail.photo.source.source_url', 'https://example.com/messi-photo')
                 ->missing('photoDetail.photo.original_key')
                 ->missing('photoDetail.photo.stored_filename')
                 ->has('photoDetail.photo.categories', 8)
@@ -182,16 +171,9 @@ class PublicPhotoDetailTest extends TestCase
             );
     }
 
-    public function test_disabled_source_is_not_exposed(): void
+    public function test_missing_source_url_is_not_exposed(): void
     {
-        $source = Source::query()->create([
-            'original_url' => 'https://example.com/hidden-source',
-            'published_at' => '2022-12-18 20:00:00',
-            'copyright_note' => '不应该公开',
-            'internal_note' => '后台备注',
-            'is_enabled' => false,
-        ]);
-        $photo = $this->publicPhoto('禁用来源图片', ['source_id' => $source->id]);
+        $photo = $this->publicPhoto('无来源图片');
 
         $this->get('/photos/'.$photo->uuid)
             ->assertOk()

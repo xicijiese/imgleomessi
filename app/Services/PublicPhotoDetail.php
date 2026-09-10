@@ -6,7 +6,6 @@ use App\Models\Album;
 use App\Models\Category;
 use App\Models\Comment;
 use App\Models\Photo;
-use App\Models\Source;
 use App\Models\Tag;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -33,7 +32,7 @@ class PublicPhotoDetail
             'navigation' => $this->navigation($settings),
             'seo' => $this->seo->photo($photoDetail),
             'photo' => $photoDetail,
-            'context' => $context['summary'],
+            'context' => array_merge($context['summary'], ['type' => $context['type']]),
             'adjacent' => $this->adjacent($photo, $context),
             'related' => [
                 'data' => $this->related($photo, $context),
@@ -52,7 +51,6 @@ class PublicPhotoDetail
                     ->orderBy('albums.sort_order')
                     ->orderBy('albums.id'),
                 'categories.parent',
-                'source',
                 'tags',
             ])
             ->firstOrFail();
@@ -94,7 +92,6 @@ class PublicPhotoDetail
             'type' => 'gallery',
             'ordered_photo_ids' => [],
             'summary' => [
-                'type' => 'gallery',
                 'title' => '图库',
                 'slug' => null,
                 'return_url' => '/photos',
@@ -138,7 +135,6 @@ class PublicPhotoDetail
             'type' => 'album',
             'ordered_photo_ids' => $orderedPhotoIds,
             'summary' => [
-                'type' => 'album',
                 'title' => $album->title,
                 'slug' => $album->slug,
                 'return_url' => '/albums/'.$album->slug,
@@ -189,7 +185,6 @@ class PublicPhotoDetail
             'type' => 'topic',
             'ordered_photo_ids' => $orderedPhotoIds,
             'summary' => [
-                'type' => 'topic',
                 'title' => trim((string) $topic['title']),
                 'slug' => $slug,
                 'return_url' => '/topics/'.$slug,
@@ -327,7 +322,7 @@ class PublicPhotoDetail
             'categories' => $categories->all(),
             'tags' => $tags->all(),
             'albums' => $this->albums($photo),
-            'source' => $this->source($photo->source),
+            'source' => $this->source($photo),
             'interactions' => $this->interactions($photo, $request),
         ];
     }
@@ -425,21 +420,11 @@ class PublicPhotoDetail
         return $url;
     }
 
-    private function source(?Source $source): ?array
+    private function source(Photo $photo): ?array
     {
-        if (! $source instanceof Source || ! $source->is_enabled) {
-            return null;
-        }
-
-        if (blank($source->original_url) && blank($source->published_at) && blank($source->copyright_note)) {
-            return null;
-        }
-
-        return [
-            'original_url' => $source->original_url,
-            'published_at' => $source->published_at?->toDateString(),
-            'copyright_note' => $source->copyright_note,
-        ];
+        return filled($photo->source_url) ? [
+            'source_url' => $photo->source_url,
+        ] : null;
     }
 
     /**
@@ -476,11 +461,10 @@ class PublicPhotoDetail
     private function tags($tags)
     {
         return $tags
-            ->sortBy(fn (Tag $tag): string => $tag->type.'-'.$tag->sort_order.'-'.$tag->id)
+            ->sortBy(fn (Tag $tag): string => $tag->sort_order.'-'.$tag->id)
             ->map(fn (Tag $tag): array => [
                 'id' => $tag->id,
                 'name' => $tag->name,
-                'type' => $tag->type,
                 'url' => '/photos?tags[]='.$tag->id,
             ])
             ->values();

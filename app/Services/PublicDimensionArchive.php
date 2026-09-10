@@ -125,7 +125,7 @@ class PublicDimensionArchive
             'filter_options' => [
                 'years' => $years,
                 'tags' => $this->tagOptions(false),
-                'people_tags' => $this->tagOptions(true),
+                'people_tags' => [],
                 'sorts' => $this->keyValueOptions(self::SORTS),
             ],
             'photos' => $this->paginatedPhotos($paginator),
@@ -268,12 +268,6 @@ class PublicDimensionArchive
             $query->whereHas('tags', fn (Builder $query): Builder => $query->where('tags.id', $tagId));
         }
 
-        foreach ($filters['people_tags'] as $tagId) {
-            $query->whereHas('tags', fn (Builder $query): Builder => $query
-                ->where('tags.id', $tagId)
-                ->where('tags.type', '人物关系'));
-        }
-
         return $query;
     }
 
@@ -369,6 +363,9 @@ class PublicDimensionArchive
      */
     private function selectedTags(Request $request, bool $peopleOnly): array
     {
+        if ($peopleOnly) {
+            return [];
+        }
         $key = $peopleOnly ? 'people_tags' : 'tags';
         $tagIds = collect(Arr::wrap($request->query($key, [])))
             ->filter(fn (mixed $id): bool => filled($id))
@@ -382,12 +379,6 @@ class PublicDimensionArchive
         }
 
         $query = Tag::query()->whereIn('id', $tagIds);
-
-        if ($peopleOnly) {
-            $query->where('type', '人物关系');
-        } else {
-            $query->where('type', '!=', '人物关系');
-        }
 
         return $query
             ->pluck('id')
@@ -457,11 +448,10 @@ class PublicDimensionArchive
             ->values();
 
         $tags = $photo->tags
-            ->sortBy(fn (Tag $tag): string => $tag->type.'-'.$tag->sort_order.'-'.$tag->id)
+            ->sortBy(fn (Tag $tag): string => $tag->sort_order.'-'.$tag->id)
             ->map(fn (Tag $tag): array => [
                 'id' => $tag->id,
                 'name' => $tag->name,
-                'type' => $tag->type,
             ])
             ->values();
 
@@ -537,17 +527,17 @@ class PublicDimensionArchive
      */
     private function tagOptions(bool $peopleOnly): array
     {
+        if ($peopleOnly) {
+            return [];
+        }
+
         return Tag::query()
-            ->when($peopleOnly, fn (Builder $query): Builder => $query->where('type', '人物关系'))
-            ->when(! $peopleOnly, fn (Builder $query): Builder => $query->where('type', '!=', '人物关系'))
-            ->orderBy('type')
             ->orderBy('sort_order')
             ->orderBy('id')
-            ->get(['id', 'name', 'type'])
+            ->get(['id', 'name'])
             ->map(fn (Tag $tag): array => [
                 'id' => $tag->id,
                 'name' => $tag->name,
-                'type' => $tag->type,
             ])
             ->values()
             ->all();

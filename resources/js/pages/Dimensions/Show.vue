@@ -31,7 +31,6 @@ interface YearOption {
 interface TagPayload {
     id: number;
     name: string;
-    type: string;
 }
 
 interface BreadcrumbItem {

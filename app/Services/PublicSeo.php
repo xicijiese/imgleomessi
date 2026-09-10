@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Album;
 use App\Models\Category;
-use App\Models\Opponent;
 use App\Models\Photo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -117,28 +116,10 @@ class PublicSeo
     /**
      * @return array<string, mixed>
      */
-    public function opponentsIndex(): array
-    {
-        return $this->page(
-            '对手',
-            '按对手维度浏览已发布且可公开展示的梅西图片和相册资料。',
-            '/opponents',
-            $this->siteLogo(),
-        );
-    }
 
     /**
      * @return array<string, mixed>
      */
-    public function opponentDetail(string $opponentName, string $path): array
-    {
-        return $this->page(
-            $opponentName,
-            '浏览'.$opponentName.'相关的梅西公开影像资料，包含图片、相册和时间线入口。',
-            $path,
-            $this->siteLogo(),
-        );
-    }
     /**
      * @return array<string, mixed>
      */
@@ -376,7 +357,6 @@ XML;
             ['loc' => $this->absoluteUrl('/topics', $request)],
             ['loc' => $this->absoluteUrl('/teams', $request)],
             ['loc' => $this->absoluteUrl('/seasons', $request)],
-            ['loc' => $this->absoluteUrl('/opponents', $request)],
             ['loc' => $this->absoluteUrl('/rankings', $request)],
             ['loc' => $this->absoluteUrl('/support', $request)],
             ['loc' => $this->absoluteUrl('/supporters', $request)],
@@ -425,16 +405,6 @@ XML;
                 'loc' => $this->absoluteUrl(($category->parent?->slug === 'season' ? '/seasons/' : '/teams/').$category->slug, $request),
                 'lastmod' => $this->date($category->updated_at),
             ]);
-        $opponentEntries = Opponent::query()
-            ->active()
-            ->whereHas('photos', fn (Builder $query): Builder => $this->publicPhotoConstraint($query))
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get(['slug', 'updated_at'])
-            ->map(fn (Opponent $opponent): array => [
-                'loc' => $this->absoluteUrl('/opponents/'.$opponent->slug, $request),
-                'lastmod' => $this->date($opponent->updated_at),
-            ]);
 
         $topicEntries = collect(Arr::get($this->settings->formState(), 'topic_module.items', []))
             ->filter(fn (array $topic): bool => $this->isPublicTopic($topic))
@@ -446,7 +416,6 @@ XML;
             ->concat($photoEntries)
             ->concat($albumEntries)
             ->concat($dimensionEntries)
-            ->concat($opponentEntries)
             ->concat($topicEntries)
             ->unique('loc')
             ->values()

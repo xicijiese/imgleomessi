@@ -7,7 +7,6 @@ use App\Models\Album;
 use App\Models\Category;
 use App\Models\Photo;
 use App\Models\PhotoUploadBatch;
-use App\Models\Source;
 use App\Models\Tag;
 use App\Models\User;
 use Database\Seeders\GalleryTaxonomySeeder;
@@ -33,7 +32,7 @@ class PhotoManagementTest extends TestCase
             'stored_filename',
             'taken_at',
             'event_date',
-            'source_id',
+            'source_url',
             'copyright_status',
             'status',
             'publish_after_processing',
@@ -67,12 +66,9 @@ class PhotoManagementTest extends TestCase
     {
         $this->seed(GalleryTaxonomySeeder::class);
 
-        $source = Source::query()->create([
-            'original_url' => 'https://example.com/messi-photo',
-        ]);
+        $sourceUrl = 'https://example.com/messi-photo';
         $tag = Tag::query()->create([
             'name' => '捧杯',
-            'type' => '荣誉',
         ]);
         $album = Album::query()->create([
             'title' => '2022 世界杯决赛',
@@ -86,7 +82,7 @@ class PhotoManagementTest extends TestCase
         ]);
         $photo = Photo::query()->create([
             'title' => '2022 世界杯决赛捧杯',
-            'source_id' => $source->id,
+            'source_url' => $sourceUrl,
             'photo_upload_batch_id' => $batch->id,
         ]);
 
@@ -95,7 +91,7 @@ class PhotoManagementTest extends TestCase
         $photo->tags()->sync([$tag->id]);
         $photo->albums()->sync([$album->id]);
 
-        $this->assertTrue($photo->source->is($source));
+        $this->assertSame($sourceUrl, $photo->source_url);
         $this->assertTrue($photo->uploadBatch->is($batch));
         $this->assertTrue($photo->categories()->whereKey($categoryIds->first())->exists());
         $this->assertTrue($photo->tags()->whereKey($tag->id)->exists());
@@ -144,6 +140,7 @@ class PhotoManagementTest extends TestCase
         $this->assertNull($photo->published_at);
         $this->assertFalse($photo->restoreFromArchive());
     }
+
     public function test_published_scope_only_returns_published_photos(): void
     {
         Photo::query()->create([
@@ -175,4 +172,5 @@ class PhotoManagementTest extends TestCase
         $this->actingAs(User::factory()->create());
 
         $this->get(PhotoResource::getUrl())->assertOk();
-    }}
+    }
+}

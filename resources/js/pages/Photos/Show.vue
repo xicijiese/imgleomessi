@@ -45,7 +45,6 @@ interface CategorySummary {
 interface TagSummary {
     id: number;
     name: string;
-    type: string;
     url: string;
 }
 
@@ -57,9 +56,7 @@ interface AlbumSummary {
 }
 
 interface SourceSummary {
-    original_url: string | null;
-    published_at: string | null;
-    copyright_note: string | null;
+    source_url: string;
 }
 
 interface InteractionState {
@@ -1053,54 +1050,17 @@ const showWechatQr = async () => {
                                 </div>
                                 <template v-if="photoDetail.photo.source">
                                     <a
-                                        v-if="
-                                            photoDetail.photo.source
-                                                .original_url
-                                        "
-                                        :href="
-                                            photoDetail.photo.source
-                                                .original_url
-                                        "
+                                        :href="photoDetail.photo.source.source_url"
                                         target="_blank"
-                                        rel="noreferrer"
+                                        rel="noreferrer noopener"
                                         class="inline-flex items-center gap-2 break-all text-[#094067] hover:text-[#3da9fc]"
                                     >
                                         <ExternalLink
                                             class="h-4 w-4 shrink-0"
                                             aria-hidden="true"
                                         />
-                                        原始链接
+                                        来源链接
                                     </a>
-                                    <div
-                                        v-if="
-                                            photoDetail.photo.source
-                                                .published_at
-                                        "
-                                        class="flex items-center gap-2"
-                                    >
-                                        <CalendarDays
-                                            class="h-4 w-4 text-[#3da9fc]"
-                                            aria-hidden="true"
-                                        />
-                                        <span
-                                            >原始发布日期：{{
-                                                photoDetail.photo.source
-                                                    .published_at
-                                            }}</span
-                                        >
-                                    </div>
-                                    <p
-                                        v-if="
-                                            photoDetail.photo.source
-                                                .copyright_note
-                                        "
-                                        class="leading-7"
-                                    >
-                                        {{
-                                            photoDetail.photo.source
-                                                .copyright_note
-                                        }}
-                                    </p>
                                 </template>
                                 <p v-else>来源待补充</p>
                             </div>

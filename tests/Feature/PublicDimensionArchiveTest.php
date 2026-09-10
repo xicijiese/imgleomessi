@@ -69,8 +69,8 @@ class PublicDimensionArchiveTest extends TestCase
     {
         $this->seed(GalleryTaxonomySeeder::class);
         $argentina = $this->childCategory('career-stage', 'argentina-era', '阿根廷国家队');
-        $honorTag = Tag::query()->create(['name' => '夺冠', 'type' => '荣誉', 'sort_order' => 10]);
-        $peopleTag = Tag::query()->create(['name' => '队友同框', 'type' => '人物关系', 'sort_order' => 20]);
+        $honorTag = Tag::query()->create(['name' => '夺冠', 'sort_order' => 10]);
+        $peopleTag = Tag::query()->create(['name' => '队友同框', 'sort_order' => 20]);
         $user = User::factory()->create();
 
         $matching = $this->publicPhoto('World Cup final celebration', [
@@ -118,7 +118,6 @@ class PublicDimensionArchiveTest extends TestCase
             'q' => 'World Cup',
             'years' => [2022],
             'tags' => [$honorTag->id],
-            'people_tags' => [$peopleTag->id],
             'sort' => 'hot_desc',
         ]);
 
@@ -132,7 +131,6 @@ class PublicDimensionArchiveTest extends TestCase
                 ->where('archive.filters.q', 'World Cup')
                 ->where('archive.filters.years.0', 2022)
                 ->where('archive.filters.tags.0', $honorTag->id)
-                ->where('archive.filters.people_tags.0', $peopleTag->id)
                 ->where('archive.filters.sort', 'hot_desc')
                 ->where('archive.summary.photos_count', 1)
                 ->where('archive.summary.albums_count', 1)
@@ -185,7 +183,6 @@ class PublicDimensionArchiveTest extends TestCase
         $this->get('/teams/season-2022-2023')->assertNotFound();
         $this->get('/seasons/argentina-era')->assertNotFound();
         $this->get('/seasons/hidden-season')->assertNotFound();
-        $this->get('/opponents')->assertOk();
 
         $this->assertNotNull($career->id);
         $this->assertNotNull($hiddenSeason->id);
@@ -240,7 +237,6 @@ class PublicDimensionArchiveTest extends TestCase
         $this->assertStringContainsString('http://localhost/seasons/season-2022-2023', $content);
         $this->assertStringNotContainsString('http://localhost/seasons/season-empty', $content);
         $this->assertStringNotContainsString('http://localhost/teams/hidden-stage', $content);
-        $this->assertStringContainsString('http://localhost/opponents', $content);
 
         $this->assertNotNull($emptySeason->id);
     }

@@ -7,7 +7,7 @@ use App\Models\Album;
 use App\Models\Category;
 use App\Models\Photo;
 use App\Models\PhotoUploadBatch;
-use App\Models\Source;
+use App\Models\Tag;
 use App\Models\User;
 use App\Services\PhotoBatchOrganizer;
 use App\Services\PhotoUploadService;
@@ -15,10 +15,11 @@ use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
-use Filament\Schemas\Components\Section;
 use Filament\Resources\Pages\ManageRecords;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
@@ -43,18 +44,26 @@ class ManagePhotos extends ManageRecords
                         ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
                         ->storeFiles(false)
                         ->required(),
-                    Select::make('source_id')
-                        ->label('来源')
-                        ->options(fn (): array => Source::query()
-                            ->enabled()
-                            ->latest('updated_at')
-                            ->get()
-                            ->mapWithKeys(fn (Source $source): array => [
-                                $source->id => $source->original_url ?: '来源 #'.$source->id,
-                            ])
-                            ->all())
+                    TextInput::make('source_url')
+                        ->label('来源链接')
+                        ->url()
+                        ->maxLength(2048)
+                        ->helperText('可选；来源平台请在分类中选择。'),
+                    Select::make('tag_ids')
+                        ->label('标签')
+                        ->options(fn (): array => Tag::query()->orderBy('name')->pluck('name', 'id')->all())
+                        ->multiple()
+                        ->preload()
                         ->searchable()
-                        ->preload(),
+                        ->createOptionForm([
+                            TextInput::make('name')
+                                ->label('标签名')
+                                ->required()
+                                ->maxLength(255)
+                                ->unique(),
+                        ])
+                        ->createOptionUsing(fn (array $data): int => (int) Tag::query()->create($data)->getKey())
+                        ->helperText('可输入关键词搜索，输入不存在的标签后可直接创建。'),
                     Select::make('copyright_status')
                         ->label('版权状态')
                         ->options(Photo::COPYRIGHT_STATUSES)
@@ -138,11 +147,12 @@ class ManagePhotos extends ManageRecords
                     foreach ($files as $file) {
                         try {
                             $photoUploadService->store($file, $album, $uploader, $batch, [
-                                'source_id' => filled($data['source_id'] ?? null) ? $data['source_id'] : null,
+                                'source_url' => filled($data['source_url'] ?? null) ? $data['source_url'] : null,
                                 'copyright_status' => $data['copyright_status'] ?? 'unknown',
                                 'publish_after_processing' => $publishAfterProcessing,
                                 'category_ids' => $categoryIds,
                                 'auto_ocr' => $autoOcr,
+                                'tag_ids' => $data['tag_ids'] ?? [],
                             ]);
 
                             $successCount++;
@@ -187,7 +197,7 @@ class ManagePhotos extends ManageRecords
                         ->map(fn (mixed $id): int => (int) $id)
                         ->unique()
                         ->values();
-                    $photo = Photo::create(Arr::except($data, [...self::categoryFieldNames(), 'albums', 'tags', 'opponents']));
+                    $photo = Photo::create(Arr::except($data, [...self::categoryFieldNames(), 'albums', 'tags']));
                     $photo->albums()->sync($albumIds);
                     $categoryIds = $albumIds->isNotEmpty()
                         ? Album::query()
@@ -201,11 +211,12 @@ class ManagePhotos extends ManageRecords
                         : self::categoryIdsFromData($data);
                     $photo->categories()->sync($categoryIds);
                     $photo->tags()->sync($data['tags'] ?? []);
-                    $photo->opponents()->sync($data['opponents'] ?? []);
+
                     return $photo;
                 }),
         ];
     }
+
     /**
      * @return array<int, mixed>
      */

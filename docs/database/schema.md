@@ -17,9 +17,6 @@
 - photo_category
 - tags
 - photo_tag
-- opponents
-- opponent_photo
-- sources
 - settings
 - search_recommendations
 - search_queries
@@ -39,7 +36,7 @@
 - photo_analysis_results
 - processing_jobs
 
-球队、赛事、赛季、年份、比赛等第一版通过 8 个默认主分类及其子分类承载，不单列后台入口，也不提前创建 teams、competitions、matches 独立表；P1 后续已单独确认并落地轻量 opponents 对手字典，只用于“对手名称 -> 公开图片”聚合，不代表完整球队或比赛资料库。
+球队、赛事、赛季、年份、比赛等通过 8 个默认主分类及其子分类承载，不单列独立足球资料表；对手名称统一作为普通标签维护。
 
 Phase 1 明确不创建以下独立足球资料表：
 
@@ -57,7 +54,7 @@ users 表使用 Laravel/Fortify 当前已生成的基础结构。P1-6 已扩展�
 ## 当前生效规则（2026-09-09）
 
 - photo_upload_batches 继续保留为上传任务记录，note 可记录失败文件和失败原因；该表不承担图片编辑。
-- processing_jobs 不再创建 labels 任务；历史 labels 任务和 photo_analysis_results.ci_labels_json 字段暂保留兼容，但隐藏于当前后台业务。
+- processing_jobs 不再创建智能标签任务；历史 labels 任务和 ci_labels_json 字段仅保留兼容，不参与当前发布和检索逻辑。
 - 图片编辑和批量修改统一通过图片管理完成；单独图片可不加入相册。
 - 每张新上传图片都会创建展示图/缩略图处理任务；local 使用 PHP GD，COS 使用数据万象，成功后分别写入 `display_key` 和 `thumbnail_key`。展示图最大 2048×2048，缩略图最大 600×600，统一 WebP。
 - `processing_jobs` 允许保留历史失败记录；自动发布判断同一任务类型时按 `id` 取最新记录，成功重试不得被旧失败记录覆盖。
@@ -80,8 +77,7 @@ Phase 1 采用“相册/专题 + 8 个默认主分类（其中 3 个必选）+ �
 - 分类兜底：每个主分类必须预置 `待补充` 子分类，用于资料暂时不完整、需要后续考古补充的图片；信息不知道时也必须选择对应主分类下的 `待补充`，不能留空。
 - 分类修正：若后续用户在评论或其他反馈中补充了可靠信息，管理员或编辑可以将 `待补充` 修改为已有子分类，或先新增子分类再重新选择。
 - 标签：用于描述更细粒度的信息，例如 `进球`、`庆祝`、`高清`、`捧杯`，通过 `photo_tag` 实现；图片标签可以为空。
-- 标签管理：后台允许自由新增、编辑和排序标签，但每个标签必须选择一个标签类型，避免标签长期混乱。
-- 标签类型：Phase 1 预置 `动作`、`情绪`、`画质`、`人物关系`、`荣誉`、`画面内容`、`服装/装备`、`地点`。
+- 标签管理：后台允许自由新增、编辑和排序普通标签；标签没有类型字段，图片可以挂多个标签，也可以不挂标签。
 
 前台可以把主分类渲染为筛选分组，把子分类渲染为筛选按钮，体验上符合“分类 + 标签”的理解。相册用于专题浏览和批量上传，标签用于补充不是每张图片必定包含的细节；没有标签的图片仍然可以通过主分类、相册、标题等方式检索。
 
@@ -205,7 +201,7 @@ Phase 1 必须支持“批量上传到相册”。
 | stored_filename | varchar nullable | 系统重命名后的文件名，格式为 `YYYYMMDD-6位大写字母.原扩展名`；手工补录或历史导入可为空 |
 | taken_at | datetime nullable | 拍摄时间 |
 | event_date | date nullable | 事件日期 |
-| source_id | fk sources nullable | 来源；来源平台作为 8 个默认主分类中的来源平台子分类维护 |
+| source_url | varchar(2048) nullable | 图片来源链接；来源平台作为 8 个默认主分类中的来源平台子分类维护 |
 | copyright_status | enum | `unknown` 待确认、`credited` 已标注来源、`restricted` 受限使用、`remove_requested` 请求下架 |
 | watermark_status | enum | unknown 未确认、none 无水印、present 有水印；P1-15 用于前台高级筛选和后台维护 |
 | status | enum | `draft` 草稿/待整理、`published` 已发布、`archived` 已归档 |
@@ -221,7 +217,7 @@ Phase 1 必须支持“批量上传到相册”。
 | published_at | datetime nullable | 发布时间 |
 | created_at / updated_at | timestamps | 时间戳 |
 
-P1-15 高级搜索与资料增强基于 photos、photo_category、photo_tag、sources 和互动统计做数据库内组合筛选。清晰度和横竖图由 width / height 派生，不新增独立字段；人物关系使用第 8 个默认主分类，人物同框的细粒度补充仍可使用标签；水印状态使用 watermark_status 维护。对手聚合切片已新增 opponents / opponent_photo，作为不破坏 8 个默认主分类结构的轻量对手主数据。搜索运营切片已新增 search_recommendations / search_queries，只用于推荐词配置、热门词聚合和排障，不接外部搜索引擎。
+P1-15 高级搜索与资料增强基于 photos、photo_category、photo_tag 和互动统计做数据库内组合筛选。清晰度和横竖图由 width / height 派生，不新增独立字段；人物关系和对手均使用普通标签表达；来源存在性基于 photos.source_url；水印状态使用 watermark_status 维护。搜索运营切片已新增 search_recommendations / search_queries，只用于推荐词配置、热门词聚合和排障，不接外部搜索引擎。
 
 ### photo_upload_batches
 
@@ -296,7 +292,6 @@ P1-15 高级搜索与资料增强基于 photos、photo_category、photo_tag、so
 |---|---|---|
 | id | bigint pk | 标签 ID |
 | name | varchar unique | 标签名 |
-| type | enum | 动作、情绪、画质、人物关系、荣誉、画面内容、服装/装备、地点 |
 | description | text nullable | 说明 |
 | sort_order | int | 排序 |
 | created_at / updated_at | timestamps | 时间戳 |
@@ -307,31 +302,6 @@ P1-15 高级搜索与资料增强基于 photos、photo_category、photo_tag、so
 |---|---|---|
 | photo_id | fk photos | 图片 |
 | tag_id | fk tags | 标签 |
-
-### opponents
-
-P1 对手聚合切片已落库。该表只作为轻量对手字典，用于公开页 `/opponents` 和 `/opponents/{slug}` 聚合相关图片；不保存比分、赛程、阵容、球队资料、赛事资料或对战统计。
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| id | bigint pk | 对手 ID |
-| name | varchar | 对手名称 |
-| slug | varchar unique | URL 标识 |
-| country | varchar nullable | 国家 / 地区 |
-| aliases | text nullable | 简称、英文名或常见别名；用于后台整理和前台搜索 |
-| description | text nullable | 对手说明 |
-| sort_order | unsigned int | 排序 |
-| is_active | boolean | 是否启用；未启用对手不进入公开聚合页 |
-| created_at / updated_at | timestamps | 时间戳 |
-
-### opponent_photo
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| opponent_id | fk opponents | 对手 |
-| photo_id | fk photos | 图片 |
-
-对手聚合公开边界：只展示 `photos.status = published` 且 `copyright_status` 不是 `restricted` / `remove_requested` 的图片；不向前台输出 `original_key`、`stored_filename`、上传批次、上传者或后台备注。
 
 ### search_recommendations
 
@@ -373,24 +343,14 @@ Phase 1 不在 photos 表中直接写入 team_id、competition_id、match_id 等
 Phase 1 不建立独立的球队、赛事、赛季或比赛资料表。相关信息按以下方式进入图库归档体系：
 
 - 球队、赛事、赛季、年份、比赛等作为 8 个默认主分类下的子分类维护。
-- 人物同框作为 `人物关系` 类型标签维护。
+- 人物同框和对手名称统一作为普通标签维护。
 - 事件或比赛主题的一组图片通过相册表达，例如“2022-12-18 世界杯决赛 阿根廷 vs 法国”。
 - 后台不单列球队管理、赛事管理、比赛管理或人物管理入口。
 
 ## 4. 来源与分析
 
-### sources
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| id | bigint pk | 来源 ID |
-| original_url | varchar nullable | 原始链接 |
-| published_at | datetime nullable | 原始来源发布时间 |
-| copyright_note | text nullable | 版权备注；用于前台展示和版权排查 |
-| internal_note | text nullable | 后台内部备注，不在前台公开展示 |
-| is_enabled | boolean | 启用状态；用于后台禁用来源记录，默认启用 |
-
-来源管理是 Phase 1 P0 能力，目的是让图片详情展示、版权说明和后续下架排查有可追溯资料。P0 来源记录保持克制，只保留原始链接、原始发布日期、版权备注和内部备注；另有启用状态用于后台管理；内部备注只给后台看，不在前台公开。来源平台作为 8 个默认主分类中的 `来源平台` 子分类维护，不在 sources 表重复建来源平台字段。
+### 图片来源
+图片来源不再单独建表，直接保存在 photos.source_url。来源平台通过 8 个默认主分类中的 来源平台 子分类维护；source_url 可为空，填写后前台详情页展示为可点击链接。
 
 ### photo_analysis_results
 
@@ -454,7 +414,6 @@ P1-11 已落库。当前真实写入基础文件信息、SHA-256 精确哈希、
 | user_id | fk users | 提交用户；游客不能提交 |
 | photo_id | fk photos | 所属图片；只允许对公开图片提交 |
 | parent_id | fk comments nullable | 回复关系预留；P1-5 不做楼中楼 |
-| type | enum | `discussion` 普通评论、`correction` 图片信息补充/纠错 |
 | content | text | 评论内容或补充说明；前台保留换行但不渲染 HTML |
 | status | enum | pending、published、rejected、hidden、deleted；新提交默认 pending |
 | correction_field | varchar nullable | 纠错建议字段，如标题、日期、赛事、球队、人物同框、来源、版权备注、分类、标签或其他 |
@@ -548,7 +507,6 @@ P1-6 敏感词只做简单包含匹配和风险标记，不自动拒绝、不自
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | uuid pk | 通知 ID，复用 Laravel database notifications 默认结构 |
-| type | varchar | 通知类名 |
 | notifiable_type | varchar | 通知接收模型类型；P1-7 固定为用户 |
 | notifiable_id | bigint | 通知接收用户 ID |
 | data | json | 通知安全摘要，包含 category、title、message、url、target_type、target_id |
@@ -650,12 +608,11 @@ P1-9 已落地赞助支持基础闭环：只做模拟支付和后台手动处理
 
 ### processing_jobs
 
-P1-11 已落库。当前任务类型包括 metadata、hash、ocr_placeholder、datawanxiang_derivatives、similarity、ocr 和 labels；数据万象相关任务仅在 COS 存储和数据万象开关均开启时入队，OCR / labels 可由批量上传开关选择自动创建，也可由图片管理手动触发。失败任务可在后台异步重新入队或批量重试，上传批次通过图片关系汇总待处理、处理中和失败任务数量；生产 Worker 真实守护仍需按独立确认稿推进；图片质量评分不纳入项目。
+P1-11 已落库。当前任务类型包括 metadata、hash、ocr_placeholder、datawanxiang_derivatives、similarity 和 ocr；智能标签任务已停用，历史智能标签结果仅作为兼容数据保留，不再读取或写入。失败任务可在后台异步重新入队或批量重试，上传任务通过图片关系汇总待处理、处理中和失败任务数量；图片质量评分不纳入项目。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | bigint pk | ID |
-| type | varchar index | metadata、hash、ocr_placeholder、datawanxiang_derivatives、similarity、ocr、labels |
 | photo_id | fk photos nullable | 关联图片 |
 | status | varchar index | `pending`、`running`、`done`、`failed` |
 | attempts | unsigned int | 尝试次数 |
@@ -674,15 +631,9 @@ P1-11 已落库。当前任务类型包括 metadata、hash、ocr_placeholder、d
 - album_photo(photo_id, album_id)
 - `photo_category(photo_id, category_id)` 唯一索引
 - `photo_category(category_id, photo_id)`
-- `opponents(slug)` 唯一索引
-- `opponents(is_active, sort_order)`
-- `opponent_photo(opponent_id, photo_id)` 唯一索引
-- `opponent_photo(photo_id, opponent_id)`
 - photos(event_date)
 - `categories(parent_id, slug)` 唯一索引
 - `categories(parent_id, sort_order)`
-- `sources(is_enabled)`
-- `sources(published_at)`
 - `tags(name)`
 - `settings(group, key)` 唯一索引
 - `comments(photo_id, type, status, created_at)`

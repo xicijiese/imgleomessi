@@ -36,7 +36,6 @@ class PublicTopicDetailTest extends TestCase
 
         $tag = Tag::query()->create([
             'name' => '获奖',
-            'type' => '荣誉',
             'sort_order' => 10,
         ]);
         $photo = $this->publicPhoto('金球奖精选图', [

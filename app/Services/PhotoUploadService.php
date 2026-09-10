@@ -7,7 +7,7 @@ use App\Models\Photo;
 use App\Models\PhotoUploadBatch;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Str;
+use Illuminate\Support\Arr;
 
 class PhotoUploadService
 {
@@ -28,12 +28,18 @@ class PhotoUploadService
         $this->storage->diskForKey()->putFileAs("photos/originals/{$directory}", $file, $storedFilename);
 
         $autoOcr = (bool) ($attributes['auto_ocr'] ?? false);
+        $tagIds = collect($attributes['tag_ids'] ?? [])
+            ->filter()
+            ->map(fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
 
         $photo = Photo::query()->create(array_merge([
             'title' => $storedFilename,
             'original_filename' => $file->getClientOriginalName(),
             'stored_filename' => $storedFilename,
-            'source_id' => null,
+            'source_url' => null,
             'copyright_status' => 'unknown',
             'status' => 'draft',
             'width' => $width,
@@ -43,7 +49,11 @@ class PhotoUploadService
             'original_key' => $originalKey,
             'uploaded_by' => $uploader?->id,
             'photo_upload_batch_id' => $batch?->id,
-        ], $attributes, [
+        ], Arr::only($attributes, [
+            'source_url',
+            'copyright_status',
+            'publish_after_processing',
+        ]), [
             'title' => $storedFilename,
             'status' => 'draft',
             'original_filename' => $file->getClientOriginalName(),
@@ -66,6 +76,8 @@ class PhotoUploadService
                     ->all(),
             );
         }
+
+        $photo->tags()->sync($tagIds);
 
         app(PhotoProcessingService::class)->createDefaultJobs($photo, $autoOcr);
 

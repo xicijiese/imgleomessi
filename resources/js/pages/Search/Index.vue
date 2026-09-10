@@ -25,17 +25,11 @@ interface CategoryGroup {
 interface TagOption {
     id: number;
     name: string;
-    type: string;
 }
 
 interface AlbumOption {
     id: number;
     title: string;
-}
-
-interface SourceOption {
-    id: number;
-    label: string;
 }
 
 interface SelectOption {
@@ -87,7 +81,6 @@ interface SearchPayload {
         people_tags: number[];
         album_id: number | null;
         source_mode: string;
-        source_id: number | null;
         copyright_status: string | null;
         orientation: string;
         resolution: string;
@@ -101,7 +94,6 @@ interface SearchPayload {
         tags: TagOption[];
         people_tags: TagOption[];
         albums: AlbumOption[];
-        sources: SourceOption[];
         source_modes: SelectOption[];
         copyright_statuses: SelectOption[];
         orientations: SelectOption[];

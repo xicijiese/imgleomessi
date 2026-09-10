@@ -2,14 +2,13 @@
 
 namespace App\Filament\Resources\Photos;
 
-use App\Filament\Resources\PhotoSimilarityCandidates\PhotoSimilarityCandidateResource;
 use App\Filament\Resources\Photos\Pages\ManagePhotos;
+use App\Filament\Resources\PhotoSimilarityCandidates\PhotoSimilarityCandidateResource;
 use App\Models\Album;
 use App\Models\Category;
-use App\Models\Opponent;
 use App\Models\Photo;
 use App\Models\PhotoUploadBatch;
-use App\Models\Source;
+use App\Models\Tag;
 use App\Models\User;
 use App\Services\PhotoBatchOrganizer;
 use App\Services\PhotoProcessingService;
@@ -37,8 +36,8 @@ use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use UnitEnum;
 
 class PhotoResource extends Resource
@@ -87,19 +86,11 @@ class PhotoResource extends Resource
                         ->label('拍摄时间')
                         ->seconds(false),
                     DatePicker::make('event_date')
-                        ->label('事件日期'),
-                    Select::make('source_id')
-                        ->label('来源')
-                        ->options(fn (): array => Source::query()
-                            ->enabled()
-                            ->latest('updated_at')
-                            ->get()
-                            ->mapWithKeys(fn (Source $source): array => [
-                                $source->id => $source->original_url ?: '来源 #'.$source->id,
-                            ])
-                            ->all())
-                        ->searchable()
-                        ->preload(),
+                        ->label('事件日期'),                    TextInput::make('source_url')
+                        ->label('来源链接')
+                        ->url()
+                        ->maxLength(2048)
+                        ->helperText('可选；来源平台请在分类中选择。'),
                     Select::make('uploaded_by')
                         ->label('上传者')
                         ->options(fn (): array => User::query()->orderBy('name')->pluck('name', 'id')->all())
@@ -137,29 +128,21 @@ class PhotoResource extends Resource
                                 ->searchable()
                                 ->helperText('可直接选择分类，也可以只选择相册；选择相册后图片自动继承相册分类。'),
                         ])
-                        ->columns(2),
-                    Select::make('tags')
+                        ->columns(2),                    Select::make('tags')
                         ->label('标签')
                         ->relationship(name: 'tags', titleAttribute: 'name')
                         ->multiple()
                         ->preload()
                         ->searchable()
-                        ->helperText('标签可为空，用于补充动作、情绪、画质、人物关系等细节。'),
-                    Select::make('opponents')
-                        ->label('对手')
-                        ->relationship(
-                            name: 'opponents',
-                            titleAttribute: 'name',
-                            modifyQueryUsing: fn (Builder $query): Builder => $query
-                                ->where('is_active', true)
-                                ->orderBy('sort_order')
-                                ->orderBy('id'),
-                        )
-                        ->getOptionLabelFromRecordUsing(fn (Opponent $record): string => filled($record->country) ? $record->name.' / '.$record->country : $record->name)
-                        ->multiple()
-                        ->preload()
-                        ->searchable()
-                        ->helperText('可为空，仅用于对手聚合页。'),
+                        ->createOptionForm([
+                            TextInput::make('name')
+                                ->label('标签名')
+                                ->required()
+                                ->maxLength(255)
+                                ->unique(),
+                        ])
+                        ->createOptionUsing(fn (array $data): int => (int) Tag::query()->create($data)->getKey())
+                        ->helperText('输入关键词搜索；输入不存在的标签后可直接创建.'),
                 ])
                 ->columns(2),
             Section::make('文件信息')
@@ -195,6 +178,7 @@ class PhotoResource extends Resource
                 ->columns(3),
         ];
     }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -250,15 +234,6 @@ class PhotoResource extends Resource
                 SelectFilter::make('copyright_status')
                     ->label('版权状态')
                     ->options(Photo::COPYRIGHT_STATUSES),
-                SelectFilter::make('source_id')
-                    ->label('来源')
-                    ->options(fn (): array => Source::query()
-                        ->latest('updated_at')
-                        ->get()
-                        ->mapWithKeys(fn (Source $source): array => [
-                            $source->id => $source->original_url ?: '来源 #'.$source->id,
-                        ])
-                        ->all()),
                 SelectFilter::make('photo_upload_batch_id')
                     ->label('上传批次')
                     ->options(fn (): array => PhotoUploadBatch::query()
@@ -273,26 +248,18 @@ class PhotoResource extends Resource
             ->defaultSort('updated_at', 'desc')
             ->toolbarActions([
                 BulkActionGroup::make([
-                    BulkAction::make('bulkSource')
-                        ->label('批量修改来源')
+                    BulkAction::make('bulkSourceUrl')
+                        ->label('批量修改来源链接')
                         ->schema([
-                            Select::make('source_id')
-                                ->label('来源')
-                                ->options(fn (): array => Source::query()
-                                    ->enabled()
-                                    ->latest('updated_at')
-                                    ->get()
-                                    ->mapWithKeys(fn (Source $source): array => [
-                                        $source->id => $source->original_url ?: '来源 #'.$source->id,
-                                    ])
-                                    ->all())
-                                ->searchable()
-                                ->preload()
+                            TextInput::make('source_url')
+                                ->label('来源链接')
+                                ->url()
+                                ->maxLength(2048)
                                 ->required(),
                         ])
                         ->action(function (Collection $records, array $data, PhotoBatchOrganizer $organizer): void {
-                            $result = $organizer->updateCommonFields($records, ['source_id' => $data['source_id']]);
-                            Notification::make()->title('已更新 '.$result['updated'].' 张图片的来源')->success()->send();
+                            $result = $organizer->updateCommonFields($records, ['source_url' => $data['source_url']]);
+                            Notification::make()->title('已更新 '.$result['updated'].' 张图片的来源链接')->success()->send();
                         }),
                     BulkAction::make('bulkCopyrightStatus')
                         ->label('批量修改版权状态')
@@ -451,14 +418,14 @@ class PhotoResource extends Resource
                         }
 
                         $data['tags'] = $photo->tags()->pluck('tags.id')->all();
-                        $data['opponents'] = $photo->opponents()->pluck('opponents.id')->all();
+
                         $data['albums'] = $photo->albums()->pluck('albums.id')->all();
 
                         return $data;
                     })
                     ->using(function (Photo $record, array $data): Photo {
                         $categoryFieldNames = self::categoryFieldNames();
-                        $record->update(Arr::except($data, [...$categoryFieldNames, 'tags', 'opponents', 'albums']));
+                        $record->update(Arr::except($data, [...$categoryFieldNames, 'tags', 'albums']));
                         $albumIds = collect($data['albums'] ?? [])
                             ->filter()
                             ->map(fn (mixed $id): int => (int) $id)
@@ -477,7 +444,6 @@ class PhotoResource extends Resource
                             : self::categoryIdsFromFormData($data);
                         $record->categories()->sync($categoryIds);
                         $record->tags()->sync($data['tags'] ?? []);
-                        $record->opponents()->sync($data['opponents'] ?? []);
 
                         return $record;
                     }),
@@ -585,6 +551,7 @@ class PhotoResource extends Resource
             ->values()
             ->all();
     }
+
     private static function completeCategorySetRule(): Closure
     {
         return function (string $attribute, mixed $value, Closure $fail): void {
@@ -620,6 +587,4 @@ class PhotoResource extends Resource
             }
         };
     }
-
-
 }

@@ -22,7 +22,6 @@ class PublicAlbumDetailTest extends TestCase
 
         $tag = Tag::query()->create([
             'name' => '捧杯',
-            'type' => '荣誉',
             'sort_order' => 10,
         ]);
         $photo = $this->publicPhoto('世界杯决赛捧杯', [

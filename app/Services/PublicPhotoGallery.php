@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Album;
 use App\Models\Category;
 use App\Models\Photo;
-use App\Models\Source;
 use App\Models\Tag;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -32,7 +31,6 @@ class PublicPhotoGallery
         'all' => '全部来源',
         'has' => '有来源',
         'none' => '无来源',
-        'specific' => '指定来源',
     ];
 
     private const ORIENTATIONS = [
@@ -97,17 +95,15 @@ class PublicPhotoGallery
      */
     private function filters(Request $request): array
     {
-        $sourceId = $this->selectedSource($request);
-        $sourceMode = $this->sourceModeValue($request->query('source_mode'), $sourceId);
+        $sourceMode = $this->sourceModeValue($request->query('source_mode'));
 
         return [
             'q' => trim((string) $request->query('q', '')),
             'categories' => $this->selectedCategories($request),
             'tags' => $this->selectedTags($request, false),
-            'people_tags' => $this->selectedTags($request, true),
+            'people_tags' => [],
             'album_id' => $this->selectedAlbum($request),
             'source_mode' => $sourceMode,
-            'source_id' => $sourceMode === 'specific' ? $sourceId : null,
             'copyright_status' => $this->copyrightStatusValue($request->query('copyright_status')),
             'orientation' => $this->optionValue($request->query('orientation'), self::ORIENTATIONS),
             'resolution' => $this->optionValue($request->query('resolution'), self::RESOLUTIONS),
@@ -154,19 +150,13 @@ class PublicPhotoGallery
             $query->whereHas('tags', fn (Builder $query): Builder => $query->where('tags.id', $tagId));
         }
 
-        foreach ($filters['people_tags'] as $tagId) {
-            $query->whereHas('tags', fn (Builder $query): Builder => $query
-                ->where('tags.id', $tagId)
-                ->where('tags.type', '人物关系'));
-        }
-
         if ($filters['album_id'] !== null) {
             $query->whereHas('albums', fn (Builder $query): Builder => $query
                 ->where('albums.id', $filters['album_id'])
                 ->where('albums.status', 'published'));
         }
 
-        $this->applySourceFilter($query, $filters['source_mode'], $filters['source_id']);
+        $this->applySourceFilter($query, $filters['source_mode']);
 
         if ($filters['copyright_status'] !== null) {
             $query->where('copyright_status', $filters['copyright_status']);
@@ -204,19 +194,16 @@ class PublicPhotoGallery
             ->whereNotIn('photos.copyright_status', ['restricted', 'remove_requested']);
     }
 
-    private function applySourceFilter(Builder $query, string $sourceMode, ?int $sourceId): void
+    private function applySourceFilter(Builder $query, string $sourceMode): void
     {
         if ($sourceMode === 'has') {
-            $query->whereNotNull('source_id');
+            $query->whereNotNull('source_url');
         }
 
         if ($sourceMode === 'none') {
-            $query->whereNull('source_id');
+            $query->whereNull('source_url');
         }
 
-        if ($sourceMode === 'specific' && $sourceId !== null) {
-            $query->where('source_id', $sourceId);
-        }
     }
 
     private function applyOrientationFilter(Builder $query, string $orientation): void
@@ -296,6 +283,9 @@ class PublicPhotoGallery
      */
     private function selectedTags(Request $request, bool $peopleOnly): array
     {
+        if ($peopleOnly) {
+            return [];
+        }
         $key = $peopleOnly ? 'people_tags' : 'tags';
         $tagIds = collect(Arr::wrap($request->query($key, [])))
             ->filter(fn (mixed $id): bool => filled($id))
@@ -309,10 +299,6 @@ class PublicPhotoGallery
         }
 
         $query = Tag::query()->whereIn('id', $tagIds);
-
-        if ($peopleOnly) {
-            $query->where('type', '人物关系');
-        }
 
         return $query
             ->pluck('id')
@@ -336,22 +322,6 @@ class PublicPhotoGallery
             ->value('id');
 
         return $selectedAlbumId === null ? null : (int) $selectedAlbumId;
-    }
-
-    private function selectedSource(Request $request): ?int
-    {
-        $sourceId = (int) $request->query('source_id', 0);
-
-        if ($sourceId <= 0) {
-            return null;
-        }
-
-        $selectedSourceId = Source::query()
-            ->enabled()
-            ->where('id', $sourceId)
-            ->value('id');
-
-        return $selectedSourceId === null ? null : (int) $selectedSourceId;
     }
 
     private function dateValue(mixed $value): ?string
@@ -378,11 +348,8 @@ class PublicPhotoGallery
         return 'published_desc';
     }
 
-    private function sourceModeValue(mixed $value, ?int $sourceId): string
+    private function sourceModeValue(mixed $value): string
     {
-        if ($sourceId !== null) {
-            return 'specific';
-        }
 
         if (is_string($value) && in_array($value, ['has', 'none'], true)) {
             return $value;
@@ -446,29 +413,16 @@ class PublicPhotoGallery
                 ->values()
                 ->all(),
             'tags' => Tag::query()
-                ->orderBy('type')
                 ->orderBy('sort_order')
                 ->orderBy('id')
-                ->get(['id', 'name', 'type'])
+                ->get(['id', 'name'])
                 ->map(fn (Tag $tag): array => [
                     'id' => $tag->id,
                     'name' => $tag->name,
-                    'type' => $tag->type,
                 ])
                 ->values()
                 ->all(),
-            'people_tags' => Tag::query()
-                ->where('type', '人物关系')
-                ->orderBy('sort_order')
-                ->orderBy('id')
-                ->get(['id', 'name', 'type'])
-                ->map(fn (Tag $tag): array => [
-                    'id' => $tag->id,
-                    'name' => $tag->name,
-                    'type' => $tag->type,
-                ])
-                ->values()
-                ->all(),
+            'people_tags' => [],
             'albums' => Album::query()
                 ->published()
                 ->whereHas('photos', fn (Builder $query): Builder => $this->publicPhotoConstraint($query))
@@ -482,16 +436,7 @@ class PublicPhotoGallery
                 ])
                 ->values()
                 ->all(),
-            'sources' => Source::query()
-                ->enabled()
-                ->latest('updated_at')
-                ->get(['id', 'original_url'])
-                ->map(fn (Source $source): array => [
-                    'id' => $source->id,
-                    'label' => $source->original_url ?: '来源 #'.$source->id,
-                ])
-                ->values()
-                ->all(),
+            'sources' => [],
             'source_modes' => $this->keyValueOptions(self::SOURCE_MODES),
             'copyright_statuses' => $this->keyValueOptions(Photo::COPYRIGHT_STATUSES),
             'orientations' => $this->keyValueOptions(self::ORIENTATIONS),
@@ -533,11 +478,10 @@ class PublicPhotoGallery
             ->values();
 
         $tags = $photo->tags
-            ->sortBy(fn (Tag $tag): string => $tag->type.'-'.$tag->sort_order.'-'.$tag->id)
+            ->sortBy(fn (Tag $tag): string => $tag->sort_order.'-'.$tag->id)
             ->map(fn (Tag $tag): array => [
                 'id' => $tag->id,
                 'name' => $tag->name,
-                'type' => $tag->type,
             ])
             ->values();
 

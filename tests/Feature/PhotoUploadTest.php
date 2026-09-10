@@ -6,7 +6,6 @@ use App\Models\Album;
 use App\Models\Category;
 use App\Models\Photo;
 use App\Models\PhotoUploadBatch;
-use App\Models\Source;
 use App\Models\User;
 use App\Services\PhotoUploadService;
 use Database\Seeders\GalleryTaxonomySeeder;
@@ -46,9 +45,7 @@ class PhotoUploadTest extends TestCase
     public function test_uploaded_photo_is_stored_with_system_filename_and_draft_record(): void
     {
         $uploader = User::factory()->create();
-        $source = Source::query()->create([
-            'original_url' => 'https://example.com/original-photo',
-        ]);
+        $sourceUrl = 'https://example.com/original-photo';
         $batch = PhotoUploadBatch::query()->create([
             'mode' => 'standalone',
             'uploaded_by' => $uploader->id,
@@ -58,7 +55,7 @@ class PhotoUploadTest extends TestCase
         $file = UploadedFile::fake()->image('messi-final.JPG', 1200, 800)->size(512);
 
         $photo = app(PhotoUploadService::class)->store($file, uploader: $uploader, batch: $batch, attributes: [
-            'source_id' => $source->id,
+            'source_url' => $sourceUrl,
             'copyright_status' => 'credited',
         ]);
 
@@ -68,7 +65,7 @@ class PhotoUploadTest extends TestCase
         $this->assertSame('draft', $photo->status);
         $this->assertFalse($photo->publish_after_processing);
         $this->assertSame('credited', $photo->copyright_status);
-        $this->assertSame($source->id, $photo->source_id);
+        $this->assertSame($sourceUrl, $photo->source_url);
         $this->assertSame($uploader->id, $photo->uploaded_by);
         $this->assertSame($batch->id, $photo->photo_upload_batch_id);
         $this->assertTrue($photo->uploadBatch->is($batch));

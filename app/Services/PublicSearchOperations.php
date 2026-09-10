@@ -144,7 +144,6 @@ class PublicSearchOperations
             'people_tags',
             'album_id',
             'source_mode',
-            'source_id',
             'copyright_status',
             'orientation',
             'resolution',

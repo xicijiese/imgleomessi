@@ -9,14 +9,12 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use UnitEnum;
 
@@ -45,11 +43,6 @@ class TagResource extends Resource
                     ->required()
                     ->maxLength(255)
                     ->unique(ignoreRecord: true),
-                Select::make('type')
-                    ->label('标签类型')
-                    ->options(Tag::TYPES)
-                    ->required()
-                    ->searchable(),
                 TextInput::make('sort_order')
                     ->label('排序')
                     ->numeric()
@@ -70,10 +63,6 @@ class TagResource extends Resource
                     ->label('标签名')
                     ->sortable()
                     ->searchable(),
-                TextColumn::make('type')
-                    ->label('标签类型')
-                    ->badge()
-                    ->sortable(),
                 TextColumn::make('sort_order')
                     ->label('排序')
                     ->sortable(),
@@ -81,11 +70,6 @@ class TagResource extends Resource
                     ->label('更新时间')
                     ->dateTime('Y-m-d H:i')
                     ->sortable(),
-            ])
-            ->filters([
-                SelectFilter::make('type')
-                    ->label('标签类型')
-                    ->options(Tag::TYPES),
             ])
             ->defaultSort('sort_order')
             ->recordActions([

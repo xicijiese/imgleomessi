@@ -18,7 +18,7 @@ interface CategoryGroup {
 interface TagOption {
     id: number;
     name: string;
-    type: string;
+
 }
 
 interface AlbumOption {
@@ -26,10 +26,6 @@ interface AlbumOption {
     title: string;
 }
 
-interface SourceOption {
-    id: number;
-    label: string;
-}
 
 interface SelectOption {
     value: string;
@@ -43,7 +39,6 @@ interface PublicPhotoFiltersPayload {
     people_tags: number[];
     album_id: number | null;
     source_mode: string;
-    source_id: number | null;
     copyright_status: string | null;
     orientation: string;
     resolution: string;
@@ -58,7 +53,6 @@ interface PublicPhotoFilterOptions {
     tags: TagOption[];
     people_tags: TagOption[];
     albums: AlbumOption[];
-    sources: SourceOption[];
     source_modes: SelectOption[];
     copyright_statuses: SelectOption[];
     orientations: SelectOption[];
@@ -94,7 +88,6 @@ const form = reactive({
     people_tags: props.filters.people_tags.map((id) => String(id)),
     album_id: props.filters.album_id ? String(props.filters.album_id) : '',
     source_mode: props.filters.source_mode,
-    source_id: props.filters.source_id ? String(props.filters.source_id) : '',
     copyright_status: props.filters.copyright_status ?? '',
     orientation: props.filters.orientation,
     resolution: props.filters.resolution,
@@ -104,9 +97,7 @@ const form = reactive({
     sort: props.filters.sort,
 });
 
-const selectedSourceMode = computed(() =>
-    form.source_id ? 'specific' : form.source_mode,
-);
+const selectedSourceMode = computed(() => form.source_mode);
 
 const hasActiveFilters = computed(
     () =>
@@ -137,10 +128,9 @@ const queryParams = () => {
         people_tags: form.people_tags.length > 0 ? form.people_tags : undefined,
         album_id: form.album_id || undefined,
         source_mode:
-            !form.source_id && form.source_mode !== 'all'
+            form.source_mode !== 'all'
                 ? form.source_mode
                 : undefined,
-        source_id: form.source_id || undefined,
         copyright_status: form.copyright_status || undefined,
         orientation: form.orientation !== 'all' ? form.orientation : undefined,
         resolution: form.resolution !== 'all' ? form.resolution : undefined,
@@ -199,9 +189,6 @@ const categoryLabel = (slug: string, value: string) => {
 const albumLabel = (value: string) =>
     props.filterOptions.albums.find((item) => String(item.id) === value)
         ?.title ?? value;
-const sourceLabel = (value: string) =>
-    props.filterOptions.sources.find((item) => String(item.id) === value)
-        ?.label ?? value;
 const tagLabel = (options: TagOption[], value: string) =>
     options.find((item) => String(item.id) === value)?.name ?? value;
 
@@ -264,27 +251,6 @@ const activeChips = computed<ActiveChip[]>(() => {
         });
     }
 
-    if (form.source_id) {
-        chips.push({
-            key: 'source-id',
-            label: `来源：${sourceLabel(form.source_id)}`,
-            reset: () => {
-                form.source_id = '';
-                form.source_mode = 'all';
-            },
-        });
-    } else if (form.source_mode !== 'all') {
-        chips.push({
-            key: 'source-mode',
-            label: optionLabel(
-                props.filterOptions.source_modes,
-                form.source_mode,
-            ),
-            reset: () => {
-                form.source_mode = 'all';
-            },
-        });
-    }
 
     if (form.copyright_status) {
         chips.push({
@@ -425,7 +391,6 @@ const removeChip = (chip: ActiveChip) => {
                 <select
                     v-model="form.source_mode"
                     class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
-                    @change="form.source_id = ''"
                 >
                     <option
                         v-for="option in filterOptions.source_modes"
@@ -437,22 +402,6 @@ const removeChip = (chip: ActiveChip) => {
                 </select>
             </label>
 
-            <label class="grid gap-2 lg:col-span-2">
-                <span class="text-sm font-semibold">指定来源</span>
-                <select
-                    v-model="form.source_id"
-                    class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
-                >
-                    <option value="">不指定</option>
-                    <option
-                        v-for="source in filterOptions.sources"
-                        :key="source.id"
-                        :value="String(source.id)"
-                    >
-                        {{ source.label }}
-                    </option>
-                </select>
-            </label>
 
             <label class="grid gap-2 lg:col-span-3">
                 <span class="text-sm font-semibold">排序</span>
