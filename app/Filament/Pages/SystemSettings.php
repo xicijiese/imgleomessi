@@ -12,6 +12,7 @@ use App\Services\StorageSettings;
 use App\Services\StorageLaunchCheck;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Forms\Components\BaseFileUpload;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
@@ -27,6 +28,8 @@ use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Str;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Throwable;
 use UnitEnum;
 
@@ -73,11 +76,7 @@ class SystemSettings extends Page
                                             ->label('站点名称')
                                             ->required()
                                             ->maxLength(255),
-                                        FileUpload::make('site.logo_path')
-                                            ->label('LOGO')
-                                            ->image()
-                                            ->disk('public')
-                                            ->directory('settings/logo'),
+                                        self::settingImageUpload('site.logo_path', 'LOGO', 'settings/logo'),
                                         TextInput::make('site.search_placeholder')
                                             ->label('首页搜索占位文案')
                                             ->required()
@@ -128,16 +127,8 @@ class SystemSettings extends Page
                                         Toggle::make('enabled')
                                             ->label('启用')
                                             ->default(true),
-                                        FileUpload::make('desktop_image_path')
-                                            ->label('桌面端图片')
-                                            ->image()
-                                            ->disk('public')
-                                            ->directory('settings/hero'),
-                                        FileUpload::make('mobile_image_path')
-                                            ->label('移动端图片')
-                                            ->image()
-                                            ->disk('public')
-                                            ->directory('settings/hero'),
+                                        self::settingImageUpload('desktop_image_path', '桌面端图片', 'settings/hero'),
+                                        self::settingImageUpload('mobile_image_path', '移动端图片', 'settings/hero'),
                                         TextInput::make('title')
                                             ->label('标题')
                                             ->maxLength(255),
@@ -276,11 +267,7 @@ class SystemSettings extends Page
                                             ->label('专题详情链接')
                                             ->required()
                                             ->maxLength(255),
-                                        FileUpload::make('cover_image_path')
-                                            ->label('专题封面')
-                                            ->image()
-                                            ->disk('public')
-                                            ->directory('settings/topics'),
+                                        self::settingImageUpload('cover_image_path', '专题封面', 'settings/topics'),
                                         Textarea::make('description')
                                             ->label('专题说明')
                                             ->rows(3)
@@ -299,6 +286,8 @@ class SystemSettings extends Page
                                             ->preload(),
                                     ])
                                     ->columns(2)
+                                    ->collapsible()
+                                    ->collapsed()
                                     ->reorderable()
                                     ->addActionLabel('添加专题'),
                             ]),
@@ -419,6 +408,60 @@ class SystemSettings extends Page
                     ->persistTabInQueryString(),
             ])
             ->statePath('data');
+    }
+
+    private static function settingImageUpload(string $name, string $label, string $directory): FileUpload
+    {
+        return FileUpload::make($name)
+            ->label($label)
+            ->image()
+            ->disk('public')
+            ->visibility('public')
+            ->directory($directory)
+            ->fetchFileInformation(false)
+            ->saveUploadedFileUsing(function (BaseFileUpload $component, TemporaryUploadedFile $file): ?string {
+                $path = app(PhotoStorage::class)->diskForKey()->putFileAs(
+                    $component->getDirectory(),
+                    $file,
+                    $component->getUploadedFileNameForStorage($file),
+                    ['visibility' => 'public'],
+                );
+
+                return is_string($path) ? $path : null;
+            })
+            ->getUploadedFileUsing(function (BaseFileUpload $component, string $file, string | array | null $storedFileNames): ?array {
+                $storage = app(PhotoStorage::class);
+                $disk = $storage->diskForKey($file);
+
+                try {
+                    if (! $disk->exists($file)) {
+                        return null;
+                    }
+
+                    $size = (int) $disk->size($file);
+                    $type = $disk->mimeType($file);
+                } catch (Throwable) {
+                    return null;
+                }
+
+                $name = is_array($storedFileNames)
+                    ? ($storedFileNames[$file] ?? null)
+                    : $storedFileNames;
+
+                return [
+                    'name' => $name ?? basename($file),
+                    'size' => $size,
+                    'type' => $type,
+                    'url' => Str::sanitizeUrl($storage->url($file)),
+                ];
+            })
+            ->deleteUploadedFileUsing(function (string | TemporaryUploadedFile $file): void {
+                if ($file instanceof TemporaryUploadedFile) {
+                    return;
+                }
+
+                app(PhotoStorage::class)->diskForKey($file)->delete($file);
+            });
     }
 
     public function save(HomepageSettings $settings, StorageSettings $storageSettings): void
