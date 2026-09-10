@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Album;
+use App\Models\Category;
 use App\Models\Photo;
 use App\Models\Setting;
 use App\Models\User;
@@ -41,7 +42,7 @@ class HomepageSettings
             'hero_slides' => [],
             'category_module' => [
                 'enabled' => true,
-                'title' => '分类浏览',
+                'title' => '精选相册',
                 'display_count' => 7,
                 'more_url' => '/albums',
                 'tabs' => [],
@@ -91,6 +92,8 @@ class HomepageSettings
             }
         }
 
+        $state['category_module'] = $this->normalizeCategoryModule($state['category_module'] ?? []);
+
         return $state;
     }
 
@@ -100,6 +103,7 @@ class HomepageSettings
     public function save(array $state, ?User $user = null): void
     {
         $state = array_replace_recursive(self::defaults(), $state);
+        $state['category_module'] = $this->normalizeCategoryModule($state['category_module'] ?? []);
 
         $this->validatePublicContent($state);
 
@@ -114,7 +118,6 @@ class HomepageSettings
     private function validatePublicContent(array $state): void
     {
         $photoIds = collect(Arr::get($state, 'latest_photos.pinned_photo_ids', []))
-            ->merge($this->collectNestedIds(Arr::get($state, 'category_module.tabs', []), 'photo_ids'))
             ->merge($this->collectNestedIds(Arr::get($state, 'topic_module.items', []), 'photo_ids'))
             ->filter()
             ->map(fn (mixed $id): int => (int) $id)
@@ -136,8 +139,28 @@ class HomepageSettings
             }
         }
 
-        $albumIds = $this->collectNestedIds(Arr::get($state, 'category_module.tabs', []), 'album_ids')
-            ->merge($this->collectNestedIds(Arr::get($state, 'topic_module.items', []), 'album_ids'))
+        $categoryIds = $this->collectNestedIds(Arr::get($state, 'category_module.tabs', []), 'category_id')
+            ->filter()
+            ->map(fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($categoryIds->isNotEmpty()) {
+            $allowedCategoryIds = Category::query()
+                ->children()
+                ->where('visibility', 'public')
+                ->whereIn('id', $categoryIds)
+                ->pluck('id')
+                ->map(fn (mixed $id): int => (int) $id);
+
+            if ($allowedCategoryIds->diff($categoryIds)->isNotEmpty() || $categoryIds->diff($allowedCategoryIds)->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'data.category_module.tabs' => '精选相册导航只能选择公开的子分类。',
+                ]);
+            }
+        }
+
+        $albumIds = $this->collectNestedIds(Arr::get($state, 'topic_module.items', []), 'album_ids')
             ->filter()
             ->map(fn (mixed $id): int => (int) $id)
             ->unique()
@@ -159,6 +182,34 @@ class HomepageSettings
                 ]);
             }
         }
+    }
+
+    /**
+     * 统一首页精选相册配置，过滤旧版主分类和手动指定展示项数据。
+     *
+     * @param  array<string, mixed>  $module
+     * @return array<string, mixed>
+     */
+    private function normalizeCategoryModule(array $module): array
+    {
+        $module = array_replace_recursive(self::defaults()['category_module'], $module);
+        $module['title'] = ($module['title'] ?? '') === '分类浏览'
+            ? '精选相册'
+            : ($module['title'] ?? '精选相册');
+
+        $module['tabs'] = collect($module['tabs'] ?? [])
+            ->filter(fn (mixed $tab): bool => is_array($tab) && filled($tab['category_id'] ?? null))
+            ->map(fn (array $tab): array => [
+                'enabled' => (bool) ($tab['enabled'] ?? true),
+                'category_id' => (int) $tab['category_id'],
+            ])
+            ->filter(fn (array $tab): bool => Category::query()->children()->where('id', $tab['category_id'])->exists())
+            ->unique('category_id')
+            ->take(7)
+            ->values()
+            ->all();
+
+        return $module;
     }
 
     /**

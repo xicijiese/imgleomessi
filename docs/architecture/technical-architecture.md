@@ -15,6 +15,7 @@
 - 每次上传都会创建 `metadata`、`hash` 和 `datawanxiang_derivatives` 处理任务；派生图任务根据执行时的存储设置选择 PHP GD 或腾讯云数据万象，前台统一读取 `display_key`/`thumbnail_key`。
 - `PhotoProcessingService` 自动发布前按任务 ID 倒序、每种类型只保留最新任务记录，避免历史失败任务覆盖成功重试；没有展示图或缩略图时发布条件不成立。
 - 队列 Worker 是代码更新后的长驻运行时，发布代码或配置缓存后必须重启；后台仅修改数据库中的存储设置不要求重启 Worker，但不应在有待处理任务时随意切换存储介质。
+- 首页精选相册由相册 `is_featured`/`featured_at` 驱动，未手动设置封面时取相册内最新公开图片；首页分类导航只允许配置公开子分类。
 
 ## 2. 为什么不用 WordPress / Piwigo / Directus
 

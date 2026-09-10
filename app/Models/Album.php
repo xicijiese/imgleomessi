@@ -26,6 +26,8 @@ class Album extends Model
         'sort_order',
         'status',
         'published_at',
+        'is_featured',
+        'featured_at',
     ];
 
     protected function casts(): array
@@ -34,6 +36,8 @@ class Album extends Model
             'cover_photo_id' => 'integer',
             'sort_order' => 'integer',
             'published_at' => 'datetime',
+            'is_featured' => 'boolean',
+            'featured_at' => 'datetime',
         ];
     }
 

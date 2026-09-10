@@ -6,6 +6,7 @@ use App\Filament\Resources\Albums\Pages\ManageAlbums;
 use App\Models\Album;
 use App\Models\Category;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DateTimePicker;
@@ -17,6 +18,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Notifications\Notification;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Arr;
@@ -95,6 +97,11 @@ class AlbumResource extends Resource
                     ->label('状态')
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => Album::STATUSES[$state] ?? $state),
+                TextColumn::make('is_featured')
+                    ->label('首页精选')
+                    ->badge()
+                    ->formatStateUsing(fn (bool $state): string => $state ? '已精选' : '未精选')
+                    ->color(fn (bool $state): string => $state ? 'warning' : 'gray'),
                 TextColumn::make('sort_order')
                     ->label('排序')
                     ->sortable(),
@@ -110,6 +117,43 @@ class AlbumResource extends Resource
             ])
             ->defaultSort('sort_order')
             ->recordActions([
+                Action::make('toggleFeatured')
+                    ->label(fn (Album $record): string => $record->is_featured ? '取消精选' : '精选首页')
+                    ->color(fn (Album $record): string => $record->is_featured ? 'gray' : 'warning')
+                    ->action(function (Album $record): void {
+                        if (! $record->is_featured) {
+                            $hasPublicPhoto = $record->photos()
+                                ->where('photos.status', 'published')
+                                ->whereNotIn('photos.copyright_status', ['restricted', 'remove_requested'])
+                                ->exists();
+
+                            if ($record->status !== 'published' || ! $hasPublicPhoto) {
+                                Notification::make()
+                                    ->title('相册暂不能设为首页精选')
+                                    ->body('请先发布相册，并确保相册内有可公开展示的图片。')
+                                    ->warning()
+                                    ->send();
+
+                                return;
+                            }
+
+                            $record->forceFill([
+                                'is_featured' => true,
+                                'featured_at' => now(),
+                            ])->save();
+
+                            Notification::make()->title('已推荐到首页精选相册')->success()->send();
+
+                            return;
+                        }
+
+                        $record->forceFill([
+                            'is_featured' => false,
+                            'featured_at' => null,
+                        ])->save();
+
+                        Notification::make()->title('已取消首页精选')->success()->send();
+                    }),
                 EditAction::make()
                     ->mutateRecordDataUsing(fn (array $data, Album $record): array => [
                         ...$data,

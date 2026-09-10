@@ -7,8 +7,6 @@ use App\Models\Category;
 use App\Models\Photo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 
 class PublicHomepage
 {
@@ -129,110 +127,109 @@ class PublicHomepage
         $module = Arr::get($settings, 'category_module', []);
         $displayCount = $this->intBetween($module['display_count'] ?? 7, 1, 12);
         $configuredTabs = collect($module['tabs'] ?? [])
-            ->filter(fn (array $tab): bool => (bool) ($tab['enabled'] ?? true));
+            ->filter(fn (array $tab): bool => (bool) ($tab['enabled'] ?? true))
+            ->map(fn (array $tab): ?array => $this->categoryTab($tab, $displayCount))
+            ->filter()
+            ->take(7)
+            ->values();
 
-        $tabs = $configuredTabs->isNotEmpty()
-            ? $configuredTabs->take(7)->map(fn (array $tab): array => $this->categoryTab($tab, $displayCount))->values()
-            : $this->defaultCategoryTabs($displayCount);
+        $tabs = collect([[
+            'label' => '全部',
+            'category_id' => null,
+            'items' => $this->albumItems(null, $displayCount),
+        ]])->concat($configuredTabs)->values();
 
         return [
             'enabled' => (bool) ($module['enabled'] ?? true),
-            'title' => $module['title'] ?? '分类浏览',
+            'title' => $module['title'] ?? '精选相册',
             'more_url' => $module['more_url'] ?? '/albums',
             'tabs' => $tabs->all(),
         ];
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>
-     */
-    private function defaultCategoryTabs(int $displayCount)
-    {
-        return Category::query()
-            ->roots()
-            ->where('visibility', 'public')
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->take(7)
-            ->get()
-            ->map(fn (Category $category): array => $this->categoryTab([
-                'category_id' => $category->id,
-                'label' => $category->name,
-            ], $displayCount));
-    }
-
-    /**
      * @param  array<string, mixed>  $tab
-     * @return array<string, mixed>
+     * @return array<string, mixed>|null
      */
-    private function categoryTab(array $tab, int $displayCount): array
+    private function categoryTab(array $tab, int $displayCount): ?array
     {
-        $category = filled($tab['category_id'] ?? null)
-            ? Category::query()->find((int) $tab['category_id'])
-            : null;
-        $configuredItems = $this->configuredCategoryItems($tab);
-        $configuredPhotoIds = collect($configuredItems)
-            ->pluck('id')
-            ->filter(fn (string $id): bool => Str::startsWith($id, 'photo:'))
-            ->map(fn (string $id): int => (int) Str::after($id, 'photo:'))
-            ->values()
-            ->all();
-        $needed = max(0, $displayCount - count($configuredItems));
+        $category = Category::query()
+            ->children()
+            ->where('visibility', 'public')
+            ->whereKey((int) ($tab['category_id'] ?? 0))
+            ->first();
+
+        if (! $category instanceof Category) {
+            return null;
+        }
 
         return [
-            'label' => filled($tab['label'] ?? null) ? $tab['label'] : ($category?->name ?? '分类'),
-            'category_id' => $category?->id,
-            'items' => collect($configuredItems)
-                ->concat($this->autoCategoryItems($category, $needed, $configuredPhotoIds))
-                ->take($displayCount)
-                ->values()
-                ->all(),
+            'label' => $category->name,
+            'category_id' => $category->id,
+            'items' => $this->albumItems($category, $displayCount),
         ];
     }
 
     /**
-     * @param  array<string, mixed>  $tab
+     * 精选相册优先，其余按相册发布时间倒序补足；可选按子分类过滤。
+     *
      * @return array<int, array<string, mixed>>
      */
-    private function configuredCategoryItems(array $tab): array
+    private function albumItems(?Category $category, int $limit): array
     {
-        $photoIds = collect(Arr::wrap($tab['photo_ids'] ?? []))->filter()->map(fn (mixed $id): int => (int) $id)->values();
-        $albumIds = collect(Arr::wrap($tab['album_ids'] ?? []))->filter()->map(fn (mixed $id): int => (int) $id)->values();
-
-        $photos = $this->publicPhotosQuery()
-            ->whereIn('id', $photoIds)
-            ->get()
-            ->sortBy(fn (Photo $photo): int => $photoIds->search($photo->id))
-            ->map(fn (Photo $photo): array => $this->photoCard($photo));
-
-        $albums = Album::query()
-            ->published()
-            ->whereIn('id', $albumIds)
-            ->with('photos')
-            ->get()
-            ->sortBy(fn (Album $album): int => $albumIds->search($album->id))
-            ->map(fn (Album $album): array => $this->albumCard($album));
-
-        return $photos->concat($albums)->values()->all();
-    }
-
-    /**
-     * @param  array<int, int>  $excludePhotoIds
-     * @return array<int, array<string, mixed>>
-     */
-    private function autoCategoryItems(?Category $category, int $limit, array $excludePhotoIds): array
-    {
-        if ($limit <= 0 || $category === null) {
+        if ($limit <= 0) {
             return [];
         }
 
-        return $this->publicPhotosQuery()
-            ->whereNotIn('id', $excludePhotoIds)
-            ->whereHas('categories', fn (Builder $query): Builder => $query->where('parent_id', $category->id))
+        $query = $this->publicAlbumsQuery($category);
+        $featured = (clone $query)
+            ->where('is_featured', true)
+            ->orderByDesc('featured_at')
+            ->orderByDesc('published_at')
+            ->orderByDesc('id')
             ->limit($limit)
-            ->get()
-            ->map(fn (Photo $photo): array => $this->photoCard($photo))
+            ->get();
+
+        $remaining = $featured->count() >= $limit
+            ? collect()
+            : (clone $query)
+                ->when($featured->isNotEmpty(), fn (Builder $query): Builder => $query->whereNotIn('albums.id', $featured->pluck('id')))
+                ->orderByDesc('published_at')
+                ->orderByDesc('id')
+                ->limit($limit - $featured->count())
+                ->get();
+
+        return $featured
+            ->concat($remaining)
+            ->map(fn (Album $album): array => $this->albumCard($album))
+            ->values()
             ->all();
+    }
+
+    private function publicAlbumsQuery(?Category $category = null): Builder
+    {
+        $query = Album::query()
+            ->published()
+            ->whereHas('photos', fn (Builder $query): Builder => $this->publicPhotoConstraint($query))
+            ->with([
+                'photos' => fn ($query) => $this->publicPhotoConstraint($query)
+                    ->orderByDesc('photos.created_at')
+                    ->orderByDesc('photos.published_at')
+                    ->orderByDesc('photos.id'),
+            ]);
+
+        if ($category instanceof Category) {
+            $query->whereHas('categories', fn (Builder $query): Builder => $query->where('categories.id', $category->id));
+        }
+
+        return $query;
+    }
+
+    private function publicPhotoConstraint($query)
+    {
+        return $query
+            ->where('photos.status', 'published')
+            ->whereNotIn('photos.copyright_status', ['restricted', 'remove_requested']);
     }
 
     /**
@@ -389,10 +386,7 @@ class PublicHomepage
      */
     private function albumCard(Album $album): array
     {
-        $coverPhoto = $album->photos
-            ->filter(fn (Photo $photo): bool => $photo->status === 'published' && ! in_array($photo->copyright_status, ['restricted', 'remove_requested'], true))
-            ->firstWhere('id', $album->cover_photo_id)
-            ?? $album->photos->first(fn (Photo $photo): bool => $photo->status === 'published' && ! in_array($photo->copyright_status, ['restricted', 'remove_requested'], true));
+        $coverPhoto = $album->photos->firstWhere('id', $album->cover_photo_id) ?? $album->photos->first();
 
         return [
             'id' => 'album:'.$album->id,

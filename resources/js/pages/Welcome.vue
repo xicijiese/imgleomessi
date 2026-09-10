@@ -246,41 +246,43 @@ onUnmounted(() => {
             class="bg-[#fffffe] px-4 py-16 sm:px-6 sm:py-20 lg:px-8"
         >
             <div class="mx-auto max-w-7xl">
-                <div
-                    class="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"
-                >
+                <div class="mb-5">
                     <h2 class="text-3xl font-semibold sm:text-4xl">
                         {{ home.category_module.title }}
                     </h2>
+                </div>
+
+                <div class="mb-8 flex items-center justify-between gap-4">
+                    <div
+                        class="min-w-0 flex-1 overflow-x-auto pb-2"
+                        role="tablist"
+                        aria-label="精选相册子分类导航"
+                    >
+                        <div class="flex w-max gap-3">
+                            <button
+                                v-for="(tab, index) in home.category_module.tabs"
+                                :key="`${tab.label}-${tab.category_id ?? index}`"
+                                type="button"
+                                class="shrink-0 rounded-full border px-5 py-2 text-sm font-semibold transition"
+                                :class="
+                                    activeCategoryIndex === index
+                                        ? 'border-[#094067] bg-[#094067] text-[#fffffe]'
+                                        : 'border-[#90b4ce]/60 text-[#094067] hover:border-[#3da9fc] hover:text-[#3da9fc]'
+                                "
+                                role="tab"
+                                :aria-selected="activeCategoryIndex === index"
+                                @click="setCategoryTab(index)"
+                            >
+                                {{ tab.label }}
+                            </button>
+                        </div>
+                    </div>
                     <Link
                         :href="home.category_module.more_url"
-                        class="text-sm font-semibold text-[#3da9fc] hover:text-[#094067]"
+                        class="shrink-0 pb-2 text-sm font-semibold text-[#3da9fc] hover:text-[#094067]"
                     >
                         更多
                     </Link>
-                </div>
-
-                <div
-                    class="mb-8 flex gap-3 overflow-x-auto pb-2"
-                    role="tablist"
-                    aria-label="首页分类导航"
-                >
-                    <button
-                        v-for="(tab, index) in home.category_module.tabs"
-                        :key="`${tab.label}-${tab.category_id ?? index}`"
-                        type="button"
-                        class="shrink-0 rounded-full border px-5 py-2 text-sm font-semibold transition"
-                        :class="
-                            activeCategoryIndex === index
-                                ? 'border-[#094067] bg-[#094067] text-[#fffffe]'
-                                : 'border-[#90b4ce]/60 text-[#094067] hover:border-[#3da9fc] hover:text-[#3da9fc]'
-                        "
-                        role="tab"
-                        :aria-selected="activeCategoryIndex === index"
-                        @click="setCategoryTab(index)"
-                    >
-                        {{ tab.label }}
-                    </button>
                 </div>
 
                 <div
@@ -288,33 +290,32 @@ onUnmounted(() => {
                     class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
                 >
                     <Link
-                        v-for="(item, index) in activeCategoryTab.items"
+                        v-for="item in activeCategoryTab.items"
                         :key="item.id"
                         :href="item.url"
-                        class="group relative min-h-64 overflow-hidden rounded-sm bg-[#d8eefe] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#3da9fc]"
-                        :class="index < 2 ? 'lg:col-span-1 lg:min-h-80' : ''"
+                        class="group relative aspect-[4/3] overflow-hidden rounded-sm bg-[#d8eefe] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#3da9fc]"
+                        :aria-label="`查看相册：${item.title}`"
                     >
                         <img
                             v-if="item.image_url"
                             :src="item.image_url"
                             :alt="item.alt"
                             loading="lazy"
-                            class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                            class="h-full w-full object-cover transition duration-500 group-hover:scale-105 motion-reduce:transition-none"
                         />
                         <div
                             v-else
                             class="h-full w-full bg-[linear-gradient(135deg,#d8eefe,#90b4ce)]"
                         />
                         <div
-                            class="absolute inset-0 bg-[#094067]/42 transition group-hover:bg-[#094067]/58"
+                            class="absolute inset-0 bg-[#094067]/42 transition-colors duration-200 md:bg-[#094067]/0 md:group-hover:bg-[#094067]/58 motion-reduce:transition-none"
                         />
                         <div
-                            class="absolute inset-0 flex items-center justify-center p-6 text-center"
+                            class="absolute inset-x-0 bottom-0 p-5 opacity-100 transition-opacity duration-200 md:opacity-0 md:group-hover:opacity-100 motion-reduce:transition-none"
                         >
-                            <span
-                                class="text-xl font-semibold text-[#fffffe]"
-                                >{{ item.title }}</span
-                            >
+                            <span class="text-lg font-semibold text-[#fffffe] drop-shadow-sm">
+                                {{ item.title }}
+                            </span>
                         </div>
                     </Link>
                 </div>

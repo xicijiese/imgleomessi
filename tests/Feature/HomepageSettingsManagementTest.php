@@ -69,7 +69,7 @@ class HomepageSettingsManagementTest extends TestCase
             'published_at' => now(),
         ]);
         $album->photos()->sync([$photo->id]);
-        $categoryId = Category::query()->roots()->where('slug', 'competition')->value('id');
+        $categoryId = Category::query()->children()->whereHas('parent', fn ($query) => $query->where('slug', 'competition'))->value('id');
 
         $state = HomepageSettings::defaults();
         $state['site']['name'] = 'Messi Archive';
@@ -77,9 +77,6 @@ class HomepageSettingsManagementTest extends TestCase
         $state['category_module']['tabs'] = [[
             'enabled' => true,
             'category_id' => $categoryId,
-            'label' => '赛事',
-            'photo_ids' => [$photo->id],
-            'album_ids' => [$album->id],
         ]];
         $state['topic_module']['items'] = [[
             'enabled' => true,
@@ -91,7 +88,7 @@ class HomepageSettingsManagementTest extends TestCase
 
         $this->assertSame('Messi Archive', Setting::value('site', 'basic')['name']);
         $this->assertSame([$photo->id], Setting::value('home', 'latest_photos')['pinned_photo_ids']);
-        $this->assertSame('赛事', Setting::value('home', 'category_module')['tabs'][0]['label']);
+        $this->assertSame($categoryId, Setting::value('home', 'category_module')['tabs'][0]['category_id']);
         $this->assertSame('金球奖', Setting::value('home', 'topic_module')['items'][0]['title']);
         $this->assertSame($user->id, Setting::query()->where('group', 'site')->where('key', 'basic')->value('updated_by'));
     }
@@ -110,18 +107,23 @@ class HomepageSettingsManagementTest extends TestCase
         app(HomepageSettings::class)->save($state);
     }
 
-    public function test_homepage_settings_rejects_hidden_albums(): void
+    public function test_homepage_settings_rejects_hidden_category_navigation(): void
     {
-        $hiddenAlbum = Album::query()->create([
-            'title' => '隐藏相册',
-            'slug' => 'hidden-album',
-            'status' => 'hidden',
+        $this->seed(GalleryTaxonomySeeder::class);
+
+        $root = Category::query()->roots()->where('slug', 'competition')->firstOrFail();
+        $hiddenChild = Category::query()->create([
+            'parent_id' => $root->id,
+            'name' => '隐藏赛事导航',
+            'slug' => 'hidden-competition-navigation',
+            'visibility' => 'hidden',
+            'is_system' => false,
+            'required_for_publish' => false,
         ]);
         $state = HomepageSettings::defaults();
         $state['category_module']['tabs'] = [[
             'enabled' => true,
-            'label' => '测试',
-            'album_ids' => [$hiddenAlbum->id],
+            'category_id' => $hiddenChild->id,
         ]];
 
         $this->expectException(ValidationException::class);

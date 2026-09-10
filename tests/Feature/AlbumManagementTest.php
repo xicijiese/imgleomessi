@@ -29,6 +29,8 @@ class AlbumManagementTest extends TestCase
             'sort_order',
             'status',
             'published_at',
+            'is_featured',
+            'featured_at',
         ]));
     }
 

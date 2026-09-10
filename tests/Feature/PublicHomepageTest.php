@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Album;
 use App\Models\Category;
 use App\Models\Photo;
 use App\Models\Setting;
@@ -74,7 +75,7 @@ class PublicHomepageTest extends TestCase
             );
     }
 
-    public function test_homepage_category_module_auto_fills_public_photos_for_configured_root_category(): void
+    public function test_homepage_featured_albums_are_shown_under_all_and_child_category_tabs(): void
     {
         $this->seed(GalleryTaxonomySeeder::class);
 
@@ -84,16 +85,23 @@ class PublicHomepageTest extends TestCase
             'title' => '世界杯公开图片',
             'status' => 'published',
             'published_at' => now(),
+            'thumbnail_key' => 'photos/thumb/world-cup.webp',
         ]);
-        $photo->categories()->sync([$worldCup->id]);
+        $album = Album::query()->create([
+            'title' => '世界杯精选相册',
+            'slug' => 'world-cup-featured',
+            'status' => 'published',
+            'published_at' => now(),
+            'is_featured' => true,
+            'featured_at' => now(),
+        ]);
+        $album->categories()->sync([$worldCup->id]);
+        $album->photos()->sync([$photo->id]);
 
         $state = HomepageSettings::defaults();
         $state['category_module']['tabs'] = [[
             'enabled' => true,
-            'category_id' => $competition->id,
-            'label' => '赛事',
-            'photo_ids' => [],
-            'album_ids' => [],
+            'category_id' => $worldCup->id,
         ]];
         Setting::setValue('home', 'category_module', $state['category_module']);
 
@@ -101,8 +109,13 @@ class PublicHomepageTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Welcome')
-                ->where('home.category_module.tabs.0.label', '赛事')
-                ->where('home.category_module.tabs.0.items.0.title', '世界杯公开图片')
+                ->where('home.category_module.title', '精选相册')
+                ->where('home.category_module.tabs.0.label', '全部')
+                ->where('home.category_module.tabs.0.items.0.type', 'album')
+                ->where('home.category_module.tabs.0.items.0.title', '世界杯精选相册')
+                ->where('home.category_module.tabs.1.label', '待补充')
+                ->where('home.category_module.tabs.1.items.0.title', '世界杯精选相册')
+                ->where('home.category_module.tabs.1.items.0.image_url', '/storage/photos/thumb/world-cup.webp')
             );
     }
 }

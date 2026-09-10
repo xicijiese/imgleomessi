@@ -157,15 +157,16 @@ class SystemSettings extends Page
                                     ->maxItems(5)
                                     ->addActionLabel('添加头图'),
                             ]),
-                        Tab::make('分类模块')
+                        Tab::make('精选相册')
                             ->schema([
-                                Section::make('分类模块设置')
+                                Section::make('精选相册模块设置')
                                     ->schema([
                                         Toggle::make('category_module.enabled')
                                             ->label('启用')
                                             ->default(true),
                                         TextInput::make('category_module.title')
                                             ->label('模块标题')
+                                            ->default('精选相册')
                                             ->required()
                                             ->maxLength(120),
                                         TextInput::make('category_module.display_count')
@@ -181,35 +182,32 @@ class SystemSettings extends Page
                                     ])
                                     ->columns(4),
                                 Repeater::make('category_module.tabs')
-                                    ->label('分类导航与展示项')
+                                    ->label('首页子分类导航')
+                                    ->helperText('只选择子分类；首页默认展示精选相册和最新相册，点击导航后显示对应子分类下的相册。')
                                     ->schema([
                                         Toggle::make('enabled')
                                             ->label('启用')
                                             ->default(true),
                                         Select::make('category_id')
-                                            ->label('主分类')
-                                            ->options(fn (): array => Category::query()->roots()->orderBy('sort_order')->pluck('name', 'id')->all())
+                                            ->label('子分类')
+                                            ->options(fn (): array => Category::query()
+                                                ->children()
+                                                ->where('visibility', 'public')
+                                                ->with('parent')
+                                                ->get()
+                                                ->sortBy(fn (Category $category): string => ($category->parent?->sort_order ?? 0).'-'.$category->sort_order.'-'.$category->id)
+                                                ->mapWithKeys(fn (Category $category): array => [
+                                                    $category->id => ($category->parent?->name ? $category->parent->name.' / ' : '').$category->name,
+                                                ])
+                                                ->all())
                                             ->searchable()
-                                            ->preload(),
-                                        TextInput::make('label')
-                                            ->label('自定义显示名')
-                                            ->maxLength(80),
-                                        Select::make('photo_ids')
-                                            ->label('指定图片')
-                                            ->options(fn (): array => self::publishedPhotoOptions())
-                                            ->multiple()
-                                            ->searchable()
-                                            ->preload(),
-                                        Select::make('album_ids')
-                                            ->label('指定相册')
-                                            ->options(fn (): array => self::publishedAlbumOptions())
-                                            ->multiple()
-                                            ->searchable()
-                                            ->preload(),
+                                            ->preload()
+                                            ->required(),
                                     ])
                                     ->columns(2)
                                     ->reorderable()
-                                    ->addActionLabel('添加分类导航'),
+                                    ->maxItems(7)
+                                    ->addActionLabel('添加子分类导航'),
                             ]),
                         Tab::make('最新照片')
                             ->schema([
