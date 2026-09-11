@@ -20,11 +20,17 @@ class PhotoStorage
     {
         $local = Storage::disk('public');
 
-        if ($this->activeDiskName() === 'public' || (filled($key) && $local->exists($key))) {
+        if (blank($key)) {
+            return $this->activeDiskName() === 'cos' ? $this->cosDisk() : $local;
+        }
+
+        if ($local->exists($key)) {
             return $local;
         }
 
-        return $this->cosDisk();
+        $credentials = $this->settings->credentials();
+
+        return $this->hasCosCredentials($credentials) ? $this->cosDisk() : $local;
     }
 
     public function url(?string $path): ?string
@@ -36,11 +42,16 @@ class PhotoStorage
         $path = ltrim((string) $path, '/');
         $local = Storage::disk('public');
 
-        if ($this->activeDiskName() === 'public' || $local->exists($path)) {
+        if ($local->exists($path)) {
             return '/storage/'.$path;
         }
 
         $credentials = $this->settings->credentials();
+
+        if (! $this->hasCosCredentials($credentials)) {
+            return '/storage/'.$path;
+        }
+
         $baseUrl = trim($credentials['cdn_url'], '/');
 
         if ($baseUrl !== '') {
@@ -80,10 +91,8 @@ class PhotoStorage
     {
         $credentials = $this->settings->credentials();
 
-        foreach (['secret_id', 'secret_key', 'region', 'bucket'] as $key) {
-            if (blank($credentials[$key])) {
-                throw new RuntimeException('腾讯云存储配置不完整，无法创建 COS 存储连接。');
-            }
+        if (! $this->hasCosCredentials($credentials)) {
+            throw new RuntimeException('腾讯云存储配置不完整，无法创建 COS 存储连接。');
         }
 
         return Storage::build([
@@ -97,5 +106,16 @@ class PhotoStorage
             'throw' => true,
             'report' => false,
         ]);
+    }
+
+    private function hasCosCredentials(array $credentials): bool
+    {
+        foreach (['secret_id', 'secret_key', 'region', 'bucket'] as $key) {
+            if (blank($credentials[$key] ?? null)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

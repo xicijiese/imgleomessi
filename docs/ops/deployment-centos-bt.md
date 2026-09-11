@@ -4,7 +4,7 @@
 
 本项目采用 Laravel 单体应用：Nginx 提供 Web 服务，PHP-FPM 运行 Laravel，MySQL 保存业务数据，Redis 提供缓存/会话/队列，宝塔“进程守护管理器”（基于 Supervisor）守护 Laravel 队列 Worker，腾讯云 COS / 数据万象负责生产图片存储和图片处理。
 
-本文档描述生产部署方案；本次已完成 GitHub 首次推送和 VPS 代码拉取演练，但不代表已经完成生产切流。所有带有“确认后执行”的命令，都必须在备份、维护窗口和回滚方案准备完成后执行。
+本文档描述生产部署方案。当前已知状态是：项目已经部署到生产 VPS，并已人工验证图片上传、新建相册等基础功能；这不等于全套生产验收已经完成。下面的检查、备份、迁移和切换命令都必须在确认影响范围、准备备份和回滚方案后执行。
 ## 本次已完成规则（2026-09-09）
 
 - local 存储使用 PHP GD 生成展示图和缩略图；COS 存储使用腾讯云数据万象生成相同规格的 WebP 派生图。
@@ -14,14 +14,14 @@
 - 只在后台修改数据库中的存储方式不要求重启 Worker；修改 PHP 代码、`.env`、配置缓存或 Worker 命令后必须执行 `queue:restart` 并重启宝塔 Worker。
 - local 生产链路必须确认 PHP CLI 已启用 GD 和 WebP；COS 生产链路必须确认 COS、数据万象和 CDN 配置均通过后台检测。
 
-## 0. 当前生产部署阻塞项
+## 0. 正式稳定运行前必须确认的事项
 
-在执行真实生产部署前，必须先完成以下代码和账号安全确认：
+项目已经部署后，正式持续运营前仍必须完成以下安全和运行确认：
 
 1. 已补齐生产环境管理员访问策略：数据库新增 users.role，admin / editor 可以进入 /admin；首次生产部署必须执行 app:create-admin 创建独立管理员，不能依赖测试 Seeder。
 2. 不得在生产环境直接执行完整 `DatabaseSeeder`。当前 Seeder 会创建 `test@example.com`、默认密码 `password` 的测试账号，存在严重安全风险。
 3. 生产管理员必须使用独立账号、强密码和双因素认证；禁止使用测试账号、开发账号或示例密码。
-4. 上述后台访问策略和生产管理员账号完成后，必须使用 `APP_ENV=production` 做一次登录验收，再进入正式部署。
+4. 上述后台访问策略和生产管理员账号完成后，必须使用 `APP_ENV=production` 做一次登录验收；不能只凭本地测试判断生产后台可用。\n\n本节后面的“生产环境继续执行教程”是当前 VPS 的主执行入口。每完成一个阶段，建议保留命令输出、宝塔截图或测试结果；如果某一步失败，不要跳过，先记录失败信息再反馈。
 
 ## 1. 已确认的 VPS 环境
 
@@ -1122,6 +1122,254 @@ redis-cli ping
 - 发布图片后首页、图库列表和详情页可见。
 - 未发布图片不会出现在前台。
 - 当前没有误迁移或误删除本地历史图片。
+### 15.6 已部署 VPS 的生产确认教程
+
+本节适用于“网站已经可以访问，并且已经人工验证过上传、新建相册”的生产环境。执行顺序固定为：确认版本 → 备份 → 检查配置 → 发布缓存 → 检查 Web → 检查 Worker → 检查存储 → 完成业务验收 → 固化备份和回滚资料。
+
+每个阶段都要记录结果。命令输出中禁止打印 `APP_KEY`、数据库密码、Redis 密码、COS SecretKey、完整 Cookie 或完整用户邮箱名单。
+
+#### 15.6.1 阶段 A：建立本次验收记录
+
+先登录 VPS，确认进入项目根目录。不要在 `/root`、`/www/wwwroot` 或 `public` 目录直接执行项目命令。
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+umask 077
+CHECK_TIME="$(date +%Y%m%d-%H%M%S)"
+BACKUP_DIR="/root/imgleomessi-backups/$CHECK_TIME"
+mkdir -p "$BACKUP_DIR"
+pwd
+git status --short
+git log -1 --oneline
+test -f artisan && echo "artisan 存在"
+test -f .env && echo ".env 存在"
+test -f vendor/autoload.php && echo "Composer 依赖存在"
+test -f public/build/manifest.json && echo "前端构建产物存在"
+~~~
+
+预期结果：`pwd` 是 `/www/wwwroot/img.leomessi.cn`；`git log` 显示本次准备上线的提交；项目文件、依赖和前端构建产物都存在。若 `git status --short` 显示受 Git 跟踪的生产手工修改，先停止，不要使用 `git reset --hard` 覆盖。
+
+#### 15.6.2 阶段 B：确认生产配置，不泄露密钥
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan about --only=Environment
+/www/server/php/83/bin/php artisan config:show session | grep -E 'driver|cookie|domain|secure|http_only|same_site'
+grep -E '^(APP_ENV|APP_DEBUG|APP_URL|SESSION_DRIVER|SESSION_COOKIE|SESSION_DOMAIN|SESSION_SECURE_COOKIE|SESSION_HTTP_ONLY|SESSION_SAME_SITE|QUEUE_CONNECTION|CACHE_STORE|FILESYSTEM_DISK|DB_CONNECTION|DB_HOST|DB_PORT|DB_DATABASE|DB_USERNAME|REDIS_HOST|REDIS_PORT)=' .env
+~~~
+
+生产单域名建议至少满足：
+
+- `APP_ENV=production`。
+- `APP_DEBUG=false`。
+- `APP_URL` 是正式 HTTPS 地址。
+- `SESSION_DRIVER=redis`。
+- `SESSION_COOKIE=imgleomessi_session`。
+- `SESSION_SECURE_COOKIE=true`。
+- `QUEUE_CONNECTION=redis`。
+- `CACHE_STORE=redis`。
+- `FILESYSTEM_DISK` 与后台实际选择的存储模式一致。
+
+如果发现旧的 `-session` Cookie，先清除浏览器本站 Cookie，再用无痕窗口验证；不要重复创建管理员，也不要重新生成 APP_KEY。
+
+#### 15.6.3 阶段 C：先做生产备份，再做任何迁移或配置切换
+
+数据库备份优先使用宝塔数据库备份功能；同时建议在 SSH 中生成一份独立备份。数据库密码必须在交互提示中输入，不要写在命令参数、脚本或聊天记录中。
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+mysqldump --single-transaction --routines --triggers -h 127.0.0.1 -u [生产数据库用户] -p [生产数据库名] > "$BACKUP_DIR/database.sql"
+chmod 600 "$BACKUP_DIR/database.sql"
+tar -czf "$BACKUP_DIR/storage-app.tar.gz" storage/app
+cp .env "$BACKUP_DIR/.env"
+chmod 600 "$BACKUP_DIR/.env"
+ls -lh "$BACKUP_DIR"
+~~~
+
+确认备份文件非空后，再进行迁移、缓存重建、COS 切换或历史图片处理。`.env` 备份包含敏感配置，只允许 root 访问。
+
+#### 15.6.4 阶段 D：确认当前版本、迁移和生产缓存
+
+如果 VPS 已经是目标提交，只需执行检查；如果需要从 GitHub 更新，先确认生产没有受 Git 跟踪的手工修改，再按第 16.1 节使用 `git pull --ff-only`。不要在生产环境执行 `composer update`。
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan migrate:status
+/www/server/php/83/bin/php artisan migrate --force
+/www/server/php/83/bin/php artisan optimize:clear
+/www/server/php/83/bin/php artisan filament:upgrade
+/www/server/php/83/bin/php artisan filament:cache-components
+/www/server/php/83/bin/php artisan config:cache
+/www/server/php/83/bin/php artisan route:cache
+/www/server/php/83/bin/php artisan view:cache
+/www/server/php/83/bin/php artisan migrate:status
+~~~
+
+如果本次发布包含 `resources/js`、`resources/css`、`vite.config.ts`、`package.json` 或 `package-lock.json` 的变化，再执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+npm ci
+npm run build
+test -f public/build/manifest.json && echo "前端构建完成"
+~~~
+
+如果迁移失败，保留完整错误信息并停止后续操作；不要反复执行迁移，也不要删除生产数据库。
+
+#### 15.6.5 阶段 E：检查 Nginx、HTTPS、Filament 和 Livewire 资源
+
+~~~bash
+curl -skI https://[正式域名]/
+curl -skI https://[正式域名]/photos
+curl -skI https://[正式域名]/albums
+curl -skI https://[正式域名]/admin/login
+curl -skD - -o /dev/null https://[正式域名]/admin/login | grep -iE '^(HTTP/|set-cookie:|location:)'
+~~~
+
+预期结果：正式域名返回 Laravel 页面或正常重定向，不返回 Nginx 默认 404；HTTP 应跳转 HTTPS；后台登录页应下发名称为 `imgleomessi_session` 的 Cookie。
+
+如果后台登录后白屏，依次确认：
+
+1. 宝塔运行目录是 `/www/wwwroot/img.leomessi.cn/public`。
+2. `public/css/filament/filament/app.css` 和 `public/js/filament/filament/app.js` 存在。
+3. Nginx 伪静态已包含 Laravel `try_files`，并将带哈希的 `/livewire-*` 资源交给 Laravel。
+4. 浏览器 Network 中 Filament CSS、JS 和 Livewire JS 都返回 200。
+5. `storage/logs/laravel.log` 没有对应异常。
+
+#### 15.6.6 阶段 F：确认后台账号、权限和双因素认证
+
+只有在生产数据库迁移完成且确认没有可用管理员时，才执行以下命令；已有管理员不要重复创建。
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan app:create-admin
+~~~
+
+然后使用独立生产管理员完成：
+
+- `/admin/login` 登录。
+- 开启双因素认证并保存恢复码。
+- 打开“系统设置”。
+- 打开“图片管理”和“上传任务”。
+- 用普通用户验证不能访问 `/admin`。
+- 用 `editor` 账号验证能完成图片维护，但不能执行只属于管理员的系统设置操作。
+
+不要在生产执行完整 `php artisan db:seed --force`，不要使用 `test@example.com` 或 `password`。
+
+#### 15.6.7 阶段 G：确认队列 Worker、失败恢复和计划任务
+
+在宝塔“进程守护管理器”中确认 Worker 使用绝对路径：
+
+- PHP：`/www/server/php/83/bin/php`。
+- Artisan：`/www/wwwroot/img.leomessi.cn/artisan`。
+- 工作目录：`/www/wwwroot/img.leomessi.cn`。
+- 命令：`queue:work redis --sleep=3 --tries=3 --timeout=120`。
+- Worker 用户与项目文件权限一致。
+- 服务设置为开机启动和异常自动拉起。
+
+发布 PHP 代码、修改 `.env` 或重建配置缓存后执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan queue:restart
+/www/server/php/83/bin/php artisan queue:failed
+~~~
+
+然后在宝塔中重启 Worker，并观察 Worker 日志至少几分钟。计划任务只执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn && /www/server/php/83/bin/php artisan schedule:run >> /dev/null 2>&1
+~~~
+
+计划任务不能代替常驻 Worker。用一张测试图片验证：上传后出现 `metadata`、`hash` 和派生图任务；Worker 消费后变为 `done`；失败任务能在后台重新入队；没有展示图或缩略图时图片不能发布。
+
+#### 15.6.8 阶段 H：确认图片存储和 COS/CDN 边界
+
+先在后台“系统设置 → 存储与处理”确认当前模式。
+
+如果使用 local：
+
+~~~bash
+/www/server/php/83/bin/php -m | grep -i '^gd$'
+/www/server/php/83/bin/php -r 'echo function_exists("imagecreatefromstring") ? "GD读取可用\n" : "GD读取不可用\n"; echo function_exists("imagewebp") ? "WebP可用\n" : "WebP不可用\n";'
+~~~
+
+如果使用 COS：
+
+1. 在后台填写凭证，凭证只保存到后台加密配置，不写入 Git 或聊天记录。
+2. 选择当前 COS 存储桶中已经存在的业务原图。
+3. 执行“检测 COS / 数据万象”和“上线前检查”。
+4. 上传一张测试图片，确认原图、展示图、缩略图对象都存在。
+5. 确认前台使用 CDN/展示域名，不暴露原图 Key。
+
+COS/CDN 防盗链应在腾讯云控制台单独配置：只允许正式站点域名和实际需要的来源，确认空 Referer 策略后再保存；不要在没有测试展示图、缩略图和分享场景的情况下直接禁止所有 Referer。
+
+历史本地图片迁移属于高风险操作。当前项目没有允许直接覆盖生产数据的“一键迁移”命令，禁止在 VPS 上临时写脚本批量改 `original_key`、`display_key` 或 `thumbnail_key`。应先完成小批量迁移方案、失败重试、数据库备份、对象数量核对和回滚演练，再单独确认全量迁移。
+
+#### 15.6.9 阶段 I：生产业务验收矩阵
+
+使用真实生产管理员和一个普通测试账号，至少完成以下验收：
+
+1. 游客访问首页、图库、搜索、相册、专题、图片详情、时间线和公开说明页。
+2. 管理员上传一张图片，确认原图写入当前存储。
+3. 等待 Worker 完成 metadata、hash、展示图和缩略图处理。
+4. 选择三个必选主分类，发布图片，确认首页、图库、搜索和详情页可见。
+5. 上传一张草稿图片，确认未发布前游客不可见。
+6. 新建草稿相册，加入已发布图片后再发布，确认相册列表和详情页可见。
+7. 确认隐藏相册、归档图片、受限图片和请求下架图片不出现在公开页面。
+8. 用普通用户验证收藏、点赞、评论、举报和通知边界。
+9. 用编辑员验证图片和相册维护；用普通用户验证不能进入后台。
+10. 验证 `/sitemap.xml`、`/robots.txt`、登录、退出登录和旧 `/dashboard` 兼容跳转。
+
+每一步都记录“通过 / 失败 / 未执行”和对应 URL、时间、截图或日志位置。
+
+#### 15.6.10 阶段 J：备份恢复、监控和回滚演练
+
+备份不能只确认“文件存在”，必须在独立位置验证可恢复：
+
+- 将数据库备份恢复到独立测试数据库，不覆盖生产库。
+- 从图片目录或 COS 备份中恢复一张测试图片，确认对象可读取。
+- 保存当前提交号、`.env` 备份位置、数据库备份位置、Worker 配置和宝塔站点配置截图。
+- 记录 Laravel 日志、Nginx 日志、PHP-FPM 日志和 Worker 日志的路径及保留周期。
+- 配置磁盘空间、数据库、Redis、Worker 失败任务和 5xx 错误告警。
+- 至少演练一次“停止上传 → 停止 Worker → 恢复上一版本 → 清缓存 → 重启 PHP-FPM/Worker → 验证首页和已有图片”的回滚流程。
+
+没有独立恢复验证前，不要宣称生产备份已经完成；不要直接在生产库执行恢复测试。
+
+#### 15.6.11 阶段 K：完成确认后的正式运行
+
+只有以下条件全部满足，才可以认为生产环境完成本轮收口：
+
+- 正式 HTTPS、Cookie、登录和后台权限通过。
+- Worker 和计划任务连续运行且无异常积压。
+- 上传、派生图、发布、前台展示闭环通过。
+- 数据库和图片备份可以在独立位置恢复。
+- COS/CDN 权限和防盗链策略已确认，或已明确暂时使用 local 并接受其风险。
+- 回滚步骤已经实际演练。
+- 生产验收记录已经保存。
+
+如有任一步失败，保留失败现场，不要清空日志、删除失败任务或反复重试覆盖证据。
+
+#### 15.6.12 问题反馈格式
+
+反馈问题时请尽量一次提供以下信息，不要发送密钥、密码或完整 Cookie：
+
+~~~text
+发生阶段：A-K 中的阶段编号
+发生时间：YYYY-MM-DD HH:mm（时区）
+操作入口：例如 /admin/photos 或 /photos/xxx
+预期结果：
+实际结果：
+HTTP 状态码：
+是否可复现：是 / 否，复现次数
+Laravel 日志最后相关错误：仅提供错误类型、时间和脱敏后的消息
+Worker 状态：运行中 / 已退出 / 不确定
+本次部署提交号：
+是否已停止继续操作：是 / 否
+~~~
+
+如果涉及数据库迁移、批量图片、支付、权限、COS 删除或回滚，请先停止操作并反馈，不要自行扩大处理范围。
+
 ## 16. 正式发布顺序
 
 下面是一份从已经拉取代码的 VPS 继续执行的顺序。除宝塔面板操作外，命令全部在 /www/wwwroot/img.leomessi.cn 执行：
@@ -1521,25 +1769,47 @@ tail -n 200 storage/logs/laravel.log
 ### COS / 数据万象失败
 
 检查 SecretId、SecretKey、地域、存储桶、数据万象绑定关系和 COS 原图 Key。后台检测必须选择当前 COS 存储桶中已经存在的原图。不要把密钥写入 SSH 命令、日志或 Git。
-## 19. 当前未执行事项
+## 19. 当前生产确认状态与未完成事项
 
-截至本手册整理时，以下操作仍未执行：
+截至 2026-09-10，用户已反馈项目已经部署到生产 VPS，并已人工验证图片上传、新建相册等基础功能。本节只记录仍需在生产环境确认的事项，不再把“代码已完成”和“生产已验收”混为一谈。
 
-- 生产数据库已创建并完成首次迁移；后续版本迁移仍需按发布流程执行。
-- 生产 `.env` 已创建，并已验证 Laravel 实际读取到正确的数据库配置；腾讯云凭证仍需在生产后台填写。
-- 已在宝塔“进程守护管理器”中配置并验证 Laravel Worker 正常启动；后续发布仍需按本手册执行 queue:restart 和日志检查。
-- 尚未完成全套生产上线验收。
-- 未配置正式域名和 HTTPS。
-- 未执行历史图片迁移。
-- 未配置 CDN 防盗链。
-- 未进行正式生产流量切换。
+已知已完成：
 
-已完成但不等于生产上线的准备工作：
+- 代码已经推送到 GitHub `main)，VPS 已能运行项目。
+- 图片上传、新建相册等基础后台功能已完成生产人工验证。
+- 本地代码最近一次验证：`php artisan test` 通过 224 个测试、2863 个断言；`npx.cmd vue-tsc --noEmit` 和 `npm.cmd run build` 通过。
+- PHP CLI、Composer、宝塔 Worker 的基础排障和绝对路径配置已经整理到本文档。
 
-- 本地项目已完成首次 Git 提交并推送到 GitHub `main`。
-- VPS 已使用独立只读 Deploy Key 将 GitHub `main` 拉取到 `/www/wwwroot/img.leomessi.cn`，并保留 SSL `.well-known`。
-- PHP CLI 重复扩展、Composer `putenv()` 和 Composer 版本问题已完成修复与验证。
+仍需按第 15.6 节逐项确认：
 
-- 宝塔 Worker 已使用 PHP CLI 和 Artisan 的绝对路径，并完成 pcntl 函数和 Supervisor 启动验证。
+- 生产提交号、`.env`、`APP_DEBUG=false`、正式 HTTPS 和稳定 Cookie。
+- 生产数据库备份、图片备份以及独立恢复验证。
+- Filament/Livewire 静态资源、Nginx 路由回退和所有关键公开页面。
+- Worker 常驻、自动拉起、失败任务重试和每分钟 `schedule:run`。
+- 上传后的 metadata、hash、展示图、缩略图、自动发布和手动发布闭环。
+- 普通用户、编辑员、管理员的权限边界和管理员双因素认证。
+- 当前选择 local 还是 COS；如果使用 COS，还需确认数据万象、CDN 域名和防盗链。
+- 历史本地图片是否迁移到 COS。迁移前必须单独设计可回滚的小批量方案，不能临时批量修改生产 Key。
+- 日志保留、5xx/Worker/磁盘/Redis/数据库告警和正式回滚演练。
+- 生产验收记录是否已保存，并能根据第 15.6.12 节格式反馈问题。
 
-这些操作必须在生产后台访问策略、管理员账号、备份和回滚方案确认后，按本手册逐项执行。
+暂不作为本轮生产上线阻塞项的后续产品功能：
+
+- Meilisearch 或 Typesense。
+- 真实微信支付 / 支付宝及退款、对账。
+- 微信小程序。
+- 普通用户投稿。
+- 以图搜图、相似图分组和复杂社交动态。
+- 分享海报、短链接和第三方分享 API。
+
+生产发布禁止执行：
+
+~~~bash
+git reset --hard
+git clean -fd
+composer update
+php artisan db:seed --force
+php artisan key:generate --force
+~~~
+
+如果任一生产确认步骤失败，请停止后续高风险操作，按第 15.6.12 节反馈；收到反馈后先定位问题，再同步更新本部署文档对应步骤。

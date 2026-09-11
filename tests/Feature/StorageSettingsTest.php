@@ -100,6 +100,54 @@ class StorageSettingsTest extends TestCase
         $this->assertSame('AKID-updated', $service->credentials()['secret_id']);
     }
 
+    public function test_local_mode_keeps_cos_urls_for_cos_only_media(): void
+    {
+        app(StorageSettings::class)->save([
+            'mode' => 'local',
+            'cos' => [
+                'secret_id' => 'AKID-example',
+                'secret_key' => 'SECRET-example',
+                'region' => 'ap-guangzhou',
+                'bucket' => 'messi-1250000000',
+                'cdn_url' => 'https://cdn.example.com/',
+            ],
+        ]);
+
+        $this->assertSame(
+            'https://cdn.example.com/photos/derived/cos-only/display.webp',
+            app(PhotoStorage::class)->url('photos/derived/cos-only/display.webp'),
+        );
+    }
+
+    public function test_local_mode_uses_cos_disk_for_media_not_present_locally(): void
+    {
+        app(StorageSettings::class)->save([
+            'mode' => 'local',
+            'cos' => [
+                'secret_id' => 'AKID-example',
+                'secret_key' => 'SECRET-example',
+                'region' => 'ap-guangzhou',
+                'bucket' => 'messi-1250000000',
+            ],
+        ]);
+
+        $localDisk = Storage::fake('public-fallback');
+        $cloudDisk = Storage::fake('cloud-fallback');
+
+        Storage::shouldReceive('disk')
+            ->with('public')
+            ->andReturn($localDisk);
+
+        Storage::shouldReceive('build')
+            ->once()
+            ->andReturn($cloudDisk);
+
+        $this->assertSame(
+            $cloudDisk,
+            app(PhotoStorage::class)->diskForKey('photos/derived/cos-only/display.webp'),
+        );
+    }
+
     public function test_cos_object_exists_checks_the_configured_cloud_disk(): void
     {
         app(StorageSettings::class)->save([
