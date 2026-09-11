@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\PhotoStorage;
+use App\Services\PublicMediaUrl;
 use App\Services\StorageSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
@@ -119,6 +120,24 @@ class StorageSettingsTest extends TestCase
         );
     }
 
+    public function test_legacy_storage_url_paths_are_resolved_against_cos_in_local_mode(): void
+    {
+        app(StorageSettings::class)->save([
+            'mode' => 'local',
+            'cos' => [
+                'secret_id' => 'AKID-example',
+                'secret_key' => 'SECRET-example',
+                'region' => 'ap-guangzhou',
+                'bucket' => 'messi-1250000000',
+                'cdn_url' => 'https://cdn.example.com/',
+            ],
+        ]);
+
+        $this->assertSame(
+            'https://cdn.example.com/photos/derived/cos-only/display.webp',
+            PublicMediaUrl::fromPublicDisk('/storage/photos/derived/cos-only/display.webp'),
+        );
+    }
     public function test_local_mode_uses_cos_disk_for_media_not_present_locally(): void
     {
         app(StorageSettings::class)->save([

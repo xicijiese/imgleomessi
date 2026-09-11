@@ -12,10 +12,10 @@ class PublicMediaUrl
             return null;
         }
 
-        if (Str::startsWith($path, ['http://', 'https://', '/'])) {
+        if (Str::startsWith($path, ['http://', 'https://'])) {
             return $path;
         }
 
-return app(PhotoStorage::class)->url($path);
+        return app(PhotoStorage::class)->url($path);
     }
 }

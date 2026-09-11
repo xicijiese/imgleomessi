@@ -40,6 +40,7 @@ class PhotoStorage
         }
 
         $path = ltrim((string) $path, '/');
+        $path = Str::startsWith($path, 'storage/') ? Str::after($path, 'storage/') : $path;
         $local = Storage::disk('public');
 
         if ($local->exists($path)) {
