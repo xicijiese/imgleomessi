@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import PublicFooter from '@/components/PublicFooter.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import type { SeoPayload } from '@/types';
@@ -182,7 +181,5 @@ const isCurrentPage = (link: NavigationItem, pageKey: string) =>
                 </aside>
             </div>
         </section>
-
-        <PublicFooter :footer="staticPage.footer" :site="staticPage.site" />
     </main>
 </template>

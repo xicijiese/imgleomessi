@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import PublicHeader from '@/components/PublicHeader.vue';
-import PublicFooter from '@/components/PublicFooter.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import type { SeoPayload } from '@/types';
 import { Link } from '@inertiajs/vue3';
@@ -433,6 +432,5 @@ onUnmounted(() => {
                 </div>
             </div>
         </section>
-        <PublicFooter :footer="home.footer" :site="home.site" />
     </main>
 </template>

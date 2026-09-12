@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import PublicFooter from '@/components/PublicFooter.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { CheckCircle2, Clock3, HeartHandshake } from 'lucide-vue-next';
@@ -175,10 +174,5 @@ const mockPay = () => {
                 </div>
             </div>
         </section>
-
-        <PublicFooter
-            :footer="supportResult.footer"
-            :site="supportResult.site"
-        />
     </main>
 </template>

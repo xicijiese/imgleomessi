@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import PublicFooter from '@/components/PublicFooter.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import type { SeoPayload } from '@/types';
@@ -279,7 +278,5 @@ const createOrder = (plan: PlanItem) => {
                 </section>
             </div>
         </section>
-
-        <PublicFooter :footer="support.footer" :site="support.site" />
     </main>
 </template>

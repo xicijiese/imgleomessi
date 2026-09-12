@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import Heading from '@/components/Heading.vue';
-import PublicFooter from '@/components/PublicFooter.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -182,10 +181,5 @@ const currentPath =
                 </section>
             </div>
         </section>
-
-        <PublicFooter
-            :footer="settingsShell.footer"
-            :site="{ name: settingsShell.site.name }"
-        />
     </main>
 </template>

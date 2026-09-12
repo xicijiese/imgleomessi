@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import PublicFooter from '@/components/PublicFooter.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import type { SeoPayload } from '@/types';
@@ -310,7 +309,5 @@ const formatDate = (date: string | null) => date ?? '日期待补充';
                 </div>
             </div>
         </section>
-
-        <PublicFooter :footer="rankings.footer" :site="rankings.site" />
     </main>
 </template>

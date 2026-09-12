@@ -34,7 +34,7 @@
 - [x] 页面开发优先级边界已确认。
 - [x] 后台和 Web 前台 P0 页面功能确认稿已统一保存在 docs/ui/page-map.md 第 7 节。
 - [x] 用户整体确认第 7 节后，下一批开发任务按来源管理、图片核心模型、图片批量上传、上传批次/批量整理、首页配置和前台 P0 页面拆分。
-- [x] 当前进度已同步回 docs/project/development-progress.md；前台图库列表 `/photos` 已完成，当前唯一入口为生产环境收口与验收。
+- [x] 当前进度已同步回 docs/project/development-progress.md；前台图库列表 `/photos` 和生产环境收口均已完成，当前唯一入口为完整管理员用户管理。
 
 ## 测试要求
 

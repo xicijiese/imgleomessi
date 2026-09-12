@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\PublicHomepage;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -49,6 +50,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'canAccessAdmin' => $request->user()?->canAccessAdminPanel() ?? false,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'publicShell' => app(PublicHomepage::class)->shell(),
         ];
     }
 }

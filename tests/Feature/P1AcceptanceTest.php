@@ -17,6 +17,18 @@ class P1AcceptanceTest extends TestCase
         }
     }
 
+    public function test_public_inertia_pages_share_global_footer_shell(): void
+    {
+        foreach (array_diff($this->publicGuestPaths(), ['/sitemap.xml', '/robots.txt']) as $path) {
+            $this->get($path)
+                ->assertOk()
+                ->assertInertia(fn ($page) => $page
+                    ->has('publicShell.site')
+                    ->has('publicShell.footer')
+                    ->has('publicShell.footer.links')
+                );
+        }
+    }
     public function test_private_and_admin_p1_pages_keep_guest_boundaries(): void
     {
         foreach ($this->privateUserPaths() as $path) {

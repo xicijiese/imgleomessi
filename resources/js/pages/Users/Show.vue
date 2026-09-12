@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import PublicFooter from '@/components/PublicFooter.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import type { SeoPayload } from '@/types';
@@ -224,7 +223,5 @@ defineProps<{
                 </section>
             </div>
         </section>
-
-        <PublicFooter :footer="profilePage.footer" :site="profilePage.site" />
     </main>
 </template>
