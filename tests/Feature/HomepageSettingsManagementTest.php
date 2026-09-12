@@ -133,7 +133,7 @@ class HomepageSettingsManagementTest extends TestCase
 
     public function test_admin_can_visit_system_settings_page(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
 
         $this->get(SystemSettings::getUrl())->assertOk();
     }

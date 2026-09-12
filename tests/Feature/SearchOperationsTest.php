@@ -156,7 +156,7 @@ class SearchOperationsTest extends TestCase
 
     public function test_admin_can_manage_search_recommendations(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']))
             ->get(SearchRecommendationResource::getUrl())
             ->assertOk();
     }

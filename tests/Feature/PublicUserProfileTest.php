@@ -109,7 +109,7 @@ class PublicUserProfileTest extends TestCase
                 ->where('profilePage.profile.summary.badges_count', 1)
                 ->where('profilePage.profile.summary.public_comments_count', 1)
                 ->where('profilePage.profile.summary.is_public_supporter', true)
-                ->where('profilePage.profile.supporter.badge_label', '金色支持者')
+                ->where('profilePage.profile.supporter.badge_label', '金色守护者')
                 ->where('profilePage.profile.equipped_badge.name', '资料整理者')
                 ->where('profilePage.profile.comments.0.content', '这条普通评论可以公开')
                 ->where('profilePage.profile.comments.0.photo.title', '公开评论目标')

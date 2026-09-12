@@ -108,7 +108,7 @@ const saveProfile = () => {
                 <p
                     class="mt-4 max-w-2xl text-sm leading-7 text-[#5f6c7b] sm:text-base"
                 >
-                    查看自己的赞助订单、支持者身份和公开展示偏好。
+                    查看自己的赞助订单、运营守护者身份和公开展示偏好。
                 </p>
             </div>
         </section>
@@ -134,13 +134,13 @@ const saveProfile = () => {
                             />
                             <div>
                                 <h2 class="text-xl font-semibold">
-                                    支持者资料
+                                    运营守护者资料
                                 </h2>
                                 <p class="mt-1 text-sm text-[#5f6c7b]">
                                     {{
                                         me.supporter_profile
                                             ? `当前身份：${me.supporter_profile.badge_label}，累计 ${me.supporter_profile.total_amount_label}`
-                                            : '完成一次赞助后会生成支持者资料。'
+                                            : '完成一次赞助后会生成运营守护者资料。'
                                     }}
                                 </p>
                             </div>
@@ -172,7 +172,7 @@ const saveProfile = () => {
                                     type="checkbox"
                                     class="h-4 w-4 rounded border-[#90b4ce] text-[#3da9fc]"
                                 />
-                                出现在支持者墙
+                                出现在致谢墙
                             </label>
 
                             <div class="flex flex-wrap items-center gap-3">

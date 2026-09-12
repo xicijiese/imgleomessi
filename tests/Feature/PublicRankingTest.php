@@ -106,7 +106,7 @@ class PublicRankingTest extends TestCase
 
     public function test_admin_can_visit_interaction_stats_page(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']))
             ->get(InteractionStats::getUrl())
             ->assertOk();
     }

@@ -66,7 +66,7 @@ class SponsorshipService
             $order->user->notify(new UserCenterNotification(
                 'sponsorship',
                 '赞助支持已确认',
-                '感谢你支持本站维护，支持者身份已更新。',
+                '感谢你支持本站维护，运营守护者身份已更新。',
                 '/me/sponsorships',
                 'sponsorship_order',
                 $order->id,
@@ -117,7 +117,7 @@ class SponsorshipService
         $plan = $order->plan;
 
         if (! $plan instanceof SponsorshipPlan) {
-            throw new RuntimeException('赞助订单缺少方案，无法更新支持者身份。');
+            throw new RuntimeException('赞助订单缺少方案，无法更新运营守护者身份。');
         }
 
         $currentUntil = $order->user->supporter_until;

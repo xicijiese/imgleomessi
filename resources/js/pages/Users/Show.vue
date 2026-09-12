@@ -164,7 +164,7 @@ defineProps<{
                     <section v-if="profilePage.profile.supporter" class="rounded-sm border border-[#90b4ce]/35 bg-[#fffffe] p-5 shadow-sm">
                         <p class="flex items-center gap-2 text-sm font-semibold text-[#5f6c7b]">
                             <HeartHandshake class="h-4 w-4 text-[#3da9fc]" aria-hidden="true" />
-                            支持者身份
+                            运营守护者身份
                         </p>
                         <h2 class="mt-3 text-xl font-semibold">{{ profilePage.profile.supporter.badge_label }}</h2>
                         <p class="mt-2 text-sm leading-6 text-[#5f6c7b]">

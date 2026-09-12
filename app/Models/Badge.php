@@ -13,7 +13,7 @@ class Badge extends Model
         'registered' => '注册用户',
         'favorites_count' => '收藏数量',
         'comments_count' => '评论数量',
-        'supporter' => '支持者身份',
+        'supporter' => '运营守护者身份',
     ];
 
     protected $fillable = [

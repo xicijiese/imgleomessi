@@ -107,6 +107,36 @@ class Category extends Model
             ->all();
     }
 
+    public function deletionBlockReason(): ?string
+    {
+        if ($this->is_system) {
+            return '系统分类不可删除。';
+        }
+
+        $references = [];
+
+        $childCount = $this->children()->count();
+        $photoCount = $this->photos()->count();
+        $albumCount = $this->albums()->count();
+
+        if ($childCount > 0) {
+            $references[] = $childCount.' 个子分类';
+        }
+
+        if ($photoCount > 0) {
+            $references[] = $photoCount.' 张图片';
+        }
+
+        if ($albumCount > 0) {
+            $references[] = $albumCount.' 个相册';
+        }
+
+        if ($references === []) {
+            return null;
+        }
+
+        return '该分类已关联 '.implode('、', $references).'，请先移除关联或将其设置为隐藏。';
+    }
     public function isRoot(): bool
     {
         return $this->parent_id === null;

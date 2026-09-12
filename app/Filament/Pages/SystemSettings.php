@@ -35,6 +35,11 @@ use UnitEnum;
 
 class SystemSettings extends Page
 {
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->isAdministrator() ?? false;
+    }
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCog6Tooth;
 
     protected static string|UnitEnum|null $navigationGroup = '系统运维';

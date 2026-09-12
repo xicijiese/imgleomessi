@@ -77,7 +77,7 @@ class BadgeTest extends TestCase
     {
         $this->seed(BadgeSeeder::class);
         $user = User::factory()->create();
-        $admin = User::factory()->create();
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
         $photo = $this->publicPhoto('评论触发目标');
         $badge = Badge::query()->where('slug', 'discussion-starter')->firstOrFail();
         $comment = Comment::query()->create([
@@ -125,7 +125,7 @@ class BadgeTest extends TestCase
     public function test_admin_can_open_badge_management_and_service_can_revoke_manual_grant(): void
     {
         $this->seed(BadgeSeeder::class);
-        $admin = User::factory()->create();
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
         $user = User::factory()->create();
         $badge = Badge::query()->where('slug', 'curator-pick')->firstOrFail();
         $userBadge = app(BadgeService::class)->award($user, $badge, 'manual', $admin, '人工发放');

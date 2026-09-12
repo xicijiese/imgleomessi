@@ -16,6 +16,11 @@ use UnitEnum;
 
 class InteractionStats extends Page implements HasTable
 {
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->isAdministrator() ?? false;
+    }
     use InteractsWithTable;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChartBar;

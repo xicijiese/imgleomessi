@@ -127,7 +127,7 @@ class PublicSeo
     {
         return $this->page(
             $name.'的公开主页 - 梅西影像档案库',
-            '查看'.$name.'在梅西影像档案库中的公开支持者身份、勋章和公开评论摘要。',
+            '查看'.$name.'在梅西影像档案库中的公开运营守护者身份、勋章和公开评论摘要。',
             $path,
             $this->siteLogo(),
         );
@@ -248,8 +248,8 @@ class PublicSeo
     public function supporters(): array
     {
         return $this->page(
-            '支持者墙',
-            '展示愿意公开的本站支持者信息，不包含支付流水、邮箱或后台备注等敏感数据。',
+            '致谢墙',
+            '展示愿意公开的运营守护者和档案共建者信息，不包含支付流水、邮箱或后台备注等敏感数据。',
             '/supporters',
             $this->siteLogo(),
         );

@@ -74,7 +74,7 @@ class BadgeResource extends Resource
                 TextInput::make('rule_threshold')
                     ->label('规则阈值')
                     ->numeric()
-                    ->helperText('注册、支持者规则可填 1；人工发放可留空。'),
+                    ->helperText('注册、守护者规则可填 1；人工发放可留空。'),
                 TextInput::make('sort_order')
                     ->label('排序')
                     ->numeric()

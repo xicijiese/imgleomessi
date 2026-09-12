@@ -5,6 +5,7 @@ import SeoHead from '@/components/SeoHead.vue';
 import type { SeoPayload } from '@/types';
 import { Link, router } from '@inertiajs/vue3';
 import {
+    BookOpen,
     Check,
     HeartHandshake,
     ShieldCheck,
@@ -94,6 +95,11 @@ const createOrder = (plan: PlanItem) => {
                     >
                         赞助只用于支持资料整理、服务器、存储和后续功能维护，不代表购买图片版权，也不会解锁原图下载权益。
                     </p>
+                    <p
+                        class="mt-3 max-w-2xl text-sm font-semibold leading-7 text-[#3d7aa3] sm:text-base"
+                    >
+                        运营成本之外的结余，将用于捐赠给公益机构；相关捐赠信息会在条件允许时公开。
+                    </p>
                 </div>
 
                 <div
@@ -115,10 +121,51 @@ const createOrder = (plan: PlanItem) => {
                         v-if="support.auth.is_supporter"
                         class="mt-4 rounded-sm bg-[#d8eefe] p-3 text-sm font-semibold text-[#094067]"
                     >
-                        你已是支持者<span v-if="support.auth.supporter_until"
+                        你已是运营守护者<span v-if="support.auth.supporter_until"
                             >，有效期至 {{ support.auth.supporter_until }}</span
                         >
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="border-b border-[#90b4ce]/30 px-4 py-10 sm:px-6 lg:px-8">
+            <div class="mx-auto max-w-7xl">
+                <div class="max-w-3xl">
+                    <h2 class="text-2xl font-semibold sm:text-3xl">
+                        参与档案库的两种方式
+                    </h2>
+                    <p class="mt-3 text-sm leading-7 text-[#5f6c7b] sm:text-base">
+                        影像档案的长期整理，既需要运营成本，也需要愿意投入时间和资料的同行者。你可以按自己的方式参与，共同让这些记忆更完整。
+                    </p>
+                </div>
+
+                <div class="mt-6 grid gap-4 lg:grid-cols-2">
+                    <article
+                        class="rounded-sm border border-[#90b4ce]/35 bg-[#f7fbff] p-6"
+                    >
+                        <HeartHandshake
+                            class="h-7 w-7 text-[#3da9fc]"
+                            aria-hidden="true"
+                        />
+                        <h3 class="mt-4 text-xl font-semibold">运营守护者</h3>
+                        <p class="mt-3 text-sm leading-7 text-[#5f6c7b]">
+                            通过赞助分担服务器、对象存储、图片处理和日常维护成本。运营守护者不代表购买图片版权，也不会获得原图下载或转载授权。
+                        </p>
+                    </article>
+
+                    <article
+                        class="rounded-sm border border-[#90b4ce]/35 bg-[#f7fbff] p-6"
+                    >
+                        <BookOpen
+                            class="h-7 w-7 text-[#3da9fc]"
+                            aria-hidden="true"
+                        />
+                        <h3 class="mt-4 text-xl font-semibold">档案共建者</h3>
+                        <p class="mt-3 text-sm leading-7 text-[#5f6c7b]">
+                            用图片库存、资料考据和整理能力，参与图片、相册、分类、标签与来源信息的维护。档案共建者由管理员在私域确认后邀请加入，不开放公开申请。
+                        </p>
+                    </article>
                 </div>
             </div>
         </section>
@@ -213,7 +260,7 @@ const createOrder = (plan: PlanItem) => {
                             身份展示可关闭
                         </h2>
                         <p class="mt-2 text-sm leading-6 text-[#5f6c7b]">
-                            支持者可在个人中心决定是否出现在支持者墙。
+                            运营守护者可在个人中心决定是否出现在致谢墙。
                         </p>
                     </div>
                     <Link
@@ -224,9 +271,9 @@ const createOrder = (plan: PlanItem) => {
                             class="h-6 w-6 text-[#3da9fc]"
                             aria-hidden="true"
                         />
-                        <h2 class="mt-4 text-lg font-semibold">查看支持者墙</h2>
+                        <h2 class="mt-4 text-lg font-semibold">查看致谢墙</h2>
                         <p class="mt-2 text-sm leading-6 text-[#5f6c7b]">
-                            这里只展示愿意公开昵称的支持者。
+                            这里只展示愿意公开昵称的运营守护者和档案共建者。
                         </p>
                     </Link>
                 </section>

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-12
+
+### Changed
+
+- 完成阶段 2A 用户管理与档案共建者授权基础：新增 contributor_profiles、管理员授予/编辑/撤销操作和安全角色恢复规则。
+- 收紧 Filament 后台授权：普通用户不能进入后台，editor 仅能维护图片、相册、分类和标签；用户、评论、赞助、支付、系统设置和其他管理员资源仍由 admin 控制。
+- 移除本地/测试环境后台访问绕过，并将既有后台测试改为显式使用 active admin 账号；全量测试 237 个通过、2893 条断言通过。
+- 同步更新产品、数据库、架构、页面地图、开发进度和本地任务文档；阶段 2B 前台共建者名单已完成；生产环境测试仍保留到用户确认后执行。
+- 完成阶段 2B 档案共建者前台展示与资料管理：/supporters 分区展示运营守护者和档案共建者，/admin/users 支持公开开关、贡献方向和展示顺序，公开 payload 不泄露内部授权字段。
+
 ## 2026-09-08
 
 ### Changed
@@ -97,7 +107,7 @@
 - 整理搜索建议 / 热门搜索 / 后台搜索运营配置开发前确认稿：建议下一切片只增强现有 `/search` 和公共导航搜索建议，不接 Meilisearch / Typesense，不做语义搜索、拼写纠错、个人搜索历史、搜索广告或相似图。
 
 - 完成公开用户个人主页切片：新增 `/users/{user}` 公开页和 `/me/public-profile` 本人公开设置，用户主页默认关闭，需用户主动开启。
-- 新增 `users.profile_public`、`users.profile_bio`、`PublicUserProfile`、`PublicUserProfileController`、`Users/Show.vue` 和 `PublicUserProfileTest`；公开页只展示昵称、注册月份、公开简介、公开支持者摘要、当前佩戴 / 已获公开勋章和已发布普通评论摘要。
+- 新增 `users.profile_public`、`users.profile_bio`、`PublicUserProfile`、`PublicUserProfileController`、`Users/Show.vue` 和 `PublicUserProfileTest`；公开页只展示昵称、注册月份、公开简介、公开运营守护者摘要、当前佩戴 / 已获公开勋章和已发布普通评论摘要。
 - 公开用户主页继续排除邮箱、手机号、收藏、待审核评论、纠错投稿、举报、通知、订单号、交易号、支付日志、IP、UA、后台备注、敏感词命中和内部审核记录；未新增 `/users` 用户列表、关注、私信、动态流、用户搜索或排行榜。
 - 整理对手聚合数据模型开发前确认稿：建议下一切片只做轻量 `opponents` / `opponent_photo` 和 `/opponents` 公开聚合页，不做比赛表、球队资料库、外部足球 API、比分统计或顶部一级导航入口。
 
@@ -168,10 +178,10 @@
 - 完成 P1-10 勋章 / 成就基础：新增 `/me/badges` 前台页面、`/admin/badges` 后台管理入口、`badges` / `user_badges` 数据表、`BadgeService` 自动判定服务和 `BadgeSeeder`。
 - 个人中心侧栏补齐“我的赞助”和“我的勋章”，顶部账号入口只保留“个人中心”；收藏成功、普通评论审核为已发布、赞助支付成功会同步判定基础勋章。
 - 本地演示 Seeder 现在生成用户勋章记录，方便查看 `/me/badges` 整体效果；P1-10 已作为前置阶段收口。
-- 完成 P1-9 支持者赞助闭环：新增 `/support`、`/support/result`、`/supporters`、`/me/sponsorships` 前台页面，支持赞助方案展示、模拟订单创建、模拟支付成功、个人赞助记录和支持者墙公开展示开关。
+- 完成 P1-9 运营守护者赞助闭环：新增 `/support`、`/support/result`、`/supporters`、`/me/sponsorships` 前台页面，支持赞助方案展示、模拟订单创建、模拟支付成功、个人赞助记录和致谢墙公开展示开关。
 - 新增 `/admin/sponsorship-plans`、`/admin/sponsorship-orders`、`/admin/payment-logs` 后台管理入口，支持赞助方案维护、订单状态处理和支付日志排障。
 - 新增 `sponsorship_plans`、`sponsorship_orders`、`payment_logs`、`supporter_profiles` 表，并为 `users` 增加 `supporter_until`；P1 阶段只做模拟支付和后台手动处理，不接真实第三方支付 API。
-- 新增 `SponsorshipPlanSeeder`，本地演示 Seeder 会生成 4 个模拟支持者赞助订单，方便查看支持页、支持者墙和个人中心赞助记录。
+- 新增 `SponsorshipPlanSeeder`，本地演示 Seeder 会生成 4 个模拟运营守护者赞助订单，方便查看支持页、致谢墙和个人中心赞助记录。
 
 - 完成项目后台本地/COS 两种存储切换：在现有 Filament 系统设置中增加存储方式开关、腾讯云凭证、地域、存储桶、可选 CDN 和数据万象开关；本地指项目当前运行环境，不再拆分电脑本地与 VPS 本地。
 - 新增 StorageSettings、PhotoStorage 和 ProcessPhotoAnalysisJob；腾讯云 SecretKey 加密保存，图片上传使用当前启用存储，历史本地图片可继续读取，图片 metadata/hash 任务通过队列执行。
@@ -208,7 +218,7 @@
 - php artisan test tests/Feature/PhotoProcessingTest.php 通过，5 个测试、17 个断言全部成功。
 - php artisan test tests/Feature/PhotoUploadTest.php tests/Feature/PhotoManagementTest.php 通过，10 个测试、46 个断言全部成功。
 - php artisan migrate --force 通过，已在本地数据库创建 photo_analysis_results 和 processing_jobs。
-- php artisan db:seed --class=LocalGalleryDemoSeeder 通过，已生成 30 张图片、4 个相册、4 个首页专题、60 个图片处理任务、4 个模拟用户、15 条评论/纠错记录、124 条互动排行记录、4 个支持者赞助订单和 17 个用户勋章记录。
+- php artisan db:seed --class=LocalGalleryDemoSeeder 通过，已生成 30 张图片、4 个相册、4 个首页专题、60 个图片处理任务、4 个模拟用户、15 条评论/纠错记录、124 条互动排行记录、4 个运营守护者赞助订单和 17 个用户勋章记录。
 - 本地 Web 检查通过：首页 `/` 与 `/photos` 返回 200，`/admin/processing-jobs` 未登录返回 302。
 - php artisan test 通过，172 个测试、1854 个断言全部成功。
 - npx.cmd vue-tsc --noEmit 通过。
@@ -221,7 +231,7 @@
 - php artisan test 通过，167 个测试、1837 个断言全部成功。
 - php artisan migrate --force 通过，已在本地数据库创建 badges 和 user_badges。
 - php artisan db:seed --class=BadgeSeeder 通过。
-- php artisan db:seed --class=LocalGalleryDemoSeeder 通过，已生成 30 张图片、4 个相册、4 个首页专题、4 个模拟用户、15 条评论/纠错记录、124 条互动排行记录、4 个支持者赞助订单和 17 个用户勋章记录。
+- php artisan db:seed --class=LocalGalleryDemoSeeder 通过，已生成 30 张图片、4 个相册、4 个首页专题、4 个模拟用户、15 条评论/纠错记录、124 条互动排行记录、4 个运营守护者赞助订单和 17 个用户勋章记录。
 - P1-9 收口验证保留：SponsorshipTest 通过，赞助相关迁移、Seeder、构建和全量测试已通过。
 
 ## 2026-09-04

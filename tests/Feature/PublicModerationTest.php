@@ -195,7 +195,7 @@ class PublicModerationTest extends TestCase
 
     public function test_admin_can_visit_moderation_resources(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
 
         $this->get(CommentResource::getUrl())->assertOk();
         $this->get(ReportResource::getUrl())->assertOk();

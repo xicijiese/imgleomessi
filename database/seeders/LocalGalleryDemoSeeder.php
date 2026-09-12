@@ -75,7 +75,7 @@ class LocalGalleryDemoSeeder extends Seeder
         $badgeCount = $this->seedDemoBadges($users);
 
         $this->command?->info(sprintf(
-            '已生成本地演示数据：%d 张图片、%d 个相册、%d 个首页专题、%d 个图片处理任务、%d 个模拟用户、%d 条评论/纠错记录、%d 条互动排行记录、%d 个支持者赞助订单、%d 个用户勋章记录。',
+            '已生成本地演示数据：%d 张图片、%d 个相册、%d 个首页专题、%d 个图片处理任务、%d 个模拟用户、%d 条评论/纠错记录、%d 条互动排行记录、%d 个守护者赞助订单、%d 个用户勋章记录。',
             $photos->count(),
             $albums->count(),
             min(4, $albums->count()),

@@ -9,10 +9,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class SponsorshipPlan extends Model
 {
     public const BADGE_LEVELS = [
-        'supporter' => '支持者',
-        'silver' => '银色支持者',
-        'gold' => '金色支持者',
-        'legend' => '传奇支持者',
+        'supporter' => '守护者',
+        'silver' => '银色守护者',
+        'gold' => '金色守护者',
+        'legend' => '传奇守护者',
     ];
 
     protected $fillable = [

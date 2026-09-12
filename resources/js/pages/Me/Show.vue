@@ -130,7 +130,7 @@ const statItems = [
                             <div>
                                 <h2 class="text-xl font-semibold">公开主页</h2>
                                 <p class="mt-2 max-w-2xl text-sm leading-6 text-[#5f6c7b]">
-                                    开启后，游客可访问你的公开主页，只展示昵称、公开简介、公开勋章、支持者摘要和已发布普通评论摘要。
+                                    开启后，游客可访问你的公开主页，只展示昵称、公开简介、公开勋章、运营守护者摘要和已发布普通评论摘要。
                                 </p>
                             </div>
                             <Link

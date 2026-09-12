@@ -10,6 +10,7 @@ use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -18,6 +19,7 @@ use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 use UnitEnum;
 
@@ -122,7 +124,34 @@ class CategoryResource extends Resource
             ->defaultSort('sort_order')
             ->recordActions([
                 EditAction::make(),
-                DeleteAction::make()->hidden(fn (Category $record): bool => $record->is_system),
+                DeleteAction::make()
+                    ->hidden(fn (Category $record): bool => $record->is_system)
+                    ->before(function (DeleteAction $action, Category $record): void {
+                        if ($reason = $record->deletionBlockReason()) {
+                            Notification::make()
+                                ->danger()
+                                ->title('无法删除分类')
+                                ->body($reason)
+                                ->send();
+
+                            $action->cancel();
+                        }
+                    })
+                    ->action(function (DeleteAction $action, Category $record): void {
+                        try {
+                            $record->delete();
+                        } catch (QueryException $exception) {
+                            report($exception);
+
+                            Notification::make()
+                                ->danger()
+                                ->title('无法删除分类')
+                                ->body('该分类刚刚产生了新的关联，请刷新页面后检查；也可以将分类设置为隐藏。')
+                                ->send();
+
+                            $action->cancel(true);
+                        }
+                    }),
             ]);
     }
 

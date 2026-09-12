@@ -551,7 +551,7 @@ class PhotoProcessingTest extends TestCase
 
     public function test_admin_can_visit_similarity_candidate_resource(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
 
         $this->get(PhotoSimilarityCandidateResource::getUrl())
             ->assertOk();
@@ -564,7 +564,7 @@ class PhotoProcessingTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
 
         $this->get(ProcessingJobResource::getUrl())->assertOk();
     }

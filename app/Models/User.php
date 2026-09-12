@@ -90,6 +90,18 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasOne(SupporterProfile::class);
     }
 
+    public function contributorProfile(): HasOne
+    {
+        return $this->hasOne(ContributorProfile::class);
+    }
+
+    public function isAdministrator(): bool
+    {
+        return $this->role === 'admin'
+            && $this->status === 'active'
+            && ! $this->isBanned();
+    }
+
     public function userBadges(): HasMany
     {
         return $this->hasMany(UserBadge::class);
@@ -106,18 +118,44 @@ class User extends Authenticatable implements FilamentUser
             return false;
         }
 
-        if (app()->environment(['local', 'testing'])) {
-            return true;
-        }
-
         return $this->canAccessAdminPanel();
     }
 
     public function canAccessAdminPanel(): bool
     {
+        return $this->canManageGalleryContent();
+    }
+
+    public function canManageGalleryContent(): bool
+    {
         return in_array($this->role, ['admin', 'editor'], true)
             && $this->status === 'active'
             && ! $this->isBanned();
+    }
+
+    public function canManageAdminResources(): bool
+    {
+        return $this->isAdministrator();
+    }
+
+    public function canManageModel(string|object $model): bool
+    {
+        if (! $this->canManageGalleryContent()) {
+            return false;
+        }
+
+        if ($this->isAdministrator()) {
+            return true;
+        }
+
+        $modelClass = is_object($model) ? $model::class : $model;
+
+        return in_array($modelClass, [
+            \App\Models\Album::class,
+            \App\Models\Category::class,
+            \App\Models\Photo::class,
+            \App\Models\Tag::class,
+        ], true);
     }
 
     public function isBanned(): bool

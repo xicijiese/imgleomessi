@@ -159,7 +159,7 @@ class PhotoManagementTest extends TestCase
     public function test_admin_can_visit_photo_resource(): void
     {
         $this->seed(GalleryTaxonomySeeder::class);
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
 
         $this->get(PhotoResource::getUrl())->assertOk();
     }
@@ -169,7 +169,7 @@ class PhotoManagementTest extends TestCase
         Photo::query()->create([
             'title' => '已有图片',
         ]);
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
 
         $this->get(PhotoResource::getUrl())->assertOk();
     }

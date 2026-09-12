@@ -20,7 +20,7 @@ class PhotoUploadBatchManagementTest extends TestCase
 
     public function test_admin_can_visit_photo_upload_batch_resource_and_batch_photos_page(): void
     {
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
 
         $batch = PhotoUploadBatch::query()->create([
             'mode' => 'standalone',

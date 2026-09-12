@@ -110,7 +110,7 @@ const mockPay = () => {
                                 <p class="mt-1 text-sm text-[#5f6c7b]">
                                     {{
                                         supportResult.order.status === 'paid'
-                                            ? '感谢你的支持，支持者身份已经更新。'
+                                            ? '感谢你的支持，运营守护者身份已经更新。'
                                             : 'P1 阶段使用模拟支付按钮完成流程验收。'
                                     }}
                                 </p>

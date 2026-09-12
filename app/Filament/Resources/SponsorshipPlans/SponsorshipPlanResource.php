@@ -55,7 +55,7 @@ class SponsorshipPlanResource extends Resource
                     ->minValue(1)
                     ->required(),
                 TextInput::make('duration_days')
-                    ->label('支持者天数')
+                    ->label('运营守护者天数')
                     ->numeric()
                     ->helperText('留空表示一次性支持，不延长有效期。'),
                 Select::make('badge_level')

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ContributorProfile;
 use App\Models\SponsorshipOrder;
 use App\Models\SponsorshipPlan;
 use App\Models\SupporterProfile;
@@ -65,6 +66,18 @@ class PublicSponsorship
             ->paginate(24);
 
         $totalAmount = SupporterProfile::query()->sum('total_amount_cents');
+        $contributors = ContributorProfile::query()
+            ->where('is_public', true)
+            ->whereNull('revoked_at')
+            ->whereHas('user', fn ($query) => $query
+                ->where('status', 'active')
+                ->whereNull('banned_until'))
+            ->with('user')
+            ->orderBy('sort_order')
+            ->orderBy('display_name')
+            ->orderBy('id')
+            ->limit(24)
+            ->get();
 
         return [
             ...$this->homepage->shell(),
@@ -72,8 +85,12 @@ class PublicSponsorship
             'summary' => [
                 'total_supporters' => SupporterProfile::query()->where('total_amount_cents', '>', 0)->count(),
                 'total_amount_label' => $this->moneyLabel((int) $totalAmount),
+                'total_contributors' => $contributors->count(),
             ],
             'supporters' => $this->paginate($profiles, fn (SupporterProfile $profile): array => $this->supporterItem($profile)),
+            'contributors' => [
+                'data' => $contributors->map(fn (ContributorProfile $profile): array => $this->contributorItem($profile))->values()->all(),
+            ],
         ];
     }
 
@@ -111,7 +128,7 @@ class PublicSponsorship
             'amount_cents' => $plan->amount_cents,
             'amount_label' => $plan->amountLabel(),
             'duration_days' => $plan->duration_days,
-            'duration_label' => $plan->duration_days ? $plan->duration_days.' 天支持者身份' : '一次性支持',
+            'duration_label' => $plan->duration_days ? $plan->duration_days.' 天运营守护者身份' : '一次性支持',
             'badge_level' => $plan->badge_level,
             'badge_label' => $plan->badgeLabel(),
             'benefits' => collect(preg_split('/\r\n|\r|\n/', (string) $plan->benefits))
@@ -172,6 +189,15 @@ class PublicSponsorship
         ];
     }
 
+    private function contributorItem(ContributorProfile $profile): array
+    {
+        return [
+            'id' => $profile->id,
+            'display_name' => $profile->display_name ?: $profile->user?->name,
+            'bio' => $profile->bio,
+            'contribution_focus' => $profile->contribution_focus,
+        ];
+    }
     /**
      * @template TModel
      *

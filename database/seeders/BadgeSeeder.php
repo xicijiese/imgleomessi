@@ -41,7 +41,7 @@ class BadgeSeeder extends Seeder
                 'sort_order' => 30,
             ],
             [
-                'name' => '本站支持者',
+                'name' => '本站守护者',
                 'slug' => 'site-supporter',
                 'description' => '完成一次赞助支持后获得。',
                 'icon_key' => 'heart-handshake',

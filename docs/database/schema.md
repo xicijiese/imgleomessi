@@ -6,7 +6,7 @@
 
 本文档记录项目的长期逻辑模型，不代表所有表都会在第一阶段同时开发。
 
-当前已落库表先覆盖图库核心、首页配置、站点合规页依赖和 P1 图片互动、评论/纠错、审核举报、用户中心通知、互动排行榜、支持者赞助基础、勋章 / 成就基础、图片入库队列与后台重复图提示，用于完成图片录入、管理、浏览、首页展示、基础检索、搜索运营、收藏、点赞、分享记录、评论提交、图片信息补充/纠错、举报处理、封禁、站内通知、排行榜、模拟赞助闭环、基础勋章成就闭环、图片基础分析任务和精确哈希重复提示：
+当前已落库表先覆盖图库核心、首页配置、站点合规页依赖和 P1 图片互动、评论/纠错、审核举报、用户中心通知、互动排行榜、运营守护者赞助基础、勋章 / 成就基础、图片入库队列与后台重复图提示，用于完成图片录入、管理、浏览、首页展示、基础检索、搜索运营、收藏、点赞、分享记录、评论提交、图片信息补充/纠错、举报处理、封禁、站内通知、排行榜、模拟赞助闭环、基础勋章成就闭环、图片基础分析任务和精确哈希重复提示：
 
 - photos
 - photo_upload_batches
@@ -50,7 +50,7 @@ Phase 1 明确不创建以下独立足球资料表：
 
 已明确后续规划但不属于 P1-4 / P1-5 已完成基础切片的互动扩展：分享到微信/微博等第三方 API、分享海报生成、短链接、复杂社交动态流、后台互动管理、异常刷赞处理和排行榜管理。前台公开图片详情默认下载按钮永久不作为默认能力；分享返利默认不做，除非后续重新立项并完成合规确认。
 
-users 表使用 Laravel/Fortify 当前已生成的基础结构。P1-6 已扩展用户状态和封禁字段，P1-9 已扩展 `supporter_until` 支持者有效期；角色、手机号等字段后续在权限或账号资料阶段再扩展。
+users 表使用 Laravel/Fortify 当前已生成的基础结构。P1-6 已扩展用户状态和封禁字段，P1-9 已扩展 `supporter_until` 运营守护者有效期；角色、手机号等字段后续在权限或账号资料阶段再扩展。
 ## 当前生效规则（2026-09-09）
 
 - photo_upload_batches 继续保留为上传任务记录，note 可记录失败文件和失败原因；该表不承担图片编辑。
@@ -168,7 +168,7 @@ Phase 1 必须支持“批量上传到相册”。
 | password | varchar nullable | 密码哈希 |
 | avatar_url | varchar nullable | 头像 |
 | role | enum | `admin`、`editor`、`user` |
-| supporter_until | datetime nullable | 支持者有效期 |
+| supporter_until | datetime nullable | 运营守护者有效期 |
 | status | enum | `active`、`muted`、`banned` |
 | email_verified_at | datetime nullable | 邮箱验证时间 |
 | last_login_at | datetime nullable | 最近登录 |
@@ -180,10 +180,10 @@ Phase 1 必须支持“批量上传到相册”。
 |---|---|---|
 | id | bigint pk | ID |
 | user_id | fk users | 用户 |
-| display_name | varchar nullable | 支持者展示名 |
-| show_publicly | boolean | 是否展示在支持者墙 |
+| display_name | varchar nullable | 运营守护者展示名 |
+| show_publicly | boolean | 是否展示在致谢墙 |
 | total_amount_cents | int | 累计赞助金额，单位分 |
-| badge_level | varchar | 支持者等级 |
+| badge_level | varchar | 运营守护者等级 |
 | last_supported_at | timestamp nullable | 最近支持时间 |
 | created_at / updated_at | timestamps | 时间戳 |
 
@@ -551,7 +551,7 @@ P1-10 已落地勋章 / 成就基础闭环：只做基础规则、人工发放/�
 | note | text nullable | 备注 |
 | created_at / updated_at | timestamps | 时间戳 |
 
-同一用户对同一勋章只保留一条记录；撤销后保留历史状态，不物理删除。P1-10 获得规则只读取用户注册、收藏数量、已发布普通评论数量和支持者身份，不读取待审核评论、纠错投稿、举报、后台备注或支付敏感信息。
+同一用户对同一勋章只保留一条记录；撤销后保留历史状态，不物理删除。P1-10 获得规则只读取用户注册、收藏数量、已发布普通评论数量和运营守护者身份，不读取待审核评论、纠错投稿、举报、后台备注或支付敏感信息。
 ## 8. 赞助与支付
 
 P1-9 已落地赞助支持基础闭环：只做模拟支付和后台手动处理，不接真实微信 / 支付宝 API，不做真实回调验签、退款 API、发票、续费提醒、优惠码、自定义金额、付费内容墙或图片下载权益。本站赞助支持不是图片版权售卖。
@@ -564,8 +564,8 @@ P1-9 已落地赞助支持基础闭环：只做模拟支付和后台手动处理
 | name | varchar | 方案名称 |
 | slug | varchar unique | 方案标识 |
 | amount_cents | int | 金额，单位分 |
-| duration_days | int nullable | 支持者身份有效天数；为空表示一次性支持 |
-| badge_level | varchar | 支持者徽章等级 |
+| duration_days | int nullable | 运营守护者身份有效天数；为空表示一次性支持 |
+| badge_level | varchar | 守护者徽章等级 |
 | benefits | text nullable | 前台展示说明，每行一条 |
 | is_active | boolean | 是否启用 |
 | sort_order | int | 排序 |
@@ -660,3 +660,52 @@ P1-11 已落库。当前任务类型包括 metadata、hash、ocr_placeholder、d
 - `payment_logs(channel)`
 - `supporter_profiles(user_id)` 唯一索引
 - `supporter_profiles(show_publicly, last_supported_at)`
+
+
+## 11. 档案共建者与分类删除约束（2026-09-12）
+
+### contributor_profiles（阶段 2A、阶段 2B 已实现）
+
+档案共建者不使用公开申请表，也不新增申请审核状态。管理员确认用户后创建或启用一条共建者资料记录；用户的实际后台内容权限仍由 users.role = editor 控制。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | bigint pk | 共建者资料 ID |
+| user_id | fk users unique | 对应用户；一个用户最多一条资料记录 |
+| display_name | varchar nullable | 前台展示名；为空时使用用户昵称 |
+| bio | text nullable | 共建者简介 |
+| is_public | boolean | 管理员确认后才允许出现在前台名单 |
+| role_before_grant | varchar | 授予共建者前的角色快照，用于安全撤销 |
+| role_granted_by_contributor | boolean | 是否由本次共建者授权产生 editor 角色 |
+| granted_by | fk users nullable | 授予权限的管理员 |
+| granted_at | datetime nullable | 授予时间 |
+| revoked_by | fk users nullable | 撤销权限的管理员 |
+| revoked_at | datetime nullable | 撤销时间；非空表示当前未启用 |
+| created_at / updated_at | timestamps | 时间戳 |
+
+阶段 2B 已实现 contribution_focus（贡献方向）和 sort_order（展示顺序）。本阶段不新增独立头像字段，前台使用现有统一资料头像能力或默认图标，不把内部头像、邮箱和授权信息输出到公开名单。
+不创建 contributor_applications 表，不提供前台申请入口。运营守护者继续使用 supporter_profiles，不能将运营守护者身份和档案共建者身份混为一体。
+
+### 用户角色与内容权限
+
+users.role 继续使用 user、editor、admin。编辑员只能访问图片、相册、分类、标签和来源相关资源；用户、角色、赞助、支付、系统设置和安全资源只允许管理员访问。前台共建者名单读取 is_public = true 且 revoked_at is null 的记录，同时要求关联用户账号状态正常。
+
+### 分类删除约束
+
+系统主分类和系统保留子分类由 is_system 标记，不允许删除。普通子分类只有在以下计数全部为 0 时才能删除：children 子分类数量、photos 图片关联数量、albums 相册关联数量。
+
+album_category.category_id 和 photo_category.category_id 均应使用限制删除策略。应用层先检查并给出数量提示，数据库层再作为并发情况下的最后保护；不能通过级联删除图片分类关系。已有图片或相册的分类应使用 visibility = hidden 隐藏。
+
+分类删除测试数据必须覆盖：未关联普通子分类、关联图片、关联相册、同时关联图片和相册、系统子分类和并发外键异常。
+### 分类删除保护实现状态（2026-09-12）
+
+分类删除规则已落地：系统分类和系统保留子分类由应用层禁止删除；普通分类只有在没有子分类、图片和相册引用时才允许物理删除；存在引用时后台显示关联数量并建议隐藏分类。`photo_category.category_id` 已从级联删除调整为限制删除，避免删除分类时静默解除图片分类关系；`album_category.category_id` 继续使用限制删除作为数据库兜底。
+
+### 档案共建者阶段 2A 实现状态（2026-09-12）
+
+当前数据库已通过 contributor_profiles 保存授权前后的角色快照、授予/撤销管理员、公开开关和撤销时间。该表不保存公开申请、审核队列或私域沟通内容。生产环境迁移必须等用户管理与档案共建者全部阶段完成后统一安排，当前不执行生产迁移。
+
+
+### 档案共建者阶段 2B 实现状态（2026-09-12）
+
+阶段 2B 已完成 contribution_focus 和 sort_order 字段、管理员资料编辑、公开开关和 /supporters 共建者名单。公开查询只输出 id、display_name、bio 和 contribution_focus；不输出邮箱、角色、授予人、授予时间、撤销信息或内部备注。未公开、已撤销、已封禁或非正常账号不会进入前台名单。

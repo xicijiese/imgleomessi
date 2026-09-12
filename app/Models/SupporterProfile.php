@@ -45,7 +45,7 @@ class SupporterProfile extends Model
 
     public function displayName(): string
     {
-        return filled($this->display_name) ? $this->display_name : ($this->user?->name ?? '匿名支持者');
+        return filled($this->display_name) ? $this->display_name : ($this->user?->name ?? '匿名守护者');
     }
 
     public function badgeLabel(): string

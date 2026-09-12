@@ -16,7 +16,7 @@ class SponsorshipPlanSeeder extends Seeder
                 'amount_cents' => 900,
                 'duration_days' => 31,
                 'badge_level' => 'supporter',
-                'benefits' => "支持本站一个月的资料整理与存储维护\n获得支持者身份展示\n可选择是否展示在支持者墙",
+                'benefits' => "支持本站一个月的资料整理与存储维护\n获得运营守护者身份展示\n可选择是否展示在致谢墙",
                 'sort_order' => 10,
             ],
             [
@@ -25,7 +25,7 @@ class SponsorshipPlanSeeder extends Seeder
                 'amount_cents' => 3000,
                 'duration_days' => 120,
                 'badge_level' => 'silver',
-                'benefits' => "支持专题、相册和来源资料持续整理\n获得银色支持者身份\n可在个人中心管理公开展示偏好",
+                'benefits' => "支持专题、相册和来源资料持续整理\n获得银色守护者身份\n可在个人中心管理公开展示偏好",
                 'sort_order' => 20,
             ],
             [
@@ -34,7 +34,7 @@ class SponsorshipPlanSeeder extends Seeder
                 'amount_cents' => 9900,
                 'duration_days' => 365,
                 'badge_level' => 'gold',
-                'benefits' => "支持全年服务器、存储和资料维护\n获得金色支持者身份\n进入支持者墙公开展示名单",
+                'benefits' => "支持全年服务器、存储和资料维护\n获得金色守护者身份\n进入致谢墙公开展示名单",
                 'sort_order' => 30,
             ],
         ];

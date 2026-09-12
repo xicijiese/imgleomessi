@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Filament\Resources\PaymentLogs\PaymentLogResource;
 use App\Filament\Resources\SponsorshipOrders\SponsorshipOrderResource;
 use App\Filament\Resources\SponsorshipPlans\SponsorshipPlanResource;
+use App\Models\ContributorProfile;
 use App\Models\SponsorshipOrder;
 use App\Models\SponsorshipPlan;
 use App\Models\SupporterProfile;
@@ -164,9 +165,58 @@ class SponsorshipTest extends TestCase
             );
     }
 
+    public function test_supporter_wall_lists_public_archive_contributors_without_private_fields(): void
+    {
+        $publicContributor = User::factory()->create([
+            'name' => '公开档案共建者',
+            'role' => 'editor',
+            'status' => 'active',
+        ]);
+        $privateContributor = User::factory()->create([
+            'name' => '私密档案共建者',
+            'role' => 'editor',
+            'status' => 'active',
+        ]);
+
+        ContributorProfile::query()->create([
+            'user_id' => $publicContributor->id,
+            'display_name' => '蓝色档案共建者',
+            'bio' => '整理比赛图片和来源资料。',
+            'contribution_focus' => '比赛资料整理',
+            'is_public' => true,
+            'sort_order' => 10,
+            'role_before_grant' => 'user',
+            'role_granted_by_contributor' => true,
+            'granted_at' => now(),
+        ]);
+        ContributorProfile::query()->create([
+            'user_id' => $privateContributor->id,
+            'display_name' => '私密档案共建者',
+            'bio' => '不应公开。',
+            'contribution_focus' => '内部整理',
+            'is_public' => false,
+            'sort_order' => 20,
+            'role_before_grant' => 'user',
+            'role_granted_by_contributor' => true,
+            'granted_at' => now(),
+        ]);
+
+        $this->get('/supporters')
+            ->assertOk()
+            ->assertDontSee('私密档案共建者')
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Supporters/Index')
+                ->has('supportersPage.contributors.data', 1)
+                ->where('supportersPage.contributors.data.0.display_name', '蓝色档案共建者')
+                ->where('supportersPage.contributors.data.0.bio', '整理比赛图片和来源资料。')
+                ->where('supportersPage.contributors.data.0.contribution_focus', '比赛资料整理')
+                ->missing('supportersPage.contributors.data.0.role_before_grant')
+                ->missing('supportersPage.contributors.data.0.granted_at')
+            );
+    }
     public function test_admin_can_visit_sponsorship_management_pages(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'admin', 'status' => 'active']);
 
         $this->actingAs($user)->get(SponsorshipPlanResource::getUrl())->assertOk();
         $this->actingAs($user)->get(SponsorshipOrderResource::getUrl())->assertOk();
