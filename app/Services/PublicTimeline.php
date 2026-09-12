@@ -538,14 +538,12 @@ class PublicTimeline
                 ->values()
                 ->all(),
             'tags' => Tag::query()
-                ->orderBy('type')
                 ->orderBy('sort_order')
                 ->orderBy('id')
-                ->get(['id', 'name', 'type'])
+                ->get(['id', 'name'])
                 ->map(fn (Tag $tag): array => [
                     'id' => $tag->id,
                     'name' => $tag->name,
-                    'type' => $tag->type,
                 ])
                 ->values()
                 ->all(),
@@ -576,11 +574,10 @@ class PublicTimeline
             ->values();
 
         $tags = $photo->tags
-            ->sortBy(fn (Tag $tag): string => $tag->type.'-'.$tag->sort_order.'-'.$tag->id)
+            ->sortBy(fn (Tag $tag): string => $tag->sort_order.'-'.$tag->id)
             ->map(fn (Tag $tag): array => [
                 'id' => $tag->id,
                 'name' => $tag->name,
-                'type' => $tag->type,
             ])
             ->values();
 

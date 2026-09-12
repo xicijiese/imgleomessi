@@ -1363,6 +1363,7 @@ COS/CDN 防盗链应在腾讯云控制台单独配置：只允许正式站点域
 8. 用普通用户验证收藏、点赞、评论、举报和通知边界。
 9. 用普通用户验证不能进入后台；不要测试尚未开发的细粒度管理员资源权限。
 10. 验证 `/sitemap.xml`、`/robots.txt`、登录、退出登录和旧 `/dashboard` 兼容跳转。
+11. 访问 `/timeline`，分别点击一个已有年份和一个已有月份；确认 `/timeline/{year}`、`/timeline/{year}/{month}` 返回 200，年份页的图片、月份、相册和标签筛选都能加载。若出现 500，立即查看 `storage/logs/laravel.log`，不要反复刷新覆盖异常现场。
 
 每一步都记录“通过 / 失败 / 未执行”和对应 URL、时间、截图或日志位置。
 
@@ -1574,6 +1575,37 @@ tail -n 200 storage/logs/laravel.log
 ~~~
 
 检查 PHP 版本、扩展、.env、数据库连接和文件权限。
+
+### 年份时间线页面 500，日志提示 `Unknown column 'type' in 'field list'`
+
+该错误表示代码仍在读取旧版 `tags.type` 字段，而生产迁移 `2026_09_09_000002_flatten_photo_sources_tags_and_remove_opponents` 已经删除了这个字段。典型错误 SQL 是：
+
+~~~text
+select `id`, `name`, `type` from `tags` order by `type` asc, `sort_order` asc, `id` asc
+~~~
+
+修复代码部署后，在项目根目录执行：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+git pull --ff-only origin main
+/www/server/php/83/bin/php artisan optimize:clear
+/www/server/php/83/bin/php artisan config:cache
+/www/server/php/83/bin/php artisan route:cache
+/www/server/php/83/bin/php artisan view:cache
+/www/server/php/83/bin/php artisan queue:restart
+SITE_URL="https://img.leomessi.cn"
+curl -sk -o /dev/null -w 'HTTP %{http_code}\n' "$SITE_URL/timeline/2026"
+~~~
+
+预期结果是 `HTTP 200`。随后在浏览器重新打开时间线年份页，并点击标签筛选，确认页面和筛选项正常。不要通过重新添加 `tags.type` 字段来绕过问题，因为该字段已经被正式迁移移除，代码应与当前数据库结构保持一致。
+
+如仍返回 500，只提供最近一次异常的类型、消息和 `app/` 代码路径，不要提供 Cookie、密码或完整 `.env`：
+
+~~~bash
+cd /www/wwwroot/img.leomessi.cn
+grep -nE 'production.ERROR|ERROR|QueryException|TypeError|Exception' storage/logs/laravel.log | tail -n 20
+~~~
 
 ### 后台登录失败或无权限
 
@@ -1825,12 +1857,13 @@ tail -n 200 storage/logs/laravel.log
 - 2026-09-11 生产验证已确认：数据库备份写入项目根目录 .deploy-backups 时间戳目录，database.sql 非空，storage-app.tar.gz 生成成功，.env 备份存在且非空；migrate:status 全部为 Ran。
 - 2026-09-11 生产代码 HEAD 为 c8e976e，main 与 origin/main 同步；git status 仅显示预期的 .deploy-backups、.well-known、public/.user.ini 和 package-lock.json.bak.before-official-registry 未跟踪项，没有 M 或 D。
 - 15.6.5 已完成生产验证：/、/photos、/albums、/admin/login 均返回 HTTP/2 200；HTTPS、HSTS、会话 Cookie、Nginx 和 Laravel 响应正常。首次命令曾因域名占位符被 Markdown 渲染成链接而报 Bash 语法错误，现已改为 SITE_URL 变量。
+- 2026-09-12 生产问题已定位：访问 `/timeline/2026` 返回 500 的直接原因是时间线筛选查询仍读取已由迁移删除的 `tags.type` 字段；本地代码已修复并完成时间线、相册详情、专题详情回归测试，等待生产拉取修复后复测。
 
 仍需按第 15.6 节逐项确认：
 
 - 生产提交号、`.env`、`APP_DEBUG=false`、正式 HTTPS 和稳定 Cookie。
 - 生产数据库备份、图片备份以及独立恢复验证。
-- Filament/Livewire 静态资源、Nginx 路由回退和所有关键公开页面。
+- Filament/Livewire 静态资源、Nginx 路由回退和所有关键公开页面；修复部署后还需专项确认 `/timeline`、`/timeline/2026` 和一个已有月份页。
 - Worker 常驻、自动拉起、失败任务重试和每分钟 `schedule:run`。
 - 上传后的 metadata、hash、展示图、缩略图、自动发布和手动发布闭环。
 - 15.6.6 只需确认现有管理员登录、普通用户封禁/解封和普通用户不能进入后台；不要测试未开发的管理员权限矩阵。

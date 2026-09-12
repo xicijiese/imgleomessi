@@ -123,6 +123,7 @@ class PublicTimelineTest extends TestCase
                 ->where('timeline.filters.q', 'World Cup')
                 ->where('timeline.filters.categories.competition', $worldCup->id)
                 ->where('timeline.filters.tags.0', $tag->id)
+                ->where('timeline.filter_options.tags.0', ['id' => $tag->id, 'name' => '夺冠'])
                 ->where('timeline.summary.photos_count', 1)
                 ->where('timeline.summary.albums_count', 1)
                 ->has('timeline.months', 1)

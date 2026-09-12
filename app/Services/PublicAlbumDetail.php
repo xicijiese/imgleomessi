@@ -173,11 +173,10 @@ class PublicAlbumDetail
     {
         $categories = $this->categories($photo->categories);
         $tags = $photo->tags
-            ->sortBy(fn (Tag $tag): string => $tag->type.'-'.$tag->sort_order.'-'.$tag->id)
+            ->sortBy(fn (Tag $tag): string => $tag->sort_order.'-'.$tag->id)
             ->map(fn (Tag $tag): array => [
                 'id' => $tag->id,
                 'name' => $tag->name,
-                'type' => $tag->type,
             ])
             ->values();
 

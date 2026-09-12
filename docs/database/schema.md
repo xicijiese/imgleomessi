@@ -31,6 +31,7 @@
 - sponsorship_orders
 - payment_logs
 - supporter_profiles
+- contributor_profiles
 - badges
 - user_badges
 - photo_analysis_results
@@ -50,8 +51,8 @@ Phase 1 明确不创建以下独立足球资料表：
 
 已明确后续规划但不属于 P1-4 / P1-5 已完成基础切片的互动扩展：分享到微信/微博等第三方 API、分享海报生成、短链接、复杂社交动态流、后台互动管理、异常刷赞处理和排行榜管理。前台公开图片详情默认下载按钮永久不作为默认能力；分享返利默认不做，除非后续重新立项并完成合规确认。
 
-users 表使用 Laravel/Fortify 当前已生成的基础结构。P1-6 已扩展用户状态和封禁字段，P1-9 已扩展 `supporter_until` 运营守护者有效期；角色、手机号等字段后续在权限或账号资料阶段再扩展。
-## 当前生效规则（2026-09-09）
+users 表使用 Laravel/Fortify 基础结构，并已落地状态、封禁、运营守护者有效期、公开资料和 `role` 字段。当前 `role` 仅有 `user`、`editor`、`admin` 三类；完整的管理员角色编辑、密码重置、会话管理和操作审计尚未实现。
+## 当前生效规则（2026-09-12）
 
 - photo_upload_batches 继续保留为上传任务记录，note 可记录失败文件和失败原因；该表不承担图片编辑。
 - processing_jobs 不再创建智能标签任务；历史 labels 任务和 ci_labels_json 字段仅保留兼容，不参与当前发布和检索逻辑。
@@ -234,7 +235,7 @@ P1-15 高级搜索与资料增强基于 photos、photo_category、photo_tag 和�
 | note | text nullable | 批次备注 |
 | created_at / updated_at | timestamps | 时间戳 |
 
-上传批次用于支撑后台 `图片批量上传` 和 `上传批次 / 批量整理` 页面。批量上传支持选择草稿或“处理完成后自动发布”，并可选择自动创建 OCR / 智能标签任务；批次仍只记录一次批量上传和整理过程，不改变图片本身是否可以加入多个相册的规则。
+上传批次用于支撑后台 `图片批量上传` 和 `上传批次 / 批量整理` 页面。批量上传支持选择草稿或“处理完成后自动发布”，可按需创建 OCR 任务；智能标签任务已停用。批次仍只记录一次批量上传和整理过程，不改变图片本身是否可以加入多个相册的规则。
 
 ### albums
 
@@ -354,7 +355,7 @@ Phase 1 不建立独立的球队、赛事、赛季或比赛资料表。相关信
 
 ### photo_analysis_results
 
-P1-11 已落库。当前真实写入基础文件信息、SHA-256 精确哈希、可读取的 EXIF 和处理时间；相似图切片新增后台人工触发的感知哈希和候选关系记录；OCR 和智能标签切片新增后台人工触发的识别结果。COS 临时读写真实验证已通过，当前 6 张 COS 业务原图已完成展示图/缩略图、智能标签和相似候选真实验证，图片质量评分不纳入项目。
+P1-11 已落库。当前真实写入基础文件信息、SHA-256 精确哈希、可读取的 EXIF 和处理时间；相似图切片新增后台人工触发的感知哈希和候选关系记录；OCR 保留为后台按需能力。智能标签已停用，历史字段只为兼容旧数据，不再创建任务、读取结果或参与发布/检索；图片质量评分不纳入项目。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
@@ -368,7 +369,7 @@ P1-11 已落库。当前真实写入基础文件信息、SHA-256 精确哈希、
 | perceptual_hash | varchar(16) nullable index | 64 位 dHash 感知特征；仅在后台手动触发相似候选计算时写入 |
 | exif_json | json nullable | 可读取的 EXIF 基础数据 |
 | ocr_text | longtext nullable | 后台手动 OCR 识别文本；不直接作为前台搜索字段 |
-| ci_labels_json | json nullable | 后台手动智能标签结果；COS 临时读写已真实验证，数据万象真实调用仍需业务原图 |
+| ci_labels_json | json nullable | 历史智能标签结果兼容字段；当前不再写入、读取、展示或参与检索 |
 | ci_quality_json | json nullable | 历史兼容字段；图片质量评分不纳入项目，不读取、不写入 |
 | error_message | text nullable | 分析错误 |
 | processed_at | datetime nullable | 处理时间 |
