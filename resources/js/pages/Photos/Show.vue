@@ -279,14 +279,46 @@ const clearReportStatus = () => {
     }, 2200);
 };
 
+const csrfCookie = () => {
+    const cookie = document.cookie
+        .split('; ')
+        .find((item) => item.startsWith('XSRF-TOKEN='))
+        ?.slice('XSRF-TOKEN='.length);
+
+    return cookie ? decodeURIComponent(cookie) : '';
+};
+
 const csrfToken = () =>
     document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
         ?.content ?? '';
+
+const csrfHeaders = (): Record<string, string> => {
+    const cookie = csrfCookie();
+
+    if (cookie) {
+        return { 'X-XSRF-TOKEN': cookie };
+    }
+
+    return { 'X-CSRF-TOKEN': csrfToken() };
+};
+
+const refreshCsrfToken = async (): Promise<void> => {
+    await fetch(window.location.href, {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+            Accept: 'text/html, application/xhtml+xml',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        cache: 'no-store',
+    });
+};
 
 const interactionRequest = async <T,>(
     url: string,
     method: 'POST' | 'DELETE',
     body?: Record<string, string>,
+    retried = false,
 ): Promise<T> => {
     const response = await fetch(url, {
         method,
@@ -294,11 +326,17 @@ const interactionRequest = async <T,>(
         headers: {
             Accept: 'application/json',
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': csrfToken(),
+            ...csrfHeaders(),
             'X-Requested-With': 'XMLHttpRequest',
         },
         body: body ? JSON.stringify(body) : undefined,
     });
+
+    if (response.status === 419 && !retried) {
+        await refreshCsrfToken();
+
+        return interactionRequest<T>(url, method, body, true);
+    }
 
     if (response.status === 401 || response.status === 419) {
         router.visit('/login');
