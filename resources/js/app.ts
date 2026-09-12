@@ -1,10 +1,10 @@
 import '../css/app.css';
 
 import PublicFooter from '@/components/PublicFooter.vue';
-import { createInertiaApp, usePage } from '@inertiajs/vue3';
+import { createInertiaApp, router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { DefineComponent } from 'vue';
-import { computed, createApp, defineComponent, h } from 'vue';
+import { computed, createApp, defineComponent, h, onUnmounted, ref } from 'vue';
 import { initializeTheme } from './composables/useAppearance';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -30,22 +30,30 @@ createInertiaApp({
         ),
     setup({ el, App, props, plugin }) {
         const PublicApp = defineComponent({
-            setup() {
-                const page = usePage();
+            props: {
+                initialPage: {
+                    type: Object,
+                    required: true,
+                },
+            },
+            setup(componentProps: { initialPage: { props?: Record<string, unknown> } }) {
+                const currentPath = ref(window.location.pathname);
+                const publicShell = componentProps.initialPage.props?.publicShell as
+                    | PublicShellPayload
+                    | undefined;
+                const removeNavigateListener = router.on('navigate', (event) => {
+                    currentPath.value = new URL(event.detail.page.url, window.location.origin).pathname;
+                });
                 const showFooter = computed(() => {
-                    const path = page.url.split('?')[0].replace(/\/+$/, '') || '/';
+                    const path = currentPath.value.replace(/\/+$/, '') || '/';
 
                     return path !== '/me' && !path.startsWith('/me/');
                 });
 
-                return () => {
-                    const publicShell = (
-                        page.props as typeof page.props & {
-                            publicShell?: PublicShellPayload;
-                        }
-                    ).publicShell;
+                onUnmounted(() => removeNavigateListener());
 
-                    return h('div', [
+                return () =>
+                    h('div', [
                         h(App, props),
                         showFooter.value && publicShell
                             ? h(PublicFooter, {
@@ -54,11 +62,10 @@ createInertiaApp({
                               })
                             : null,
                     ]);
-                };
             },
         });
 
-        createApp(PublicApp).use(plugin).mount(el);
+        createApp(PublicApp, { initialPage: props.initialPage }).use(plugin).mount(el);
     },
     progress: {
         color: '#4B5563',
