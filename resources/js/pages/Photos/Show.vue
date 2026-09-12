@@ -326,14 +326,9 @@ const toggleFavorite = async () => {
         return;
     }
 
-    if (!interactions.value.can_interact) {
-        if (interactions.value.blocked_reason) {
-            shareStatus.value = interactions.value.blocked_reason;
-            clearShareStatus();
-            return;
-        }
-
-        router.visit('/login');
+    if (!interactions.value.can_interact && interactions.value.blocked_reason) {
+        shareStatus.value = interactions.value.blocked_reason;
+        clearShareStatus();
         return;
     }
 
