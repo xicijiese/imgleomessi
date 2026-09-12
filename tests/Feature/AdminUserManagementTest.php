@@ -9,6 +9,7 @@ use App\Services\AdminUserManagementService;
 use App\Services\UserAvatarService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -75,6 +76,28 @@ class AdminUserManagementTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_reset_a_users_password_without_email(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $target = User::factory()->create([
+            'role' => 'user',
+            'status' => 'active',
+            'password' => 'old-password',
+        ]);
+
+        app(AdminUserManagementService::class)->resetPassword($target, $admin, 'new-password');
+
+        $target = $target->fresh();
+
+        $this->assertTrue(Hash::check('new-password', $target->password));
+        $this->assertFalse(Hash::check('old-password', $target->password));
+        $this->assertSame(2, $target->session_version);
+        $this->assertDatabaseHas('admin_audit_logs', [
+            'actor_user_id' => $admin->id,
+            'target_user_id' => $target->id,
+            'action' => 'user.password_reset_by_admin',
+        ]);
+    }
     public function test_role_change_is_blocked_while_contributor_profile_is_active(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);

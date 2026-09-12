@@ -30,6 +30,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Throwable;
 use UnitEnum;
@@ -69,6 +70,30 @@ class UserResource extends Resource
                     ->required()
                     ->maxLength(255)
                     ->unique(ignoreRecord: true),
+                TextInput::make('phone')
+                    ->label('手机号')
+                    ->tel()
+                    ->nullable()
+                    ->maxLength(20)
+                    ->rule('regex:/^1[3-9]\d{9}$/')
+                    ->unique(ignoreRecord: true),
+                TextInput::make('new_password')
+                    ->label('重置登录密码')
+                    ->password()
+                    ->revealable()
+                    ->nullable()
+                    ->dehydrated(fn (?string $state): bool => filled($state))
+                    ->rule(Password::default())
+                    ->confirmed()
+                    ->validationMessages([
+                        'min' => '新密码至少需要 8 个字符。',
+                    ])
+                    ->helperText('留空表示不修改密码；新密码至少 8 个字符，并需再次确认。重置后该用户的现有登录会话将失效。'),
+                TextInput::make('new_password_confirmation')
+                    ->label('确认新密码')
+                    ->password()
+                    ->revealable()
+                    ->nullable(),
                 self::avatarUpload(),
                 DateTimePicker::make('banned_until')
                     ->label('封禁到期')
@@ -99,6 +124,11 @@ class UserResource extends Resource
                     ->label('邮箱')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('phone')
+                    ->label('手机号')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('未填写'),
                 TextColumn::make('role')
                     ->label('角色')
                     ->badge()
@@ -192,13 +222,27 @@ class UserResource extends Resource
             ])
             ->recordActions([
                 EditAction::make()
-                    ->using(function (User $record, array $data): User {
+                    ->using(function (User $record, array $data, AdminUserManagementService $service): User {
                         $operator = auth()->user();
                         abort_unless($operator instanceof User, 403);
+
+                        $newPassword = $data['new_password'] ?? null;
+                        unset($data['new_password'], $data['new_password_confirmation']);
+
                         $audit = app(AdminAuditService::class);
                         $before = $audit->userState($record);
                         $record->update($data);
                         $audit->record($operator, 'user.profile_updated', $record, $before, $audit->userState($record));
+
+                        if (filled($newPassword)) {
+                            $service->resetPassword($record, $operator, $newPassword);
+
+                            Notification::make()
+                                ->success()
+                                ->title('用户资料和登录密码已更新')
+                                ->body('该用户的现有登录会话已失效。')
+                                ->send();
+                        }
 
                         return $record;
                     }),
@@ -241,16 +285,7 @@ class UserResource extends Resource
                         $service->disable($record, $operator);
                         Notification::make()->title('用户已停用')->success()->send();
                     }),
-                Action::make('resetPassword')
-                    ->label('发送重置密码')
-                    ->color('info')
-                    ->requiresConfirmation()
-                    ->action(function (User $record, AdminUserManagementService $service): void {
-                        $operator = auth()->user();
-                        abort_unless($operator instanceof User, 403);
-                        $service->sendPasswordReset($record, $operator);
-                        Notification::make()->title('密码重置邮件已发送')->success()->send();
-                    }),
+
                 Action::make('revokeSessions')
                     ->label('强制退出全部会话')
                     ->color('danger')

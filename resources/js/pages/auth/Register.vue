@@ -52,12 +52,26 @@ import { Form, Head } from '@inertiajs/vue3';
                 </div>
 
                 <div class="grid gap-2">
+                    <Label for="phone">手机号码</Label>
+                    <Input
+                        id="phone"
+                        type="tel"
+                        required
+                        :tabindex="3"
+                        autocomplete="tel"
+                        name="phone"
+                        placeholder="请输入 11 位手机号码"
+                    />
+                    <InputError :message="errors.phone" />
+                </div>
+
+                <div class="grid gap-2">
                     <Label for="password">密码</Label>
                     <Input
                         id="password"
                         type="password"
                         required
-                        :tabindex="3"
+                        :tabindex="4"
                         autocomplete="new-password"
                         name="password"
                         placeholder="请输入密码"
@@ -71,7 +85,7 @@ import { Form, Head } from '@inertiajs/vue3';
                         id="password_confirmation"
                         type="password"
                         required
-                        :tabindex="4"
+                        :tabindex="5"
                         autocomplete="new-password"
                         name="password_confirmation"
                         placeholder="请再次输入密码"
@@ -82,7 +96,7 @@ import { Form, Head } from '@inertiajs/vue3';
                 <Button
                     type="submit"
                     class="mt-2 w-full"
-                    tabindex="5"
+                    tabindex="6"
                     :disabled="processing"
                     data-test="register-user-button"
                 >
@@ -96,7 +110,7 @@ import { Form, Head } from '@inertiajs/vue3';
                 <TextLink
                     :href="login()"
                     class="underline underline-offset-4"
-                    :tabindex="6"
+                    :tabindex="7"
                     >登录</TextLink
                 >
             </div>

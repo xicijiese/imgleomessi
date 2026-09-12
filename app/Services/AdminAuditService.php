@@ -33,6 +33,7 @@ class AdminAuditService
             'id' => $user->getKey(),
             'name' => $user->name,
             'email' => $user->email,
+            'phone' => $user->phone,
             'role' => $user->role,
             'status' => $user->status,
             'banned_until' => $user->banned_until?->toIso8601String(),

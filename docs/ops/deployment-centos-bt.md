@@ -1252,7 +1252,7 @@ git log -1 --oneline
 
 1. 新增 migration：先完成阶段 C 备份，再执行 php artisan migrate --force，迁移失败立即停止。
 2. 修改 PHP 代码、.env 或配置：执行 optimize:clear、配置/路由/视图缓存，并执行 queue:restart。
-3. 修改前端依赖或 resources/js、resources/css、vite.config.ts：执行 npm ci 和 npm run build。
+3. 修改 `package.json` 或 `package-lock.json`：先执行 `npm ci`；仅修改 `resources/js`、`resources/css` 或 `vite.config.ts`：复用现有依赖，只执行 `npm run build`。
 4. 迁移失败时保留错误信息，不要反复执行迁移，也不要删除生产数据库。
 
 生产环境不要执行 composer update。
@@ -1463,7 +1463,11 @@ git log -1 --oneline
 - git pull --ff-only origin main：只允许无分叉的快进更新，不会自动制造合并提交；
 - git log -1 --oneline：确认 VPS 当前实际使用的提交号。
 
-安装 PHP 依赖并发布 Filament 后台资产：
+按变更类型处理 PHP 依赖和 Filament 后台资产：
+
+本次管理员用户治理增量发布没有修改 `composer.json`、`composer.lock`、`package.json` 或 `package-lock.json`，因此不需要重新安装 Composer/NPM 依赖，也不需要执行 `filament:upgrade`。已有生产依赖直接复用；本次因为修改了 `resources/js`，只需要执行一次 `npm run build`。
+
+只有提交确实修改了 Composer 依赖或 Filament 依赖版本时，才执行：
 
 ~~~bash
 cd /www/wwwroot/img.leomessi.cn
@@ -1474,14 +1478,15 @@ composer install --no-dev --prefer-dist --optimize-autoloader
 
 composer install 按 composer.lock 安装生产依赖；不要执行 composer update。filament:upgrade 重新发布后台 CSS/JavaScript 并清理 Filament 资产相关缓存；filament:cache-components 重新发现后台资源、页面和 Livewire 组件。
 
-如果本次发布修改了 resources/js、resources/css、vite.config.ts、package.json 或 package-lock.json，再在项目根目录执行前端构建；只修改 PHP、迁移、后台资源类或文档时不需要重复构建：
+如果本次发布修改了 `resources/js`、`resources/css` 或 `vite.config.ts`，但没有修改前端依赖文件，只执行前端构建：
 
 ~~~bash
 cd /www/wwwroot/img.leomessi.cn
-npm ci
 npm run build
 test -f public/build/manifest.json && echo "Inertia 前端构建完成"
 ~~~
+
+只有 `package.json` 或 `package-lock.json` 发生变化时，才先执行 `npm ci`，再执行上面的 `npm run build`。
 
 执行数据库迁移和应用缓存刷新：
 
@@ -1489,7 +1494,6 @@ test -f public/build/manifest.json && echo "Inertia 前端构建完成"
 cd /www/wwwroot/img.leomessi.cn
 /www/server/php/83/bin/php artisan migrate --force
 /www/server/php/83/bin/php artisan optimize:clear
-/www/server/php/83/bin/php artisan filament:upgrade
 /www/server/php/83/bin/php artisan filament:cache-components
 /www/server/php/83/bin/php artisan config:cache
 /www/server/php/83/bin/php artisan route:cache

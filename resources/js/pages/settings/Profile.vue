@@ -335,7 +335,7 @@ onBeforeUnmount(() => {
         <div class="flex flex-col space-y-6">
             <HeadingSmall
                 title="个人资料"
-                description="更新你的头像、昵称和邮箱地址"
+                description="更新你的头像、昵称、手机号和邮箱地址"
             />
 
             <Form
@@ -440,6 +440,19 @@ onBeforeUnmount(() => {
                     <InputError class="mt-2" :message="errors.email" />
                 </div>
 
+                <div class="grid gap-2">
+                    <Label for="phone">手机号码</Label>
+                    <Input
+                        id="phone"
+                        type="tel"
+                        class="mt-1 block w-full border-[#90b4ce]/60 bg-[#fffffe] text-[#094067] shadow-none placeholder:text-[#5f6c7b]/60 focus-visible:border-[#3da9fc] focus-visible:ring-[#3da9fc]/30 dark:border-[#90b4ce]/60 dark:bg-[#fffffe] dark:text-[#094067] dark:placeholder:text-[#5f6c7b]/60"
+                        name="phone"
+                        :default-value="user.phone ?? undefined"
+                        autocomplete="tel"
+                        placeholder="请输入 11 位手机号码"
+                    />
+                    <InputError class="mt-2" :message="errors.phone" />
+                </div>
                 <div v-if="mustVerifyEmail && !user.email_verified_at">
                     <p class="-mt-4 text-sm text-muted-foreground">
                         你的邮箱地址尚未验证。

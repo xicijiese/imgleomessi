@@ -31,6 +31,7 @@ const props = withDefaults(
         variant?: 'overlay' | 'solid';
     }>(),
     {
+        canRegister: true,
         variant: 'solid',
     },
 );
@@ -65,11 +66,7 @@ const isSolidHeader = computed(
 const visibleNavigationItems = computed(() =>
     props.navigation.filter((item) => publicNavigationUrls.includes(item.url)),
 );
-const canRegister = computed(() => {
-    const sharedCanRegister = page.props.canRegister as boolean | undefined;
-
-    return props.canRegister ?? sharedCanRegister ?? true;
-});
+const canRegister = computed(() => props.canRegister ?? true);
 const currentUser = computed(() => {
     const auth = page.props.auth as
         | { user?: { name?: string } | null }

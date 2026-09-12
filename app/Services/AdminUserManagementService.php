@@ -6,7 +6,6 @@ use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
 
 class AdminUserManagementService
@@ -86,19 +85,32 @@ class AdminUserManagementService
         return $updated;
     }
 
-    public function sendPasswordReset(User $target, User $operator): string
+    public function resetPassword(User $target, User $operator, string $password): void
     {
         $this->guard($target, $operator);
-        $status = Password::sendResetLink(['email' => $target->email]);
-        $this->audit->record($operator, 'user.password_reset_requested', $target, [], ['status' => $status]);
+        $before = $this->audit->userState($target);
 
-        return $status;
+        $target->forceFill(['password' => $password])->save();
+        $this->invalidateSessions($target);
+
+        $this->audit->record($operator, 'user.password_reset_by_admin', $target, $before, [
+            'session_version' => $target->fresh()?->session_version,
+        ]);
     }
 
     public function revokeSessions(User $target, User $operator): void
     {
         $this->guard($target, $operator);
         $before = ['session_version' => $target->session_version];
+        $this->invalidateSessions($target);
+
+        $this->audit->record($operator, 'user.sessions_revoked', $target, $before, [
+            'session_version' => $target->fresh()?->session_version,
+        ]);
+    }
+
+    private function invalidateSessions(User $target): void
+    {
         $target->increment('session_version');
 
         try {
@@ -108,10 +120,6 @@ class AdminUserManagementService
         } catch (QueryException) {
             // Redis 等非数据库会话驱动不依赖该表，session_version 仍会使旧会话失效。
         }
-
-        $this->audit->record($operator, 'user.sessions_revoked', $target, $before, [
-            'session_version' => $target->fresh()?->session_version,
-        ]);
     }
 
     public function setStatus(User $target, User $operator, string $status, string $action): bool
