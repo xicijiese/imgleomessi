@@ -40,7 +40,7 @@ import { Label } from '@/components/ui/label';
                         id="current_password"
                         name="current_password"
                         type="password"
-                        class="mt-1 block w-full"
+                        class="mt-1 block w-full border-[#90b4ce]/60 bg-[#fffffe] text-[#094067] shadow-none placeholder:text-[#5f6c7b]/60 focus-visible:border-[#3da9fc] focus-visible:ring-[#3da9fc]/30 dark:border-[#90b4ce]/60 dark:bg-[#fffffe] dark:text-[#094067] dark:placeholder:text-[#5f6c7b]/60"
                         autocomplete="current-password"
                         placeholder="请输入当前密码"
                     />
@@ -53,7 +53,7 @@ import { Label } from '@/components/ui/label';
                         id="password"
                         name="password"
                         type="password"
-                        class="mt-1 block w-full"
+                        class="mt-1 block w-full border-[#90b4ce]/60 bg-[#fffffe] text-[#094067] shadow-none placeholder:text-[#5f6c7b]/60 focus-visible:border-[#3da9fc] focus-visible:ring-[#3da9fc]/30 dark:border-[#90b4ce]/60 dark:bg-[#fffffe] dark:text-[#094067] dark:placeholder:text-[#5f6c7b]/60"
                         autocomplete="new-password"
                         placeholder="请输入新密码"
                     />
@@ -66,7 +66,7 @@ import { Label } from '@/components/ui/label';
                         id="password_confirmation"
                         name="password_confirmation"
                         type="password"
-                        class="mt-1 block w-full"
+                        class="mt-1 block w-full border-[#90b4ce]/60 bg-[#fffffe] text-[#094067] shadow-none placeholder:text-[#5f6c7b]/60 focus-visible:border-[#3da9fc] focus-visible:ring-[#3da9fc]/30 dark:border-[#90b4ce]/60 dark:bg-[#fffffe] dark:text-[#094067] dark:placeholder:text-[#5f6c7b]/60"
                         autocomplete="new-password"
                         placeholder="请再次输入新密码"
                     />
@@ -75,6 +75,7 @@ import { Label } from '@/components/ui/label';
 
                 <div class="flex items-center gap-4">
                     <Button
+                        class="bg-[#3da9fc] text-[#fffffe] hover:bg-[#094067] focus-visible:ring-[#3da9fc]/40"
                         :disabled="processing"
                         data-test="update-password-button"
                         >保存密码</Button

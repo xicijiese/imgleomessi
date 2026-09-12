@@ -68,6 +68,7 @@ const passwordInput = useTemplateRef('passwordInput');
                                 type="password"
                                 name="password"
                                 ref="passwordInput"
+                                class="border-[#90b4ce]/60 bg-[#fffffe] text-[#094067] shadow-none placeholder:text-[#5f6c7b]/60 focus-visible:border-[#3da9fc] focus-visible:ring-[#3da9fc]/30 dark:border-[#90b4ce]/60 dark:bg-[#fffffe] dark:text-[#094067] dark:placeholder:text-[#5f6c7b]/60"
                                 placeholder="请输入密码"
                             />
                             <InputError :message="errors.password" />
