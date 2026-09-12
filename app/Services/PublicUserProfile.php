@@ -48,6 +48,7 @@ class PublicUserProfile
                 'user' => [
                     'id' => $user->id,
                     'name' => $user->name,
+                    'avatar' => $user->avatar,
                     'bio' => $user->profile_bio,
                     'joined_month' => $user->created_at?->format('Y-m'),
                     'public_url' => '/users/'.$user->id,

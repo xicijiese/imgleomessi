@@ -56,6 +56,7 @@ interface PublicUserProfilePayload {
         user: {
             id: number;
             name: string;
+            avatar: string | null;
             bio: string | null;
             joined_month: string | null;
             public_url: string;
@@ -94,8 +95,14 @@ defineProps<{
                 <div>
                     <p class="mb-3 text-sm font-semibold text-[#3da9fc]">Public Profile</p>
                     <div class="flex flex-wrap items-center gap-3">
-                        <div class="flex h-14 w-14 items-center justify-center rounded-sm bg-[#3da9fc] text-2xl font-bold text-[#fffffe]">
-                            {{ profilePage.profile.user.name.slice(0, 1).toUpperCase() }}
+                        <div class="flex h-14 w-14 items-center justify-center overflow-hidden rounded-sm bg-[#3da9fc] text-2xl font-bold text-[#fffffe]">
+                            <img
+                                v-if="profilePage.profile.user.avatar"
+                                :src="profilePage.profile.user.avatar"
+                                :alt="profilePage.profile.user.name"
+                                class="h-full w-full object-cover"
+                            />
+                            <span v-else>{{ profilePage.profile.user.name.slice(0, 1).toUpperCase() }}</span>
                         </div>
                         <div class="min-w-0">
                             <h1 class="break-words text-4xl font-semibold sm:text-5xl">

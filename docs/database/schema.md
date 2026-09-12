@@ -32,6 +32,8 @@
 - payment_logs
 - supporter_profiles
 - contributor_profiles
+- user_login_histories
+- admin_audit_logs
 - badges
 - user_badges
 - photo_analysis_results
@@ -51,7 +53,7 @@ Phase 1 明确不创建以下独立足球资料表：
 
 已明确后续规划但不属于 P1-4 / P1-5 已完成基础切片的互动扩展：分享到微信/微博等第三方 API、分享海报生成、短链接、复杂社交动态流、后台互动管理、异常刷赞处理和排行榜管理。前台公开图片详情默认下载按钮永久不作为默认能力；分享返利默认不做，除非后续重新立项并完成合规确认。
 
-users 表使用 Laravel/Fortify 基础结构，并已落地状态、封禁、运营守护者有效期、公开资料和 `role` 字段。当前 `role` 仅有 `user`、`editor`、`admin` 三类；完整的管理员角色编辑、密码重置、会话管理和操作审计尚未实现。
+users 表使用 Laravel/Fortify 基础结构，并已落地头像、状态、封禁、运营守护者有效期、公开资料、`role`、会话版本和最近登录字段。当前 `role` 仅有 `user`、`editor`、`admin` 三类；管理员角色调整、密码重置、会话管理、登录历史、批量状态操作和操作审计已实现。项目不需要动态用户组、多角色并存或细粒度资源权限矩阵，数据库不为这些企业级权限能力预留待开发结构。
 ## 当前生效规则（2026-09-12）
 
 - photo_upload_batches 继续保留为上传任务记录，note 可记录失败文件和失败原因；该表不承担图片编辑。
@@ -167,14 +169,40 @@ Phase 1 必须支持“批量上传到相册”。
 | email | varchar nullable unique | 邮箱 |
 | phone | varchar nullable unique | 手机号 |
 | password | varchar nullable | 密码哈希 |
-| avatar_url | varchar nullable | 头像 |
+| avatar_url | varchar nullable | 头像存储键；对外通过 `avatar` 访问器解析公开 URL |
 | role | enum | `admin`、`editor`、`user` |
 | supporter_until | datetime nullable | 运营守护者有效期 |
-| status | enum | `active`、`muted`、`banned` |
+| status | varchar | `active`、`disabled`、`banned` |
 | email_verified_at | datetime nullable | 邮箱验证时间 |
 | last_login_at | datetime nullable | 最近登录 |
+| session_version | unsigned int | 会话版本；管理员撤销全部会话时递增 |
 | created_at / updated_at | timestamps | 时间戳 |
 
+### user_login_histories
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | bigint pk | 登录记录 ID |
+| user_id | fk users | 登录用户 |
+| ip_address | varchar nullable | 登录 IP |
+| user_agent | text nullable | 客户端信息 |
+| logged_in_at | timestamp | 登录时间 |
+
+系统通过认证登录事件写入登录历史，并同步 users.last_login_at；仅管理员可在后台查看。
+
+### admin_audit_logs
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | bigint pk | 审计记录 ID |
+| actor_user_id | fk users nullable | 操作者；删除用户后保留记录 |
+| target_user_id | fk users nullable | 被操作用户；删除用户后保留记录 |
+| action | varchar | 操作类型 |
+| before_state / after_state | json nullable | 脱敏前后状态，不保存密码 |
+| ip_address / user_agent | nullable | 请求来源 |
+| created_at | timestamp | 操作时间 |
+
+角色调整、启用/停用、封禁/解封、密码重置请求和会话撤销必须写入管理员审计；头像文件本身不写入审计内容，只记录头像存储键变化。
 ### supporter_profiles
 
 | 字段 | 类型 | 说明 |

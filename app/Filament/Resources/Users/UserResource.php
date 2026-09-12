@@ -4,11 +4,17 @@ namespace App\Filament\Resources\Users;
 
 use App\Filament\Resources\Users\Pages\ManageUsers;
 use App\Models\User;
+use App\Services\AdminAuditService;
+use App\Services\AdminUserManagementService;
 use App\Services\ContributorService;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\BaseFileUpload;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -17,10 +23,15 @@ use Filament\Resources\Resource;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Str;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Throwable;
 use UnitEnum;
 
 class UserResource extends Resource
@@ -58,11 +69,7 @@ class UserResource extends Resource
                     ->required()
                     ->maxLength(255)
                     ->unique(ignoreRecord: true),
-                Select::make('status')
-                    ->label('用户状态')
-                    ->options(User::STATUSES)
-                    ->default('active')
-                    ->required(),
+                self::avatarUpload(),
                 DateTimePicker::make('banned_until')
                     ->label('封禁到期')
                     ->seconds(false),
@@ -81,6 +88,9 @@ class UserResource extends Resource
     {
         return $table
             ->columns([
+                ImageColumn::make('avatar')
+                    ->label('头像')
+                    ->circular(),
                 TextColumn::make('name')
                     ->label('昵称')
                     ->searchable()
@@ -117,6 +127,11 @@ class UserResource extends Resource
                     ->dateTime('Y-m-d H:i')
                     ->placeholder('未封禁')
                     ->sortable(),
+                TextColumn::make('last_login_at')
+                    ->label('最近登录')
+                    ->dateTime('Y-m-d H:i')
+                    ->placeholder('从未登录')
+                    ->sortable(),
                 TextColumn::make('created_at')
                     ->label('注册时间')
                     ->dateTime('Y-m-d H:i')
@@ -126,10 +141,127 @@ class UserResource extends Resource
                 SelectFilter::make('status')
                     ->label('状态')
                     ->options(User::STATUSES),
+                SelectFilter::make('role')
+                    ->label('角色')
+                    ->options(AdminUserManagementService::ROLES),
             ])
             ->defaultSort('created_at', 'desc')
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    BulkAction::make('enableSelected')
+                        ->label('批量启用')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->action(function (Collection $records, AdminUserManagementService $service): void {
+                            $operator = auth()->user();
+                            abort_unless($operator instanceof User, 403);
+                            $count = $records->filter(fn (User $record): bool => ! $record->is($operator) && $service->enable($record, $operator))->count();
+                            Notification::make()->title('已启用 '.$count.' 个用户')->success()->send();
+                        }),
+                    BulkAction::make('disableSelected')
+                        ->label('批量停用')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->action(function (Collection $records, AdminUserManagementService $service): void {
+                            $operator = auth()->user();
+                            abort_unless($operator instanceof User, 403);
+                            $count = $records->filter(fn (User $record): bool => ! $record->is($operator) && $service->disable($record, $operator))->count();
+                            Notification::make()->title('已停用 '.$count.' 个用户')->success()->send();
+                        }),
+                    BulkAction::make('banSelected')
+                        ->label('批量封禁')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->action(function (Collection $records, AdminUserManagementService $service): void {
+                            $operator = auth()->user();
+                            abort_unless($operator instanceof User, 403);
+                            $count = $records->filter(fn (User $record): bool => ! $record->is($operator) && $service->ban($record, $operator))->count();
+                            Notification::make()->title('已封禁 '.$count.' 个用户')->success()->send();
+                        }),
+                    BulkAction::make('unbanSelected')
+                        ->label('批量解封')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->action(function (Collection $records, AdminUserManagementService $service): void {
+                            $operator = auth()->user();
+                            abort_unless($operator instanceof User, 403);
+                            $count = $records->filter(fn (User $record): bool => ! $record->is($operator) && $service->unban($record, $operator))->count();
+                            Notification::make()->title('已解封 '.$count.' 个用户')->success()->send();
+                        }),
+                ]),
+            ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->using(function (User $record, array $data): User {
+                        $operator = auth()->user();
+                        abort_unless($operator instanceof User, 403);
+                        $audit = app(AdminAuditService::class);
+                        $before = $audit->userState($record);
+                        $record->update($data);
+                        $audit->record($operator, 'user.profile_updated', $record, $before, $audit->userState($record));
+
+                        return $record;
+                    }),
+                Action::make('changeRole')
+                    ->label('调整角色')
+                    ->color('warning')
+                    ->visible(fn (User $record): bool => ! $record->is(auth()->user()))
+                    ->requiresConfirmation()
+                    ->form([
+                        Select::make('role')
+                            ->label('角色')
+                            ->options(AdminUserManagementService::ROLES)
+                            ->required(),
+                    ])
+                    ->fillForm(fn (User $record): array => ['role' => $record->role])
+                    ->action(function (User $record, array $data, AdminUserManagementService $service): void {
+                        $operator = auth()->user();
+                        abort_unless($operator instanceof User, 403);
+                        $service->changeRole($record, $operator, $data['role']);
+                        Notification::make()->title('用户角色已更新')->success()->send();
+                    }),
+                Action::make('enable')
+                    ->label('启用')
+                    ->color('success')
+                    ->visible(fn (User $record): bool => $record->status === 'disabled')
+                    ->action(function (User $record, AdminUserManagementService $service): void {
+                        $operator = auth()->user();
+                        abort_unless($operator instanceof User, 403);
+                        $service->enable($record, $operator);
+                        Notification::make()->title('用户已启用')->success()->send();
+                    }),
+                Action::make('disable')
+                    ->label('停用')
+                    ->color('warning')
+                    ->visible(fn (User $record): bool => $record->status === 'active' && $record->role !== 'admin')
+                    ->requiresConfirmation()
+                    ->action(function (User $record, AdminUserManagementService $service): void {
+                        $operator = auth()->user();
+                        abort_unless($operator instanceof User, 403);
+                        $service->disable($record, $operator);
+                        Notification::make()->title('用户已停用')->success()->send();
+                    }),
+                Action::make('resetPassword')
+                    ->label('发送重置密码')
+                    ->color('info')
+                    ->requiresConfirmation()
+                    ->action(function (User $record, AdminUserManagementService $service): void {
+                        $operator = auth()->user();
+                        abort_unless($operator instanceof User, 403);
+                        $service->sendPasswordReset($record, $operator);
+                        Notification::make()->title('密码重置邮件已发送')->success()->send();
+                    }),
+                Action::make('revokeSessions')
+                    ->label('强制退出全部会话')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->action(function (User $record, AdminUserManagementService $service): void {
+                        $operator = auth()->user();
+                        abort_unless($operator instanceof User, 403);
+                        $service->revokeSessions($record, $operator);
+                        Notification::make()->title('该用户的全部会话已失效')->success()->send();
+                    }),
+
                 Action::make('grantContributor')
                     ->label('授予档案共建者')
                     ->color('primary')
@@ -249,7 +381,11 @@ class UserResource extends Resource
                             ->label('内部备注')
                             ->rows(3),
                     ])
-                    ->action(fn (User $record, array $data): bool => $record->ban($data['ban_reason'] ?? null, $data['moderation_note'] ?? null, $data['banned_until'] ?? null)),
+                    ->action(function (User $record, array $data, AdminUserManagementService $service): bool {
+                        $operator = auth()->user();
+                        abort_unless($operator instanceof User, 403);
+                        return $service->ban($record, $operator, $data['ban_reason'] ?? null, $data['moderation_note'] ?? null, $data['banned_until'] ?? null);
+                    }),
                 Action::make('unban')
                     ->label('解封')
                     ->color('success')
@@ -259,8 +395,65 @@ class UserResource extends Resource
                             ->label('内部备注')
                             ->rows(3),
                     ])
-                    ->action(fn (User $record, array $data): bool => $record->unban($data['moderation_note'] ?? null)),
+                    ->action(function (User $record, array $data, AdminUserManagementService $service): bool {
+                        $operator = auth()->user();
+                        abort_unless($operator instanceof User, 403);
+                        return $service->unban($record, $operator, $data['moderation_note'] ?? null);
+                    }),
             ]);
+    }
+
+    private static function avatarUpload(): FileUpload
+    {
+        return FileUpload::make('avatar_url')
+            ->label('头像')
+            ->image()
+            ->disk('public')
+            ->visibility('public')
+            ->directory('avatars')
+            ->maxSize(2048)
+            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+            ->fetchFileInformation(false)
+            ->saveUploadedFileUsing(function (BaseFileUpload $component, TemporaryUploadedFile $file): ?string {
+                $extension = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+                $filename = Str::uuid().'.'.$extension;
+                $path = app(\App\Services\PhotoStorage::class)->diskForKey()->putFileAs(
+                    $component->getDirectory(),
+                    $file,
+                    $filename,
+                    ['visibility' => 'public'],
+                );
+
+                return is_string($path) ? $path : null;
+            })
+            ->getUploadedFileUsing(function (BaseFileUpload $component, string $file, string|array|null $storedFileNames): ?array {
+                $storage = app(\App\Services\PhotoStorage::class);
+                $disk = $storage->diskForKey($file);
+
+                try {
+                    if (! $disk->exists($file)) {
+                        return null;
+                    }
+
+                    $name = is_array($storedFileNames) ? ($storedFileNames[$file] ?? null) : $storedFileNames;
+
+                    return [
+                        'name' => $name ?? basename($file),
+                        'size' => (int) $disk->size($file),
+                        'type' => $disk->mimeType($file),
+                        'url' => Str::sanitizeUrl($storage->url($file)),
+                    ];
+                } catch (Throwable) {
+                    return null;
+                }
+            })
+            ->deleteUploadedFileUsing(function (string|TemporaryUploadedFile $file): void {
+                if ($file instanceof TemporaryUploadedFile) {
+                    return;
+                }
+
+                app(\App\Services\PhotoStorage::class)->diskForKey($file)->delete($file);
+            });
     }
 
     public static function getPages(): array

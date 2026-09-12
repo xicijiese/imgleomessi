@@ -32,6 +32,7 @@ use App\Http\Controllers\UserFavoriteController;
 use App\Http\Controllers\UserNotificationController;
 use App\Http\Controllers\UserReportController;
 use App\Http\Controllers\UserSponsorshipController;
+use App\Http\Middleware\EnsureFreshUserSession;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
@@ -43,7 +44,7 @@ Route::get('/rankings', RankingController::class)->name('rankings.index');
 Route::get('/support', SupportController::class)->name('support.index');
 Route::get('/supporters', SupporterWallController::class)->name('supporters.index');
 Route::post('/photos/{uuid}/shares', [PhotoShareController::class, 'store'])->name('photos.shares.store');
-Route::middleware('auth')->group(function (): void {
+Route::middleware(['auth', EnsureFreshUserSession::class])->group(function (): void {
     Route::get('/me', [UserCenterController::class, 'show'])->name('me.show');
     Route::patch('/me/public-profile', [UserCenterController::class, 'updatePublicProfile'])->name('me.public-profile.update');
     Route::get('/me/favorites', [UserFavoriteController::class, 'index'])->name('me.favorites.index');

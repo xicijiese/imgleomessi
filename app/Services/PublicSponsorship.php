@@ -194,6 +194,7 @@ class PublicSponsorship
         return [
             'id' => $profile->id,
             'display_name' => $profile->display_name ?: $profile->user?->name,
+            'avatar' => $profile->user?->avatar,
             'bio' => $profile->bio,
             'contribution_focus' => $profile->contribution_focus,
         ];

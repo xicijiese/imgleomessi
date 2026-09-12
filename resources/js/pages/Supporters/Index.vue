@@ -12,6 +12,7 @@ interface NavigationItem {
 
 interface SupporterItem {
     id: number;
+    avatar: string | null;
     display_name: string;
     badge_label: string;
     total_amount_label: string;
@@ -20,6 +21,7 @@ interface SupporterItem {
 
 interface ContributorItem {
     id: number;
+    avatar: string | null;
     display_name: string;
     bio: string | null;
     contribution_focus: string | null;
@@ -220,9 +222,15 @@ defineProps<{
                         >
                             <div class="flex items-start gap-3">
                                 <div
-                                    class="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-[#d8eefe] text-[#094067]"
+                                    class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-[#d8eefe] text-[#094067]"
                                 >
-                                    <BookOpen class="h-5 w-5" aria-hidden="true" />
+                                    <img
+                                        v-if="contributor.avatar"
+                                        :src="contributor.avatar"
+                                        :alt="contributor.display_name"
+                                        class="h-full w-full object-cover"
+                                    />
+                                    <BookOpen v-else class="h-5 w-5" aria-hidden="true" />
                                 </div>
                                 <div class="min-w-0">
                                     <h3 class="truncate text-lg font-semibold">

@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Notifications\UserCenterNotification;
+use App\Services\PhotoStorage;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -21,6 +22,7 @@ class User extends Authenticatable implements FilamentUser
 
     public const STATUSES = [
         'active' => '正常',
+        'disabled' => '已停用',
         'banned' => '已封禁',
     ];
 
@@ -32,6 +34,7 @@ class User extends Authenticatable implements FilamentUser
     protected $fillable = [
         'name',
         'email',
+        'avatar_url',
         'role',
         'password',
         'status',
@@ -53,7 +56,25 @@ class User extends Authenticatable implements FilamentUser
         'two_factor_secret',
         'two_factor_recovery_codes',
         'remember_token',
+        'avatar_url',
     ];
+
+    protected $appends = ['avatar'];
+
+    public function loginHistories(): HasMany
+    {
+        return $this->hasMany(UserLoginHistory::class);
+    }
+
+    public function adminAuditLogsAsActor(): HasMany
+    {
+        return $this->hasMany(AdminAuditLog::class, 'actor_user_id');
+    }
+
+    public function adminAuditLogsAsTarget(): HasMany
+    {
+        return $this->hasMany(AdminAuditLog::class, 'target_user_id');
+    }
 
     public function comments(): HasMany
     {
@@ -105,6 +126,16 @@ class User extends Authenticatable implements FilamentUser
     public function userBadges(): HasMany
     {
         return $this->hasMany(UserBadge::class);
+    }
+
+    public function getAvatarAttribute(): ?string
+    {
+        return app(PhotoStorage::class)->url($this->avatar_url);
+    }
+
+    public function isDisabled(): bool
+    {
+        return $this->status === 'disabled';
     }
 
     public function equippedBadge(): HasOne
@@ -232,6 +263,7 @@ class User extends Authenticatable implements FilamentUser
             'banned_until' => 'datetime',
             'supporter_until' => 'datetime',
             'profile_public' => 'boolean',
+            'session_version' => 'integer',
         ];
     }
 }

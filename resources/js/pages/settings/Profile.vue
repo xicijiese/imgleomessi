@@ -3,6 +3,7 @@ import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileCo
 import { send } from '@/routes/verification';
 import { Form, Head, Link, usePage } from '@inertiajs/vue3';
 
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import DeleteUser from '@/components/DeleteUser.vue';
 import HeadingSmall from '@/components/HeadingSmall.vue';
 import InputError from '@/components/InputError.vue';
@@ -29,7 +30,7 @@ const user = page.props.auth.user;
         <div class="flex flex-col space-y-6">
             <HeadingSmall
                 title="个人资料"
-                description="更新你的昵称和邮箱地址"
+                description="更新你的头像、昵称和邮箱地址"
             />
 
             <Form
@@ -37,6 +38,25 @@ const user = page.props.auth.user;
                 class="space-y-6"
                 v-slot="{ errors, processing, recentlySuccessful }"
             >
+                <div class="grid gap-3">
+                    <Label for="avatar">头像</Label>
+                    <div class="flex items-center gap-4">
+                        <Avatar class="h-16 w-16 overflow-hidden rounded-full">
+                            <AvatarImage v-if="user.avatar" :src="user.avatar" :alt="user.name" />
+                            <AvatarFallback>{{ user.name.slice(0, 1).toUpperCase() }}</AvatarFallback>
+                        </Avatar>
+                        <div class="grid gap-2">
+                            <Input id="avatar" type="file" name="avatar" accept="image/jpeg,image/png,image/webp" />
+                            <p class="text-xs text-muted-foreground">支持 JPG、PNG、WebP，最大 2MB，建议使用正方形图片。</p>
+                            <label v-if="user.avatar" class="flex items-center gap-2 text-sm text-muted-foreground">
+                                <input type="checkbox" name="remove_avatar" value="1" />
+                                移除当前头像
+                            </label>
+                        </div>
+                    </div>
+                    <InputError class="mt-2" :message="errors.avatar" />
+                </div>
+
                 <div class="grid gap-2">
                     <Label for="name">昵称</Label>
                     <Input
