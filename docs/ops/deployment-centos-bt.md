@@ -1,10 +1,23 @@
 # 运维与部署文档：Ubuntu 24.04 + 宝塔（历史文件名保留）
 
+## 相似图模块增量发布准备（2026-10-19，尚未执行）
+
+本地排队排障（2026-10-19）：当前数据库队列曾有未消费任务，原因是只有 `php artisan serve`，没有 Worker。已启动隐藏的本地 database Worker 并验证原任务完成。以后本地启动优先使用 `composer dev`，统一启动页面、队列、日志和前端；已有网页服务时可单独在另一个终端运行 `php artisan queue:work database --sleep=1 --tries=3 --timeout=120`，不要重复启动多个网页服务。后台“相似图管理”会显示最近 180 秒内是否收到对应连接和队列的 Worker 心跳；服务停止后提示未连接。生产继续用 Supervisor 常驻守护，并在发布 PHP 代码后重启 Worker。
+
+本地状态补充：当前 `database/database.sqlite` 已完成本模块迁移，执行前备份位于私有 `storage/app/private/backups/`；该操作仅补建新表，未批量处理现有图片。相似分组、处理进度、归档日志和候选页面已通过本地管理员 HTTP 响应验证。生产发布仍未执行。出现 `no such table: photo_similarity_groups` 时先核对当前连接与 `migrate:status`，确认本模块迁移是否执行，不要清空数据库或重跑 Seeder。
+
+- 本模块新增 `2026_10_19_000001_create_photo_similarity_governance_tables`，部署前备份数据库，按已有升级流程执行迁移和前端构建，再重启队列。回滚迁移会删除分组、处理记录、去重日志和查询记录，不能作为自动恢复归档图片的手段。
+- 必须确保常驻 Worker 正常运行，且 `schedule:run` 每分钟触发，过期查询清理每小时执行。若开发环境 QUEUE_CONNECTION=sync，本模块强制进入 database 队列，需要显式运行 `php artisan queue:work database --timeout=120`；生产 Redis 环境沿用现有 Worker。
+- 查询图片保存在私有 local 磁盘，多节点时 Web、Worker 和清理任务须共享该私有存储，或让它们在同一节点运行。查询文件成功或失败后删除，排队未处理的文件到期后清理。
+- 首次上线先用少量图片验证 dHash 推荐准确率及组内比对，再启动全库分析。分析会读取原图，COS 会产生读取流量；不要在部署迁移时自动启动。
+- 精确重复图归档会让重复记录从公开页面消失，原链接可能返回 404；相册关系和互动数据仍保留在原记录，不自动迁移到保留图。后台操作前再次确认影响，可从归档日志恢复为草稿，再人工检查发布。
+- 本次未连接生产环境，迁移、Worker、定时清理、MySQL 锁行为和真实 COS 图片处理仍需生产增量验收。
+
 本文档是本项目生产部署、验收、备份、监控和回滚手册。当前项目已经部署到生产 VPS，并已人工验证上传、新建相册等基础流程；后续章节只要求补齐运行安全、备份恢复和未测试业务的确认，不要求重复已经验证通过的操作。
 
 本项目采用 Laravel 单体应用：Nginx 提供 Web 服务，PHP-FPM 运行 Laravel，MySQL 保存业务数据，Redis 提供缓存/会话/队列，宝塔“进程守护管理器”（基于 Supervisor）守护 Laravel 队列 Worker，腾讯云 COS / 数据万象负责生产图片存储和图片处理。
 
-本文档描述生产部署方案。当前生产环境已经完成本版本迁移、构建、缓存、队列、定时任务、备份、监控、COS/CDN 切流和业务验收。后续升级、回滚和故障处理仍必须按照本文档执行。
+本文档描述生产部署方案。生产环境已完成截至 2026-09-12 的迁移、构建、缓存、队列、定时任务、备份、监控、COS/CDN 切流和业务验收；2026-09-13 的收藏/点赞会话修复需要按第 16.1 节增量发布后重新回归。后续升级、回滚和故障处理仍必须按照本文档执行。
 ## 本次已完成规则（2026-09-09）
 
 - local 存储使用 PHP GD 生成展示图和缩略图；COS 存储使用腾讯云数据万象生成相同规格的 WebP 派生图。
@@ -19,7 +32,7 @@
 项目已经部署并且基础功能正常后，不需要把所有功能重新回归一遍。请先按第 15.6 节的分类执行：
 
 1. 已实现生产后台入口控制：users.role 为 admin 或 editor、账号状态为正常且未封禁时可以进入 /admin；普通 user 不能进入后台。
-2. 当前版本没有完整的管理员角色权限矩阵。admin 与 editor 目前主要是后台入口级别的角色区分，不能把“编辑员不能访问某个后台资源”当成已经开发完成的能力。
+2. 当前版本不提供可配置的管理员角色权限矩阵，但固定的 admin / editor 资源边界已经实现并经过代码测试：editor 只能访问图片、相册、分类和标签资源，不能把它理解成企业级动态权限系统。
 3. 双因素认证已经实现，是普通用户和后台账号可在 /settings/two-factor 自助启用的账号安全功能；当前没有“管理员必须启用 2FA”的强制策略。生产管理员建议启用并完成登录验证，但这不是已实现的强制门禁。
 4. 生产环境不得执行完整 DatabaseSeeder。当前 Seeder 会创建 test@example.com、默认密码 password 的测试账号，存在严重安全风险。
 5. 生产管理员必须使用独立账号、强密码和非测试邮箱。已有管理员账号时，不要重复执行 app:create-admin。
@@ -1465,7 +1478,7 @@ git log -1 --oneline
 
 按变更类型处理 PHP 依赖和 Filament 后台资产：
 
-本次管理员用户治理增量发布没有修改 `composer.json`、`composer.lock`、`package.json` 或 `package-lock.json`，因此不需要重新安装 Composer/NPM 依赖，也不需要执行 `filament:upgrade`。已有生产依赖直接复用；本次因为修改了 `resources/js`，只需要执行一次 `npm run build`。
+当前最新的 `ee724f4` 收藏/点赞会话修复没有修改 `composer.json`、`composer.lock`、`package.json`、`package-lock.json` 或数据库迁移，因此不需要重新安装 Composer/NPM 依赖，不需要执行 `migrate --force`，也不需要执行 `filament:upgrade`。已有生产依赖直接复用；本次因为修改了 `resources/js`，只需要执行一次 `npm run build`，随后清理 Laravel 缓存并重启 PHP-FPM/队列 Worker。
 
 只有提交确实修改了 Composer 依赖或 Filament 依赖版本时，才执行：
 
@@ -1487,6 +1500,8 @@ test -f public/build/manifest.json && echo "Inertia 前端构建完成"
 ~~~
 
 只有 `package.json` 或 `package-lock.json` 发生变化时，才先执行 `npm ci`，再执行上面的 `npm run build`。
+
+发布后必须用普通用户在 /photos/{uuid} 实测收藏和点赞：确认 POST 请求成功、页面仍停留在图片详情、控制台没有 419；游客点击时应进入登录边界。若生产仍运行旧提交，先用 git log -1 --oneline 确认没有发布 ee724f4，不要只清浏览器缓存判断修复是否生效。
 
 执行数据库迁移和应用缓存刷新：
 

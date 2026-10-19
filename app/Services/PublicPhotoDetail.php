@@ -6,6 +6,7 @@ use App\Models\Album;
 use App\Models\Category;
 use App\Models\Comment;
 use App\Models\Photo;
+use App\Models\PhotoSimilarityCandidate;
 use App\Models\Tag;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -37,6 +38,7 @@ class PublicPhotoDetail
             'related' => [
                 'data' => $this->related($photo, $context),
             ],
+            'similar' => ['data' => $this->similar($photo)],
             'comments' => $this->comments($photo, $request),
         ];
     }
@@ -265,6 +267,23 @@ class PublicPhotoDetail
             ->map(fn (Photo $photo): array => $this->photoCard($photo, $context))
             ->values()
             ->all();
+    }
+
+    private function similar(Photo $photo): array
+    {
+        $candidates = PhotoSimilarityCandidate::query()
+            ->where(fn (Builder $query) => $query->where('photo_id', $photo->id)->orWhere('candidate_photo_id', $photo->id))
+            ->whereIn('status', ['pending_review', 'confirmed_duplicate'])
+            ->where('distance', '<=', PhotoSimilarityService::DISTANCE_THRESHOLD)
+            ->orderBy('distance')->orderBy('id')->get();
+        $ids = $candidates->map(fn ($candidate) => $candidate->photo_id === $photo->id
+            ? $candidate->candidate_photo_id : $candidate->photo_id)->unique()->all();
+
+        return $this->publicPhotosQuery()->whereIn('id', $ids)->get()
+            ->sortBy(fn (Photo $match) => array_search($match->id, $ids, true))
+            ->take(self::RELATED_LIMIT)
+            ->map(fn (Photo $match) => $this->photoCard($match, ['type' => 'gallery', 'summary' => ['slug' => null]]))
+            ->values()->all();
     }
 
     /**

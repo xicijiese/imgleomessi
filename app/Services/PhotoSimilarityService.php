@@ -21,14 +21,23 @@ class PhotoSimilarityService
         $results = PhotoAnalysisResult::query()
             ->where('photo_id', '!=', $photo->id)
             ->whereNotNull('perceptual_hash')
-            ->get(['photo_id', 'perceptual_hash']);
+            ->cursor();
 
         $count = 0;
 
         foreach ($results as $result) {
+            if (! preg_match('/^[a-f0-9]{16}$/i', (string) $result->perceptual_hash)) {
+                continue;
+            }
             $distance = $this->hammingDistance($perceptualHash, (string) $result->perceptual_hash);
 
             if ($distance > self::DISTANCE_THRESHOLD) {
+                $existing = PhotoSimilarityCandidate::query()
+                    ->where('photo_id', min($photo->id, (int) $result->photo_id))
+                    ->where('candidate_photo_id', max($photo->id, (int) $result->photo_id));
+                (clone $existing)->where('status', 'pending_review')->delete();
+                $existing->update(['distance' => $distance, 'similarity_score' => round((64 - $distance) / 64 * 100, 2)]);
+
                 continue;
             }
 
@@ -67,6 +76,8 @@ class PhotoSimilarityService
             'reviewed_at' => now(),
         ]);
 
+        app(PhotoSimilarityGovernance::class)->rebuildGroups();
+
         return $candidate->refresh();
     }
 
@@ -83,7 +94,7 @@ class PhotoSimilarityService
         }
 
         $contents = $storage->get($photo->original_key);
-        $hash = $this->dHash($contents);
+        $hash = $this->hashForContents($contents);
 
         PhotoAnalysisResult::query()->updateOrCreate(
             ['photo_id' => $photo->id],
@@ -97,7 +108,7 @@ class PhotoSimilarityService
         return $hash;
     }
 
-    private function dHash(string $contents): string
+    public function hashForContents(string $contents): string
     {
         if (! function_exists('imagecreatefromstring')) {
             throw new RuntimeException('当前 PHP 未启用 GD，无法生成相似图特征。');
@@ -136,14 +147,14 @@ class PhotoSimilarityService
 
     private function luminance(int $rgb): int
     {
-        $red = ($rgb >> 16) & 0xff;
-        $green = ($rgb >> 8) & 0xff;
-        $blue = $rgb & 0xff;
+        $red = ($rgb >> 16) & 0xFF;
+        $green = ($rgb >> 8) & 0xFF;
+        $blue = $rgb & 0xFF;
 
         return (int) round(($red * 299 + $green * 587 + $blue * 114) / 1000);
     }
 
-    private function hammingDistance(string $left, string $right): int
+    public function hammingDistance(string $left, string $right): int
     {
         $leftBinary = hex2bin($left);
         $rightBinary = hex2bin($right);

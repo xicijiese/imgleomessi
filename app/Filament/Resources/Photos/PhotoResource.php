@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Photos;
 
 use App\Filament\Resources\Photos\Pages\ManagePhotos;
-use App\Filament\Resources\PhotoSimilarityCandidates\PhotoSimilarityCandidateResource;
+use App\Filament\Resources\PhotoSimilarityGroups\PhotoSimilarityGroupResource;
 use App\Models\Album;
 use App\Models\Category;
 use App\Models\Photo;
@@ -400,8 +400,9 @@ class PhotoResource extends Resource
                     }),
                 Action::make('similarityCandidates')
                     ->label('查看相似候选')
-                    ->url(fn (Photo $record): string => PhotoSimilarityCandidateResource::getUrl(parameters: [
-                        'tableFilters' => [
+                    ->url(fn (Photo $record): string => PhotoSimilarityGroupResource::getUrl(parameters: [
+                        'tab' => 'candidates',
+                        'filters' => [
                             'photo' => [
                                 'photo_id' => $record->id,
                             ],

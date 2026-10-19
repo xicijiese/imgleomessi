@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Album;
 use App\Models\Category;
 use App\Models\Photo;
+use App\Models\PhotoSimilarityCandidate;
 use App\Models\Setting;
 use App\Models\Tag;
 use App\Services\HomepageSettings;
@@ -17,6 +18,30 @@ use Tests\TestCase;
 class PublicPhotoDetailTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_visual_recommendations_are_ordered_and_only_expose_public_eligible_candidates(): void
+    {
+        $photo = $this->publicPhoto('当前图');
+        $closest = $this->publicPhoto('最接近');
+        $farther = $this->publicPhoto('较接近');
+        $hidden = $this->publicPhoto('草稿', ['status' => 'draft']);
+        $restricted = $this->publicPhoto('受限', ['copyright_status' => 'restricted']);
+        $ignored = $this->publicPhoto('忽略');
+        $separate = $this->publicPhoto('独立');
+        foreach ([[$closest, 1, 'pending_review'], [$farther, 8, 'confirmed_duplicate'], [$hidden, 0, 'pending_review'], [$restricted, 0, 'pending_review'], [$ignored, 0, 'ignored'], [$separate, 0, 'kept_separate']] as [$match, $distance, $status]) {
+            PhotoSimilarityCandidate::query()->create([
+                'photo_id' => $photo->id, 'candidate_photo_id' => $match->id,
+                'distance' => $distance, 'similarity_score' => 90, 'status' => $status,
+            ]);
+        }
+        $this->get('/photos/'.$photo->uuid)->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('photoDetail.similar.data', 2)
+            ->where('photoDetail.similar.data.0.id', $closest->id)
+            ->where('photoDetail.similar.data.1.id', $farther->id)
+            ->missing('photoDetail.similar.data.0.original_key'));
+        $this->get('/photos/'.$closest->uuid)->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('photoDetail.similar.data.0.id', $photo->id));
+    }
 
     public function test_guest_can_visit_public_photo_detail_with_metadata(): void
     {

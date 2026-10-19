@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
+import SimilarPhotoGrid from '@/components/SimilarPhotoGrid.vue';
 import type { SeoPayload } from '@/types';
 import { Link, router } from '@inertiajs/vue3';
 import {
@@ -144,6 +145,7 @@ interface PhotoDetailPayload {
     related: {
         data: PhotoCard[];
     };
+    similar: { data: PhotoCard[] };
     comments: CommentsPayload;
 }
 
@@ -1083,7 +1085,9 @@ const showWechatQr = async () => {
                                 </div>
                                 <template v-if="photoDetail.photo.source">
                                     <a
-                                        :href="photoDetail.photo.source.source_url"
+                                        :href="
+                                            photoDetail.photo.source.source_url
+                                        "
                                         target="_blank"
                                         rel="noreferrer noopener"
                                         class="inline-flex items-center gap-2 break-all text-[#094067] hover:text-[#3da9fc]"
@@ -1518,6 +1522,24 @@ const showWechatQr = async () => {
                             还没有公开评论
                         </p>
                     </div>
+                </section>
+                <section class="mt-12" aria-labelledby="similar-photos-heading">
+                    <h2
+                        id="similar-photos-heading"
+                        class="mb-3 text-2xl font-semibold"
+                    >
+                        相似图片
+                    </h2>
+                    <p class="mb-5 text-sm text-[#5f6c7b]">
+                        按画面相似程度推荐，可帮助查找同一瞬间的其他版本。
+                    </p>
+                    <SimilarPhotoGrid
+                        v-if="photoDetail.similar.data.length"
+                        :photos="photoDetail.similar.data"
+                    />
+                    <p v-else class="text-sm text-[#5f6c7b]">
+                        暂无相似图片，仍可浏览下方相关推荐。
+                    </p>
                 </section>
                 <section
                     v-if="hasRelated"

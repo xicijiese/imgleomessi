@@ -4,7 +4,9 @@ namespace App\Providers;
 
 use App\Models\User;
 use App\Models\UserLoginHistory;
+use App\Services\QueueWorkerStatus;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Queue\Events\Looping;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -18,6 +20,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Event::listen(Looping::class, fn (Looping $event) => app(QueueWorkerStatus::class)->heartbeat($event));
+
         Event::listen(Login::class, function (Login $event): void {
             $user = $event->user;
 

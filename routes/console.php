@@ -1,9 +1,22 @@
 <?php
 
+use App\Models\PhotoImageSearch;
 use App\Models\User;
 use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Facades\Storage;
+
+Schedule::call(function (): void {
+    PhotoImageSearch::query()->where('expires_at', '<=', now())->each(function (PhotoImageSearch $search): void {
+        if ($search->temporary_path && Storage::disk('local')->exists($search->temporary_path)
+            && ! Storage::disk('local')->delete($search->temporary_path)) {
+            return;
+        }
+        $search->delete();
+    });
+})->hourly()->name('image-search-cleanup')->withoutOverlapping();
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

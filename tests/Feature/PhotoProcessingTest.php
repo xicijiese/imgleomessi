@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Filament\Resources\PhotoSimilarityCandidates\PhotoSimilarityCandidateResource;
+use App\Filament\Resources\PhotoSimilarityGroups\PhotoSimilarityGroupResource;
 use App\Filament\Resources\ProcessingJobs\ProcessingJobResource;
 use App\Jobs\ProcessPhotoAnalysisJob;
 use App\Models\Category;
@@ -554,7 +555,7 @@ class PhotoProcessingTest extends TestCase
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
 
         $this->get(PhotoSimilarityCandidateResource::getUrl())
-            ->assertOk();
+            ->assertRedirect(PhotoSimilarityGroupResource::getUrl(parameters: ['tab' => 'candidates', 'filters' => []]));
     }
 
     public function test_admin_can_visit_processing_job_resource(): void

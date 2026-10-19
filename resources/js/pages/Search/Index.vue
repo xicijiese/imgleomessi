@@ -133,7 +133,8 @@ const hasSearchIdeas = computed(
 const showSearchIdeas = computed(
     () =>
         hasSearchIdeas.value &&
-        (!props.search.filters.q.trim() || props.search.photos.meta.total === 0),
+        (!props.search.filters.q.trim() ||
+            props.search.photos.meta.total === 0),
 );
 const resultTitle = computed(() =>
     props.search.filters.q.trim()
@@ -169,6 +170,11 @@ const formatDate = (date: string | null) => date ?? '日期待补充';
                     <p class="mb-3 text-sm font-semibold text-[#3da9fc]">
                         Search
                     </p>
+                    <Link
+                        href="/search/image"
+                        class="mb-4 inline-block text-sm font-semibold underline underline-offset-4"
+                        >使用图片查找相似图片</Link
+                    >
                     <h1 class="text-4xl font-semibold sm:text-5xl">
                         {{ resultTitle }}
                     </h1>

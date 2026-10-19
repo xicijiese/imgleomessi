@@ -9,6 +9,7 @@ use App\Http\Controllers\PhotoCommentController;
 use App\Http\Controllers\PhotoDetailController;
 use App\Http\Controllers\PhotoFavoriteController;
 use App\Http\Controllers\PhotoGalleryController;
+use App\Http\Controllers\PhotoImageSearchController;
 use App\Http\Controllers\PhotoLikeController;
 use App\Http\Controllers\PhotoShareController;
 use App\Http\Controllers\PublicUserProfileController;
@@ -70,6 +71,9 @@ Route::middleware(['auth', EnsureFreshUserSession::class])->group(function (): v
     Route::post('/comments/{comment}/reports', [CommentReportController::class, 'store'])->name('comments.reports.store');
 });
 Route::get('/search/suggestions', SearchSuggestionController::class)->name('search.suggestions');
+Route::get('/search/image', [PhotoImageSearchController::class, 'index'])->name('search.image');
+Route::post('/search/image', [PhotoImageSearchController::class, 'store'])->middleware('throttle:6,1')->name('search.image.store');
+Route::get('/search/image/{id}', [PhotoImageSearchController::class, 'index'])->whereUuid('id')->name('search.image.result');
 Route::get('/search', SearchController::class)->name('search');
 Route::get('/users/{user}', [PublicUserProfileController::class, 'show'])->whereNumber('user')->name('users.show');
 Route::get('/teams', [DimensionArchiveController::class, 'teams'])->name('teams.index');
