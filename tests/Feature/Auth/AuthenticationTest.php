@@ -81,12 +81,15 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $this->post(route('login.store'), [
+        $response = $this->from(route('login'))->post(route('login.store'), [
             'email' => $user->email,
             'password' => 'wrong-password',
         ]);
 
         $this->assertGuest();
+        $response->assertSessionHasErrors([
+            'email' => '邮箱或密码错误，请检查后重试。',
+        ]);
     }
 
     public function test_users_can_logout()
