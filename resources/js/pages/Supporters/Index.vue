@@ -15,7 +15,6 @@ interface SupporterItem {
     avatar: string | null;
     display_name: string;
     badge_label: string;
-    total_amount_label: string;
     last_supported_at: string | null;
 }
 
@@ -58,7 +57,6 @@ interface SupportersPagePayload {
     };
     summary: {
         total_supporters: number;
-        total_amount_label: string;
         total_contributors: number;
     };
     supporters: PaginatedSupporters;
@@ -106,7 +104,7 @@ defineProps<{
                             {{ supportersPage.summary.total_supporters }}
                         </p>
                         <p class="mt-1 text-sm text-[#5f6c7b]">
-                            累计 {{ supportersPage.summary.total_amount_label }}
+                            感谢每一份支持
                         </p>
                     </div>
                     <div class="rounded-sm bg-[#fffffe] px-5 py-4 shadow-sm">
@@ -160,7 +158,6 @@ defineProps<{
                         <div
                             class="mt-5 rounded-sm bg-[#f7fbff] p-3 text-sm text-[#5f6c7b]"
                         >
-                            <p>累计支持 {{ supporter.total_amount_label }}</p>
                             <p class="mt-1">
                                 最近支持
                                 {{
@@ -202,10 +199,15 @@ defineProps<{
                 >
                     <div class="flex items-end justify-between gap-4">
                         <div>
-                            <h2 id="contributors-heading" class="text-2xl font-semibold">
+                            <h2
+                                id="contributors-heading"
+                                class="text-2xl font-semibold"
+                            >
                                 档案共建者
                             </h2>
-                            <p class="mt-2 max-w-2xl text-sm leading-6 text-[#5f6c7b]">
+                            <p
+                                class="mt-2 max-w-2xl text-sm leading-6 text-[#5f6c7b]"
+                            >
                                 他们用时间和资料整理能力，共同完善梅西影像档案。
                             </p>
                         </div>
@@ -216,7 +218,8 @@ defineProps<{
                         class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
                     >
                         <article
-                            v-for="contributor in supportersPage.contributors.data"
+                            v-for="contributor in supportersPage.contributors
+                                .data"
                             :key="contributor.id"
                             class="rounded-sm border border-[#90b4ce]/35 bg-[#fffffe] p-5 shadow-sm"
                         >
@@ -230,7 +233,11 @@ defineProps<{
                                         :alt="contributor.display_name"
                                         class="h-full w-full object-cover"
                                     />
-                                    <BookOpen v-else class="h-5 w-5" aria-hidden="true" />
+                                    <BookOpen
+                                        v-else
+                                        class="h-5 w-5"
+                                        aria-hidden="true"
+                                    />
                                 </div>
                                 <div class="min-w-0">
                                     <h3 class="truncate text-lg font-semibold">

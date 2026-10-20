@@ -3,8 +3,11 @@
 use App\Jobs\CleanPhotoSubmission;
 use App\Models\PhotoImageSearch;
 use App\Models\PhotoSubmission;
+use App\Models\ShareLink;
+use App\Models\ShareVisit;
 use App\Models\User;
 use App\Services\QueueWorkerStatus;
+use App\Services\SponsorshipMaintenance;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
@@ -84,13 +87,27 @@ Artisan::command('submissions:cleanup', function (): void {
 Schedule::command('submissions:cleanup')->hourly()->withoutOverlapping();
 
 Artisan::command('sharing:cleanup', function (): void {
-    $visits = \App\Models\ShareVisit::where('created_at', '<', now()->subDays(90))->delete();
+    $visits = ShareVisit::where('created_at', '<', now()->subDays(90))->delete();
     $files = 0;
-    \App\Models\ShareLink::whereNotNull('poster_path')->where('updated_at', '<', now()->subDays(90))->chunkById(100, function ($links) use (&$files): void {
+    ShareLink::whereNotNull('poster_path')->where('updated_at', '<', now()->subDays(90))->chunkById(100, function ($links) use (&$files): void {
         foreach ($links as $link) {
-            if (Storage::disk('local')->delete($link->poster_path)) { $link->update(['poster_path' => null, 'poster_status' => 'none']); $files++; }
+            if (Storage::disk('local')->delete($link->poster_path)) {
+                $link->update(['poster_path' => null, 'poster_status' => 'none']);
+                $files++;
+            }
         }
     });
     $this->info("已清理 {$visits} 条过期访问明细、{$files} 份过期海报；归因与去重记录保留。");
 })->purpose('清理 90 天前分享访问明细和海报缓存');
 Schedule::command('sharing:cleanup')->daily()->withoutOverlapping();
+
+Artisan::command('payments:reconcile', function (): void {
+    $count = app(SponsorshipMaintenance::class)->reconcile();
+    $this->info('已提交 '.$count.' 个真实订单补查任务。');
+})->purpose('补查最近一天的真实赞助待支付订单，排除模拟记录');
+Schedule::command('payments:reconcile')->everyFiveMinutes()->withoutOverlapping();
+Artisan::command('payments:remind', function (): void {
+    $count = app(SponsorshipMaintenance::class)->remind();
+    $this->info('已发送 '.$count.' 条到期提醒。');
+})->purpose('提前 7 天及 1 天发送一次支持身份到期站内提醒');
+Schedule::command('payments:remind')->hourly()->withoutOverlapping();

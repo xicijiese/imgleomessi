@@ -21,6 +21,7 @@ class PublicSponsorship
         return [
             ...$this->homepage->shell(),
             'seo' => $this->seo->support(),
+            'payment_enabled' => (bool) app(PaymentSettings::class)->formState()['enabled'],
             'plans' => SponsorshipPlan::query()
                 ->active()
                 ->orderBy('sort_order')
@@ -29,7 +30,7 @@ class PublicSponsorship
                 ->map(fn (SponsorshipPlan $plan): array => $this->planItem($plan))
                 ->all(),
             'auth' => [
-                'can_support' => $user instanceof User,
+                'can_support' => $user instanceof User && ($user->status ?? 'active') === 'active' && ! $user->isBanned(),
                 'is_supporter' => $user?->isSupporter() ?? false,
                 'supporter_until' => $user?->supporter_until?->format('Y-m-d H:i'),
             ],
@@ -65,7 +66,6 @@ class PublicSponsorship
             ->orderByDesc('id')
             ->paginate(24);
 
-        $totalAmount = SupporterProfile::query()->sum('total_amount_cents');
         $contributors = ContributorProfile::query()
             ->where('is_public', true)
             ->whereNull('revoked_at')
@@ -84,7 +84,6 @@ class PublicSponsorship
             'seo' => $this->seo->supporters(),
             'summary' => [
                 'total_supporters' => SupporterProfile::query()->where('total_amount_cents', '>', 0)->count(),
-                'total_amount_label' => $this->moneyLabel((int) $totalAmount),
                 'total_contributors' => $contributors->count(),
             ],
             'supporters' => $this->paginate($profiles, fn (SupporterProfile $profile): array => $this->supporterItem($profile)),
@@ -147,13 +146,18 @@ class PublicSponsorship
         return [
             'id' => $order->id,
             'order_no' => $order->order_no,
-            'plan_name' => $order->plan?->name ?? '已删除方案',
+            'plan_name' => $order->plan_snapshot['name'] ?? $order->plan?->name ?? '已删除方案',
             'amount_label' => $order->amountLabel(),
             'channel' => $order->channel,
             'channel_label' => $order->channelLabel(),
             'status' => $order->status,
             'status_label' => $order->statusLabel(),
-            'can_pay' => $order->canBePaid(),
+            'can_pay' => $order->canBePaid() && $order->channel === 'xunhu' && $order->qr_expires_at?->isFuture(),
+            'payment_url' => $order->channel === 'xunhu' && $order->status === 'pending' ? $order->payment_url : null,
+            'qr_url' => $order->channel === 'xunhu' && $order->status === 'pending' ? $order->qr_url : null,
+            'qr_expires_at' => $order->qr_expires_at?->toISOString(),
+            'payment_issue' => $order->payment_issue,
+            'refund_state' => $order->refund_state,
             'created_at' => $order->created_at?->format('Y-m-d H:i'),
             'paid_at' => $order->paid_at?->format('Y-m-d H:i'),
         ];
@@ -183,8 +187,7 @@ class PublicSponsorship
         return [
             'id' => $profile->id,
             'display_name' => $profile->displayName(),
-            'badge_label' => $profile->badgeLabel(),
-            'total_amount_label' => $this->moneyLabel($profile->total_amount_cents),
+            'badge_label' => $profile->user?->isSupporter() ? $profile->badgeLabel() : '历史支持者',
             'last_supported_at' => $profile->last_supported_at?->format('Y-m-d'),
         ];
     }
@@ -199,6 +202,7 @@ class PublicSponsorship
             'contribution_focus' => $profile->contribution_focus,
         ];
     }
+
     /**
      * @template TModel
      *

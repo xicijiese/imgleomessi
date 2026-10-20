@@ -4,6 +4,7 @@ use App\Http\Middleware\AwardAnniversaryBadges;
 use App\Http\Middleware\EnsureFreshUserSession;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\MergeShareIdentity;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,12 +17,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->validateCsrfTokens(except: ['payments/xunhu/notify']);
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->web(append: [
             EnsureFreshUserSession::class,
             AwardAnniversaryBadges::class,
-            \App\Http\Middleware\MergeShareIdentity::class,
+            MergeShareIdentity::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

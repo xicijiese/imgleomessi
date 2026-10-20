@@ -41,6 +41,7 @@ interface SupportPayload {
         links: NavigationItem[];
         social_links: NavigationItem[];
     };
+    payment_enabled: boolean;
     plans: PlanItem[];
     auth: {
         can_support: boolean;
@@ -49,11 +50,12 @@ interface SupportPayload {
     };
 }
 
-const props = defineProps<{
+defineProps<{
     support: SupportPayload;
 }>();
 
 const processingPlanId = ref<number | null>(null);
+const error = ref('');
 
 const createOrder = (plan: PlanItem) => {
     processingPlanId.value = plan.id;
@@ -62,6 +64,10 @@ const createOrder = (plan: PlanItem) => {
         { plan_id: plan.id },
         {
             preserveScroll: false,
+            onError: (errors) => {
+                error.value =
+                    Object.values(errors)[0] ?? '订单创建失败，请稍后重试。';
+            },
             onFinish: () => {
                 processingPlanId.value = null;
             },
@@ -72,6 +78,9 @@ const createOrder = (plan: PlanItem) => {
 
 <template>
     <SeoHead :seo="support.seo" />
+    <p v-if="error" role="alert" class="bg-red-50 p-4 text-red-700">
+        {{ error }}
+    </p>
 
     <main class="min-h-screen bg-[#fffffe] text-[#094067]">
         <PublicHeader :navigation="support.navigation" :site="support.site" />
@@ -95,7 +104,7 @@ const createOrder = (plan: PlanItem) => {
                         赞助只用于支持资料整理、服务器、存储和后续功能维护，不代表购买图片版权，也不会解锁原图下载权益。
                     </p>
                     <p
-                        class="mt-3 max-w-2xl text-sm font-semibold leading-7 text-[#3d7aa3] sm:text-base"
+                        class="mt-3 max-w-2xl text-sm leading-7 font-semibold text-[#3d7aa3] sm:text-base"
                     >
                         运营成本之外的结余，将用于捐赠给公益机构；相关捐赠信息会在条件允许时公开。
                     </p>
@@ -110,9 +119,15 @@ const createOrder = (plan: PlanItem) => {
                             aria-hidden="true"
                         />
                         <div>
-                            <p class="font-semibold">P1 模拟支付阶段</p>
+                            <p class="font-semibold">
+                                {{
+                                    support.payment_enabled
+                                        ? '微信支付'
+                                        : '微信收款暂未开放'
+                                }}
+                            </p>
                             <p class="mt-1 text-sm text-[#5f6c7b]">
-                                本阶段不接真实微信/支付宝接口。
+                                仅限正常登录用户自愿赞助，不自动扣款；退款请通过站点联系方式申请。
                             </p>
                         </div>
                     </div>
@@ -120,7 +135,8 @@ const createOrder = (plan: PlanItem) => {
                         v-if="support.auth.is_supporter"
                         class="mt-4 rounded-sm bg-[#d8eefe] p-3 text-sm font-semibold text-[#094067]"
                     >
-                        你已是运营守护者<span v-if="support.auth.supporter_until"
+                        你已是运营守护者<span
+                            v-if="support.auth.supporter_until"
                             >，有效期至 {{ support.auth.supporter_until }}</span
                         >
                     </div>
@@ -128,13 +144,17 @@ const createOrder = (plan: PlanItem) => {
             </div>
         </section>
 
-        <section class="border-b border-[#90b4ce]/30 px-4 py-10 sm:px-6 lg:px-8">
+        <section
+            class="border-b border-[#90b4ce]/30 px-4 py-10 sm:px-6 lg:px-8"
+        >
             <div class="mx-auto max-w-7xl">
                 <div class="max-w-3xl">
                     <h2 class="text-2xl font-semibold sm:text-3xl">
                         参与档案库的两种方式
                     </h2>
-                    <p class="mt-3 text-sm leading-7 text-[#5f6c7b] sm:text-base">
+                    <p
+                        class="mt-3 text-sm leading-7 text-[#5f6c7b] sm:text-base"
+                    >
                         影像档案的长期整理，既需要运营成本，也需要愿意投入时间和资料的同行者。你可以按自己的方式参与，共同让这些记忆更完整。
                     </p>
                 </div>
@@ -216,7 +236,10 @@ const createOrder = (plan: PlanItem) => {
                             v-if="support.auth.can_support"
                             type="button"
                             class="mt-auto inline-flex h-11 items-center justify-center rounded-sm bg-[#094067] px-5 text-sm font-semibold text-[#fffffe] transition hover:bg-[#3da9fc] disabled:cursor-wait disabled:opacity-70"
-                            :disabled="processingPlanId !== null"
+                            :disabled="
+                                processingPlanId !== null ||
+                                !support.payment_enabled
+                            "
                             @click="createOrder(plan)"
                         >
                             {{

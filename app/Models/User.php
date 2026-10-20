@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
 class User extends Authenticatable implements FilamentUser
@@ -194,11 +195,11 @@ class User extends Authenticatable implements FilamentUser
         $modelClass = is_object($model) ? $model::class : $model;
 
         return in_array($modelClass, [
-            \App\Models\Album::class,
-            \App\Models\Category::class,
-            \App\Models\Photo::class,
-            \App\Models\Tag::class,
-            \App\Models\PhotoSubmission::class,
+            Album::class,
+            Category::class,
+            Photo::class,
+            Tag::class,
+            PhotoSubmission::class,
         ], true);
     }
 
@@ -213,7 +214,12 @@ class User extends Authenticatable implements FilamentUser
 
     public function isSupporter(): bool
     {
-        return $this->supporter_until?->isFuture() === true || $this->supporterProfile()->exists();
+        if ($this->supporter_until?->isFuture()) {
+            return true;
+        }
+        $account = DB::table('sponsorship_accounts')->where('user_id', $this->id)->first();
+
+        return $account ? (bool) $account->legacy_permanent : ($this->supporter_until === null && $this->supporterProfile()->exists());
     }
 
     public function ban(?string $reason = null, ?string $note = null, mixed $until = null): bool

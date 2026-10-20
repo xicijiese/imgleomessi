@@ -2072,3 +2072,30 @@ Ctrl+F5 强制刷新，检查：
 6. 图片、相册、专题分享指向正确内容；COS图片读取、手机扫码/保存和微信浏览器环境现场验证。
 
 公众号目前无自定义分享接口权限，本轮不配置微信密钥、白名单或消息推送，也不把微信卡片外观当作已接入 SDK 的验收项。异常时查看队列失败记录与 `storage/logs/laravel.log`，不要批量重跑全部历史失败任务。回退代码时保留已有业务表和审计，不直接 migrate:rollback 删除数据。
+
+
+## 真实支付代码增量发布与渠道联调（2026-10-20）
+
+此节只发布本地实现，不代表虎皮椒 xunhuweb 收款已经联调通过。保持支付设置中的收款开关关闭；未取得该特定渠道查询/退款和响应签名样本前，不填猜测地址、不对外开放收款。当前公网回调路径为 `/payments/xunhu/notify`，必须经正式 HTTPS 域名公开可达，不加登录/验证码；只对此路径精确免 CSRF，不能关闭全站防护。银行手续费/结算账单不属于本站交易核对结果。
+
+沿用现有不停站更新方式：本地测试通过后再由用户提交/推送，生产先备份数据库，再拉取对应提交。随后执行：
+
+```bash
+cd /www/wwwroot/img.leomessi.cn
+COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload --no-dev --optimize --no-scripts
+/www/server/php/83/bin/php artisan optimize:clear
+/www/server/php/83/bin/php artisan migrate --path=database/migrations/2026_10_20_000003_add_real_sponsorship_payments.php --force
+/www/server/php/83/bin/php artisan migrate:status
+npm run build
+/www/server/php/83/bin/php artisan filament:cache-components
+/www/server/php/83/bin/php artisan config:cache
+/www/server/php/83/bin/php artisan route:cache
+/www/server/php/83/bin/php artisan view:cache
+/www/server/php/83/bin/php artisan schedule:list
+```
+
+此迁移新增订单字段及三张表，不改历史业务字段；不跑 Seeder、不回填模拟为真实，不通过 rollback 删除真实支付审计。密钥与订单凭据依赖 APP_KEY，不能随意重新生成 APP_KEY。商户配置在后台“系统设置 → 支付设置”，不需要额外新增支付环境变量；现有 APP_URL 已是正式 HTTPS 域名则无需改动。
+
+宝塔重启本站原有 Worker 即可，继续使用原 `redis --queue=high,default,low --sleep=3 --tries=3 --timeout=120 --max-time=3600` 命令。既有每分钟 schedule:run 任务不修改、不另建重复调度；schedule:list 应出现每5分钟 payments:reconcile 和每小时 payments:remind。补查每笔投递独立30秒任务，资金请求不自动重试；提醒去重，续费按新日期重新提醒。
+
+默认关闭时验收 `/support` 禁用付款、无模拟按钮、历史订单可查、公开墙无金额、后台只有管理员可操作、真实报表排除模拟。取得实际渠道接口样本并完成签名适配后，站长使用最小金额独立验证下单、平台真实到账、重复/延迟通知、查询补单、整单原路退款、身份及勋章撤回；付款或退款超时先核对渠道记录，不能重复提交。真实测试操作需站长执行；本地自动测试均使用 HTTP fake，不产生资金。

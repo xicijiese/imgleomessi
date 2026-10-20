@@ -5,6 +5,7 @@ use App\Http\Controllers\AlbumIndexController;
 use App\Http\Controllers\CommentReportController;
 use App\Http\Controllers\DimensionArchiveController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\PaymentReportController;
 use App\Http\Controllers\PhotoCommentController;
 use App\Http\Controllers\PhotoDetailController;
 use App\Http\Controllers\PhotoFavoriteController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\RankingController;
 use App\Http\Controllers\RobotsController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SearchSuggestionController;
+use App\Http\Controllers\SharePromotionController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SponsorshipOrderController;
 use App\Http\Controllers\StaticPageController;
@@ -34,19 +36,19 @@ use App\Http\Controllers\UserFavoriteController;
 use App\Http\Controllers\UserNotificationController;
 use App\Http\Controllers\UserReportController;
 use App\Http\Controllers\UserSponsorshipController;
+use App\Http\Controllers\XunhuPaymentController;
 use App\Http\Middleware\EnsureFreshUserSession;
 use Illuminate\Support\Facades\Route;
 
-
-Route::post('/sharing/links', [\App\Http\Controllers\SharePromotionController::class, 'create'])->middleware('throttle:30,1');
-Route::post('/sharing/{code}/operation', [\App\Http\Controllers\SharePromotionController::class, 'operation'])->middleware('throttle:30,1');
-Route::get('/s/{code}', [\App\Http\Controllers\SharePromotionController::class, 'landing'])->middleware('throttle:120,1');
-Route::post('/sharing/visits', [\App\Http\Controllers\SharePromotionController::class, 'start'])->middleware('throttle:60,1');
-Route::post('/sharing/visits/{id}/tick', [\App\Http\Controllers\SharePromotionController::class, 'tick'])->whereUuid('id')->middleware('throttle:120,1');
-Route::post('/sharing/{code}/poster', [\App\Http\Controllers\SharePromotionController::class, 'poster'])->middleware('throttle:10,1');
-Route::get('/sharing/{code}/poster', [\App\Http\Controllers\SharePromotionController::class, 'posterStatus'])->middleware('throttle:120,1');
-Route::get('/sharing/{code}/poster/image', [\App\Http\Controllers\SharePromotionController::class, 'posterImage']);
-Route::get('/me/shares', [\App\Http\Controllers\SharePromotionController::class, 'index'])->middleware(['auth', EnsureFreshUserSession::class])->name('me.shares.index');
+Route::post('/sharing/links', [SharePromotionController::class, 'create'])->middleware('throttle:30,1');
+Route::post('/sharing/{code}/operation', [SharePromotionController::class, 'operation'])->middleware('throttle:30,1');
+Route::get('/s/{code}', [SharePromotionController::class, 'landing'])->middleware('throttle:120,1');
+Route::post('/sharing/visits', [SharePromotionController::class, 'start'])->middleware('throttle:60,1');
+Route::post('/sharing/visits/{id}/tick', [SharePromotionController::class, 'tick'])->whereUuid('id')->middleware('throttle:120,1');
+Route::post('/sharing/{code}/poster', [SharePromotionController::class, 'poster'])->middleware('throttle:10,1');
+Route::get('/sharing/{code}/poster', [SharePromotionController::class, 'posterStatus'])->middleware('throttle:120,1');
+Route::get('/sharing/{code}/poster/image', [SharePromotionController::class, 'posterImage']);
+Route::get('/me/shares', [SharePromotionController::class, 'index'])->middleware(['auth', EnsureFreshUserSession::class])->name('me.shares.index');
 
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 Route::get('/robots.txt', RobotsController::class)->name('robots');
@@ -80,8 +82,10 @@ Route::middleware(['auth', EnsureFreshUserSession::class])->group(function (): v
     Route::get('/me/badges', [UserBadgeController::class, 'index'])->name('me.badges.index');
     Route::patch('/me/badges/{badge}/equip', [UserBadgeController::class, 'equip'])->name('me.badges.equip');
     Route::patch('/me/sponsorships/profile', [UserSponsorshipController::class, 'updateProfile'])->name('me.sponsorships.profile');
+    Route::get('/admin/payment-report', PaymentReportController::class)->name('admin.payment-report');
     Route::get('/support/result', SupportResultController::class)->name('support.result');
     Route::post('/support/orders', [SponsorshipOrderController::class, 'store'])->name('support.orders.store');
+    Route::post('/support/orders/{order}/check', [XunhuPaymentController::class, 'check'])->middleware('throttle:12,1')->name('support.orders.check');
     Route::post('/support/orders/{order}/mock-pay', [SponsorshipOrderController::class, 'mockPay'])->name('support.orders.mock-pay');
     Route::post('/photos/{uuid}/favorite', [PhotoFavoriteController::class, 'store'])->name('photos.favorite.store');
     Route::delete('/photos/{uuid}/favorite', [PhotoFavoriteController::class, 'destroy'])->name('photos.favorite.destroy');
@@ -119,3 +123,5 @@ Route::get('dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 require __DIR__.'/settings.php';
+
+Route::post('/payments/xunhu/notify', [XunhuPaymentController::class, 'notify'])->middleware('throttle:120,1')->name('payments.xunhu.notify');

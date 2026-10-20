@@ -40,6 +40,7 @@ class SponsorshipService
 
     public function markPaid(SponsorshipOrder $order, string $channel = 'mock', ?User $operator = null, ?string $note = null): SponsorshipOrder
     {
+        abort_if($order->channel === 'xunhu', 422);
         if (! $order->canBePaid()) {
             return $order;
         }
@@ -79,6 +80,7 @@ class SponsorshipService
 
     public function close(SponsorshipOrder $order, ?User $operator = null, ?string $note = null): SponsorshipOrder
     {
+        abort_if($order->channel === 'xunhu', 422);
         if ($order->status !== 'pending') {
             return $order;
         }
@@ -96,6 +98,7 @@ class SponsorshipService
 
     public function refund(SponsorshipOrder $order, ?User $operator = null, ?string $note = null): SponsorshipOrder
     {
+        abort_if($order->channel === 'xunhu', 422);
         if ($order->status !== 'paid') {
             return $order;
         }

@@ -5,11 +5,13 @@ namespace App\Filament\Pages;
 use App\Models\Album;
 use App\Models\Category;
 use App\Models\Photo;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\HomepageSettings;
+use App\Services\PaymentSettings;
 use App\Services\PhotoStorage;
-use App\Services\StorageSettings;
 use App\Services\StorageLaunchCheck;
+use App\Services\StorageSettings;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\BaseFileUpload;
@@ -25,6 +27,7 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -35,11 +38,11 @@ use UnitEnum;
 
 class SystemSettings extends Page
 {
-
     public static function canAccess(): bool
     {
         return auth()->user()?->isAdministrator() ?? false;
     }
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCog6Tooth;
 
     protected static string|UnitEnum|null $navigationGroup = '系统运维';
@@ -63,7 +66,7 @@ class SystemSettings extends Page
     {
         $this->form->fill(array_replace_recursive(
             $settings->formState(),
-            ['storage' => $storageSettings->formState(), 'sharing' => \App\Models\Setting::value('sharing', 'defaults', [])],
+            ['storage' => $storageSettings->formState(), 'payment' => app(PaymentSettings::class)->formState(), 'sharing' => Setting::value('sharing', 'defaults', [])],
         ));
     }
 
@@ -357,11 +360,19 @@ class SystemSettings extends Page
                                     ->reorderable()
                                     ->addActionLabel('添加社媒'),
                             ]),
+                        Tab::make('支付设置')->schema([
+                            Toggle::make('payment.enabled')->label('开放微信收款')->helperText('关闭后仍处理旧订单通知。先完成渠道联调再开放。'),
+                            TextInput::make('payment.appid')->label('虎皮椒渠道 APPID')->maxLength(100),
+                            TextInput::make('payment.secret')->label('渠道密钥')->password()->autocomplete('new-password')->helperText('留空保留原密钥；旧订单加密保存原凭据，不随换密钥失效。'),
+                            TextInput::make('payment.gateway')->label('下单网关')->url(),
+                            TextInput::make('payment.query_gateway')->label('查询接口')->url()->helperText('仅填写该渠道确认的地址；不要根据下单地址猜测。'),
+                            TextInput::make('payment.refund_gateway')->label('退款接口')->url()->helperText('原路整单退款；接口及签名协议须由渠道确认。'),
+                        ]),
                         Tab::make('分享推广')->schema([
                             TextInput::make('sharing.title')->label('网站宣传标题')->maxLength(80),
                             Textarea::make('sharing.description')->label('网站宣传摘要')->maxLength(200),
                             self::settingImageUpload('sharing.cover_path', '网站宣传封面', 'settings/sharing'),
-                            \Filament\Schemas\Components\Text::make('当前公众号没有自定义分享权限，微信 JS-SDK 暂缓。链接、二维码、海报及推广统计正常使用。'),
+                            Text::make('当前公众号没有自定义分享权限，微信 JS-SDK 暂缓。链接、二维码、海报及推广统计正常使用。'),
                         ]),
                         Tab::make('存储与处理')
                             ->schema([
@@ -445,7 +456,7 @@ class SystemSettings extends Page
 
                 return is_string($path) ? $path : null;
             })
-            ->getUploadedFileUsing(function (BaseFileUpload $component, string $file, string | array | null $storedFileNames): ?array {
+            ->getUploadedFileUsing(function (BaseFileUpload $component, string $file, string|array|null $storedFileNames): ?array {
                 $storage = app(PhotoStorage::class);
                 $disk = $storage->diskForKey($file);
 
@@ -471,7 +482,7 @@ class SystemSettings extends Page
                     'url' => Str::sanitizeUrl($storage->url($file)),
                 ];
             })
-            ->deleteUploadedFileUsing(function (string | TemporaryUploadedFile $file): void {
+            ->deleteUploadedFileUsing(function (string|TemporaryUploadedFile $file): void {
                 if ($file instanceof TemporaryUploadedFile) {
                     return;
                 }
@@ -484,8 +495,10 @@ class SystemSettings extends Page
     {
         $state = $this->form->getState();
         $settings->save($state, $this->currentUser());
-        \App\Models\Setting::setValue('sharing', 'defaults', $state['sharing'] ?? [], $this->currentUser(), '网站分享默认内容');
+        Setting::setValue('sharing', 'defaults', $state['sharing'] ?? [], $this->currentUser(), '网站分享默认内容');
         $storageSettings->save($state['storage'] ?? [], $this->currentUser());
+        app(PaymentSettings::class)->save($state['payment'] ?? [], $this->currentUser());
+        $this->data['payment'] = app(PaymentSettings::class)->formState();
 
         Notification::make()
             ->title('首页与存储设置已保存')

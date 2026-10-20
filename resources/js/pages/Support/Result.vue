@@ -2,7 +2,7 @@
 import PublicHeader from '@/components/PublicHeader.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { CheckCircle2, Clock3, HeartHandshake } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 interface NavigationItem {
     label: string;
@@ -15,9 +15,15 @@ interface OrderItem {
     plan_name: string;
     amount_label: string;
     channel_label: string;
+    channel: string;
     status: string;
     status_label: string;
     can_pay: boolean;
+    payment_url: string | null;
+    qr_url: string | null;
+    qr_expires_at: string | null;
+    payment_issue: string | null;
+    refund_state: string | null;
     created_at: string | null;
     paid_at: string | null;
 }
@@ -44,23 +50,51 @@ const props = defineProps<{
 
 const processing = ref(false);
 
-const mockPay = () => {
-    if (!props.supportResult.order) {
-        return;
-    }
-
+const wechat = ref(false);
+const mobile = ref(false);
+const ticks = ref(Date.now());
+const expired = computed(
+    () =>
+        !props.supportResult.order?.qr_expires_at ||
+        ticks.value >= Date.parse(props.supportResult.order.qr_expires_at),
+);
+let timer: ReturnType<typeof setInterval> | undefined;
+const checkPayment = () => {
+    if (!props.supportResult.order || processing.value) return;
     processing.value = true;
     router.post(
-        `/support/orders/${props.supportResult.order.id}/mock-pay`,
+        `/support/orders/${props.supportResult.order.id}/check`,
         {},
         {
-            preserveScroll: false,
+            preserveScroll: true,
             onFinish: () => {
                 processing.value = false;
             },
         },
     );
 };
+onMounted(() => {
+    wechat.value = /MicroMessenger/i.test(navigator.userAgent);
+    mobile.value = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+    const started = Date.now();
+    let seconds = 0;
+    timer = setInterval(() => {
+        ticks.value = Date.now();
+        seconds++;
+        if (
+            seconds % 10 === 0 &&
+            Date.now() - started < 600000 &&
+            !document.hidden &&
+            props.supportResult.order?.channel === 'xunhu' &&
+            props.supportResult.order.status === 'pending' &&
+            !props.supportResult.order.payment_issue
+        )
+            checkPayment();
+    }, 1000);
+});
+onUnmounted(() => {
+    if (timer) clearInterval(timer);
+});
 </script>
 
 <template>
@@ -109,14 +143,66 @@ const mockPay = () => {
                                 <p class="mt-1 text-sm text-[#5f6c7b]">
                                     {{
                                         supportResult.order.status === 'paid'
-                                            ? '感谢你的支持，运营守护者身份已经更新。'
-                                            : 'P1 阶段使用模拟支付按钮完成流程验收。'
+                                            ? '感谢你的支持，订单已入账。一次性支持仅保留历史记录。'
+                                            : '支付结果以渠道核对为准，返回本页不代表已经支付。'
                                     }}
                                 </p>
                             </div>
                         </div>
                     </div>
 
+                    <p
+                        v-if="supportResult.order.payment_issue"
+                        role="status"
+                        class="text-sm leading-6 text-[#5f6c7b]"
+                    >
+                        {{ supportResult.order.payment_issue }}
+                    </p>
+                    <p v-if="supportResult.order.refund_state" class="text-sm">
+                        退款进度：{{
+                            {
+                                completed: '已退款',
+                                processing: '渠道处理中',
+                                unknown: '待确认，请勿重复申请',
+                                failed: '退款失败，请联系管理员',
+                            }[supportResult.order.refund_state] ?? '待核查'
+                        }}
+                    </p>
+                    <div
+                        v-if="supportResult.order.status === 'pending'"
+                        class="space-y-4"
+                    >
+                        <p v-if="wechat" class="rounded-sm bg-[#d8eefe] p-4">
+                            请点击微信右上角菜单，在系统浏览器打开本页完成支付。
+                        </p>
+                        <p v-else-if="expired" class="text-sm text-[#5f6c7b]">
+                            支付入口已过期。已支付请查询结果，未支付请返回方案页重新发起；旧订单仍接收支付通知。
+                        </p>
+                        <template v-else>
+                            <a
+                                v-if="mobile && supportResult.order.payment_url"
+                                :href="supportResult.order.payment_url"
+                                rel="noreferrer"
+                                class="inline-flex rounded-sm bg-[#094067] px-5 py-3 font-semibold text-white"
+                                >前往微信支付</a
+                            >
+                            <div
+                                v-else-if="supportResult.order.qr_url"
+                                class="space-y-2"
+                            >
+                                <img
+                                    :src="supportResult.order.qr_url"
+                                    alt="微信支付二维码"
+                                    referrerpolicy="no-referrer"
+                                    class="h-56 w-56 object-contain"
+                                />
+                                <p class="text-sm text-[#5f6c7b]">
+                                    请使用微信扫一扫；二维码约 5
+                                    分钟有效。请勿重复付款。
+                                </p>
+                            </div>
+                        </template>
+                    </div>
                     <dl class="grid gap-3 text-sm sm:grid-cols-2">
                         <div class="rounded-sm border border-[#90b4ce]/30 p-4">
                             <dt class="text-[#5f6c7b]">订单号</dt>
@@ -146,13 +232,16 @@ const mockPay = () => {
 
                     <div class="flex flex-wrap gap-3">
                         <button
-                            v-if="supportResult.order.can_pay"
+                            v-if="
+                                supportResult.order.status === 'pending' &&
+                                supportResult.order.channel === 'xunhu'
+                            "
                             type="button"
                             class="inline-flex h-11 items-center justify-center rounded-sm bg-[#094067] px-5 text-sm font-semibold text-[#fffffe] transition hover:bg-[#3da9fc] disabled:cursor-wait disabled:opacity-70"
                             :disabled="processing"
-                            @click="mockPay"
+                            @click="checkPayment"
                         >
-                            {{ processing ? '模拟支付中' : '模拟支付成功' }}
+                            {{ processing ? '正在核对' : '我已支付，查询结果' }}
                         </button>
                         <Link
                             href="/me/sponsorships"

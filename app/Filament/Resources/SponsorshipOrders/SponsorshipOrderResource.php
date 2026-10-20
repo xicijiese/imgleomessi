@@ -6,17 +6,19 @@ use App\Filament\Resources\SponsorshipOrders\Pages\ManageSponsorshipOrders;
 use App\Models\SponsorshipOrder;
 use App\Models\SponsorshipPlan;
 use App\Models\User;
-use App\Services\SponsorshipService;
+use App\Services\RealSponsorshipService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use UnitEnum;
@@ -59,14 +61,14 @@ class SponsorshipOrderResource extends Resource
                 Select::make('channel')
                     ->label('渠道')
                     ->options(SponsorshipOrder::CHANNELS)
-                    ->required(),
+                    ->disabled(),
                 Select::make('status')
                     ->label('状态')
                     ->options(SponsorshipOrder::STATUSES)
-                    ->required(),
+                    ->disabled(),
                 TextInput::make('transaction_id')
                     ->label('交易号')
-                    ->maxLength(255),
+                    ->disabled(),
                 Textarea::make('admin_note')
                     ->label('内部备注')
                     ->rows(4)
@@ -102,6 +104,8 @@ class SponsorshipOrderResource extends Resource
                 TextColumn::make('channel')
                     ->label('渠道')
                     ->formatStateUsing(fn (string $state): string => SponsorshipOrder::CHANNELS[$state] ?? $state),
+                TextColumn::make('refund_state')->label('退款进度')->formatStateUsing(fn (string $state): string => SponsorshipOrder::REFUND_STATES[$state] ?? $state)->placeholder('无退款'),
+                TextColumn::make('payment_issue')->label('待核查事项')->limit(40)->wrap(),
                 TextColumn::make('paid_at')
                     ->label('支付时间')
                     ->dateTime('Y-m-d H:i')
@@ -113,6 +117,7 @@ class SponsorshipOrderResource extends Resource
                     ->sortable(),
             ])
             ->filters([
+                Filter::make('needs_review')->label('待核查')->query(fn ($query) => $query->whereNotNull('payment_issue')),
                 SelectFilter::make('status')
                     ->label('状态')
                     ->options(SponsorshipOrder::STATUSES),
@@ -123,40 +128,23 @@ class SponsorshipOrderResource extends Resource
             ->defaultSort('created_at', 'desc')
             ->recordActions([
                 EditAction::make()
-                    ->label('备注/状态'),
-                Action::make('markPaid')
-                    ->label('标记已支付')
-                    ->color('success')
-                    ->visible(fn (SponsorshipOrder $record): bool => $record->status === 'pending')
-                    ->requiresConfirmation()
-                    ->form([
-                        Textarea::make('admin_note')
-                            ->label('内部备注')
-                            ->rows(3),
-                    ])
-                    ->action(fn (SponsorshipOrder $record, array $data): SponsorshipOrder => app(SponsorshipService::class)->markPaid($record, 'manual', auth()->user() instanceof User ? auth()->user() : null, $data['admin_note'] ?? null)),
-                Action::make('close')
-                    ->label('关闭')
-                    ->color('warning')
-                    ->visible(fn (SponsorshipOrder $record): bool => $record->status === 'pending')
-                    ->requiresConfirmation()
-                    ->form([
-                        Textarea::make('admin_note')
-                            ->label('内部备注')
-                            ->rows(3),
-                    ])
-                    ->action(fn (SponsorshipOrder $record, array $data): SponsorshipOrder => app(SponsorshipService::class)->close($record, auth()->user() instanceof User ? auth()->user() : null, $data['admin_note'] ?? null)),
+                    ->label('内部备注'),
+                Action::make('checkPayment')
+                    ->label('向渠道核对')->icon(Heroicon::OutlinedArrowPath)
+                    ->visible(fn (SponsorshipOrder $record): bool => $record->channel === 'xunhu')
+                    ->action(function (SponsorshipOrder $record): void {
+                        $order = app(RealSponsorshipService::class)->query($record, auth()->user());
+                        Notification::make()->title($order->payment_issue ?: '渠道订单核对完成')->send();
+                    }),
                 Action::make('refund')
-                    ->label('标记退款')
-                    ->color('danger')
-                    ->visible(fn (SponsorshipOrder $record): bool => $record->status === 'paid')
-                    ->requiresConfirmation()
-                    ->form([
-                        Textarea::make('admin_note')
-                            ->label('内部备注')
-                            ->rows(3),
-                    ])
-                    ->action(fn (SponsorshipOrder $record, array $data): SponsorshipOrder => app(SponsorshipService::class)->refund($record, auth()->user() instanceof User ? auth()->user() : null, $data['admin_note'] ?? null)),
+                    ->label('整单原路退款')->icon(Heroicon::OutlinedArrowUturnLeft)->color('danger')
+                    ->visible(fn (SponsorshipOrder $record): bool => $record->channel === 'xunhu' && $record->status === 'paid' && in_array($record->refund_state, [null, 'failed'], true))
+                    ->requiresConfirmation()->modalDescription('将实际退还本订单全部款项，并在渠道确认后撤回该订单权益及对应赞助勋章。未知结果禁止重复提交。')
+                    ->schema([Textarea::make('admin_note')->label('退款原因')->required()->maxLength(80)])
+                    ->action(function (SponsorshipOrder $record, array $data): void {
+                        $order = app(RealSponsorshipService::class)->refund($record, auth()->user(), $data['admin_note']);
+                        Notification::make()->title($order->payment_issue ?: ($order->status === 'refunded' ? '退款已确认' : '等待渠道确认退款'))->send();
+                    }),
             ]);
     }
 

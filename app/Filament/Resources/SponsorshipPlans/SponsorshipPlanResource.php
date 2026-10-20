@@ -51,12 +51,12 @@ class SponsorshipPlanResource extends Resource
                     ->unique(ignoreRecord: true),
                 TextInput::make('amount_cents')
                     ->label('金额（分）')
-                    ->numeric()
+                    ->numeric()->integer()->maxValue(99999999)
                     ->minValue(1)
                     ->required(),
                 TextInput::make('duration_days')
                     ->label('运营守护者天数')
-                    ->numeric()
+                    ->numeric()->integer()->minValue(1)->maxValue(36500)
                     ->helperText('留空表示一次性支持，不延长有效期。'),
                 Select::make('badge_level')
                     ->label('徽章等级')

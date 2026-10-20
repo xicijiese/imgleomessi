@@ -50,7 +50,7 @@ class SponsorshipTest extends TestCase
         $this->get('/me/sponsorships')->assertRedirect(route('login'));
     }
 
-    public function test_user_can_create_mock_order_and_complete_supporter_identity(): void
+    public function test_legacy_mock_order_can_be_verified_in_local_testing_only(): void
     {
         $user = User::factory()->create(['name' => '支持者用户']);
         $plan = $this->plan('年度支持', 'annual-support', 9900, [
@@ -58,9 +58,7 @@ class SponsorshipTest extends TestCase
             'badge_level' => 'gold',
         ]);
 
-        $this->actingAs($user)
-            ->post('/support/orders', ['plan_id' => $plan->id])
-            ->assertRedirect();
+        app(SponsorshipService::class)->createOrder($user, $plan);
 
         $order = SponsorshipOrder::query()->firstOrFail();
         $this->assertSame('pending', $order->status);
@@ -161,7 +159,7 @@ class SponsorshipTest extends TestCase
                 ->component('Supporters/Index')
                 ->has('supportersPage.supporters.data', 1)
                 ->where('supportersPage.supporters.data.0.display_name', '公开支持者')
-                ->where('supportersPage.supporters.data.0.total_amount_label', '¥9.00')
+                ->missing('supportersPage.supporters.data.0.total_amount_label')
             );
     }
 
@@ -214,6 +212,7 @@ class SponsorshipTest extends TestCase
                 ->missing('supportersPage.contributors.data.0.granted_at')
             );
     }
+
     public function test_admin_can_visit_sponsorship_management_pages(): void
     {
         $user = User::factory()->create(['role' => 'admin', 'status' => 'active']);

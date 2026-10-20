@@ -10,9 +10,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class SponsorshipOrder extends Model
 {
     public const CHANNELS = [
+        'xunhu' => '微信支付（虎皮椒）',
         'mock' => '模拟支付',
         'manual' => '后台手动',
     ];
+
+    public const REFUND_STATES = ['unknown' => '待确认', 'processing' => '渠道处理中', 'completed' => '已退款', 'failed' => '退款失败'];
 
     public const STATUSES = [
         'pending' => '待支付',
@@ -22,7 +25,12 @@ class SponsorshipOrder extends Model
         'refunded' => '已退款',
     ];
 
+    protected $hidden = ['gateway_credentials', 'raw_callback_json'];
+
     protected $fillable = [
+        'plan_snapshot', 'gateway_credentials', 'gateway_transaction', 'platform_order_id',
+        'payment_url', 'qr_url', 'qr_expires_at', 'refund_state', 'refund_no', 'refund_reason',
+        'refund_requested_by', 'refund_requested_at', 'checked_at', 'payment_issue',
         'order_no',
         'user_id',
         'sponsorship_plan_id',
@@ -45,6 +53,11 @@ class SponsorshipOrder extends Model
     protected function casts(): array
     {
         return [
+            'plan_snapshot' => 'array',
+            'gateway_credentials' => 'encrypted:array',
+            'qr_expires_at' => 'datetime',
+            'refund_requested_at' => 'datetime',
+            'checked_at' => 'datetime',
             'user_id' => 'integer',
             'sponsorship_plan_id' => 'integer',
             'amount_cents' => 'integer',

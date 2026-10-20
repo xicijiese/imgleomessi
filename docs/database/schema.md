@@ -795,3 +795,15 @@ album_category.category_id 和 photo_category.category_id 均应使用限制删�
 - `share_events`：管理员、链接/归因、操作及原因，记录停用、恢复、纠正及身份合并。关联记录不物理删除，不提供随意加推广人数的入口。
 
 游客登录合并身份时保留首次归因，其他归因标为 merged 并重定向关联；撤销记录仍占用去重标识，不因清理或重试重新计算。历史 photo_shares 不回填有效人数；图片新分享操作继续写入既有互动日志以兼容图片统计。海报缓存只在私有 local 存储，经控制器重新鉴权和公开状态检查后读取。
+
+
+## 真实支付数据增量（2026-10-20）
+
+迁移 `2026_10_20_000003_add_real_sponsorship_payments.php` 只新增字段及三张表，保留既有订单、用户、角色、图片和勋章：
+
+- sponsorship_orders：新增 plan_snapshot（金额/名称/期限/等级），gateway_credentials（Laravel encrypted:array，加密保存下单时凭据且 hidden），gateway_transaction（可空唯一真实交易号），platform_order_id（预留渠道关联），payment_url/qr_url/qr_expires_at，refund_state/refund_no/refund_reason/refund_requested_by/refund_requested_at，checked_at/payment_issue。channel 新增 xunhu；订单主状态不混用退款过程，退款确认前保持 paid。仅标量验签成功且完整核对的渠道结果可入账。
+- sponsorship_accounts：user_id 唯一、legacy_until、legacy_permanent、legacy_profile，首次真实下单在用户锁内保存历史身份、金额/等级及已获勋章 ID；真实订单重算基于此与未退款订单，不把模拟订单计入真实财务。
+- payment_attempts：订单、create/query/refund、unknown/confirmed、操作人、时间。未知下单和退款不盲重发，不保存请求密钥/签名或原始敏感响应。
+- sponsorship_reminders：user_id/expires_at/days 唯一，7/1 天站内提醒与通知事务提交，续费按新到期日去重。
+
+配置沿用 settings(payment,xunhu)，secret 为加密字符串；表单保存后清空回显。退款、回调核验及待核查事项写 payment_logs，退款撤章写 badge_events。回调失败不打印完整渠道数据。用户原有公开/隐藏选择不覆盖。
