@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SharePanel from '@/components/SharePanel.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import type { SeoPayload } from '@/types';
@@ -121,6 +122,7 @@ const formatDate = (date: string | null) => date ?? '日期待补充';
                     >
                         {{ topicDetail.topic.title }}
                     </h1>
+                    <div class="mt-4"><SharePanel type="topic" :target-key="topicDetail.topic.slug" :title="topicDetail.topic.title" /></div>
                     <p
                         v-if="topicDetail.topic.description"
                         class="mt-5 max-w-3xl text-sm leading-7 text-[#5f6c7b] sm:text-base"

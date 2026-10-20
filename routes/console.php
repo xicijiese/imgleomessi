@@ -82,3 +82,15 @@ Artisan::command('submissions:cleanup', function (): void {
     $this->info('已提交 '.$count.' 个到期暂存文件清理任务。');
 })->purpose('清理到期投稿暂存文件，保留审核记录');
 Schedule::command('submissions:cleanup')->hourly()->withoutOverlapping();
+
+Artisan::command('sharing:cleanup', function (): void {
+    $visits = \App\Models\ShareVisit::where('created_at', '<', now()->subDays(90))->delete();
+    $files = 0;
+    \App\Models\ShareLink::whereNotNull('poster_path')->where('updated_at', '<', now()->subDays(90))->chunkById(100, function ($links) use (&$files): void {
+        foreach ($links as $link) {
+            if (Storage::disk('local')->delete($link->poster_path)) { $link->update(['poster_path' => null, 'poster_status' => 'none']); $files++; }
+        }
+    });
+    $this->info("已清理 {$visits} 条过期访问明细、{$files} 份过期海报；归因与去重记录保留。");
+})->purpose('清理 90 天前分享访问明细和海报缓存');
+Schedule::command('sharing:cleanup')->daily()->withoutOverlapping();

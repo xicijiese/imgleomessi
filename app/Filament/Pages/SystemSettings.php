@@ -63,7 +63,7 @@ class SystemSettings extends Page
     {
         $this->form->fill(array_replace_recursive(
             $settings->formState(),
-            ['storage' => $storageSettings->formState()],
+            ['storage' => $storageSettings->formState(), 'sharing' => \App\Models\Setting::value('sharing', 'defaults', [])],
         ));
     }
 
@@ -357,6 +357,12 @@ class SystemSettings extends Page
                                     ->reorderable()
                                     ->addActionLabel('添加社媒'),
                             ]),
+                        Tab::make('分享推广')->schema([
+                            TextInput::make('sharing.title')->label('网站宣传标题')->maxLength(80),
+                            Textarea::make('sharing.description')->label('网站宣传摘要')->maxLength(200),
+                            self::settingImageUpload('sharing.cover_path', '网站宣传封面', 'settings/sharing'),
+                            \Filament\Schemas\Components\Text::make('当前公众号没有自定义分享权限，微信 JS-SDK 暂缓。链接、二维码、海报及推广统计正常使用。'),
+                        ]),
                         Tab::make('存储与处理')
                             ->schema([
                                 Section::make('图片存储方式')
@@ -478,6 +484,7 @@ class SystemSettings extends Page
     {
         $state = $this->form->getState();
         $settings->save($state, $this->currentUser());
+        \App\Models\Setting::setValue('sharing', 'defaults', $state['sharing'] ?? [], $this->currentUser(), '网站分享默认内容');
         $storageSettings->save($state['storage'] ?? [], $this->currentUser());
 
         Notification::make()

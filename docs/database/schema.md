@@ -760,7 +760,7 @@ album_category.category_id 和 photo_category.category_id 均应使用限制删�
 
 - `badges.image_path`：勋章原始图片路径，复用本地/COS 存储；GIF 不转码。
 - `badges.starts_on / ends_on`：纪念日起止日期，按北京时间含首尾日期。
-- 新规则 `anniversary`、`contributions_count`、`referrals_count`；后两者阈值固定 50。contributions_count 已读取成功采纳且未纠正撤销的投稿记录，referrals_count 数据源未开放时不发奖。
+- 新规则 `anniversary`、`contributions_count`、`referrals_count`；后两者阈值固定 50。contributions_count 已读取成功采纳且未纠正撤销的投稿记录，referrals_count 已在网站分享模块接通 share_referrals 的 valid 归因记录。
 - `badge_events`：用户勋章、操作人、授予/撤销/恢复、原因、时间；旧数据仅补迁移基线，不能还原旧版未记录的完整历史。
 - `badge_grant_batches`：勋章、提交人、范围、状态、说明、失败提示及完成时间。
 - `badge_grant_recipients`：批次与用户唯一的接收者快照，状态 pending/awarded/skipped；每批最多处理 100 人，重试跳过已完成记录。
@@ -780,3 +780,18 @@ album_category.category_id 和 photo_category.category_id 均应使用限制删�
 稿件状态：uploading → temporary → pending → processing → accepted；pending 可撤回/不采纳，processing 失败转 failed，审核人员可重试或明确不采纳。未完成提交 24 小时清理，拒绝/撤回 7 天清理，入库失败保留，采纳成功即允许清理暂存副本。只有真实删除成功才设置 cleaned_at，删除失败保留可重试状态。
 
 角色仍用 users.role 字符串，新增 submitter，无批量角色迁移。已关联投稿的正式图片禁止物理删除，可归档；保留外键和贡献审计。公开响应不输出存储位置、版本 ID、内部备注或审核快照。
+
+
+## 分享推广数据模型（2026-10-20）
+
+迁移 `2026_10_20_000002_create_share_promotions.php` 新增七张表，不修改既有用户角色、图片或勋章获得记录：
+
+- `share_links`：24 位随机 code、唯一 reuse_key、分享者（游客为空）、目标类型/key、渠道、启用状态、累计操作/访问/独立浏览器数、海报状态/私有路径/指纹/错误/请求时间。站点仅允许 home/photo/album/topic 目标，不允许任意外链。
+- `share_referrals`：全站有效归因，关联分享链接及获得推广贡献的用户，status 为 valid/revoked/merged；长期保留，统计只计 valid。
+- `share_identities`：HMAC 摘要主键，关联首次归因，持久化跨明细清理的去重信息；按身份排序加锁，首次插入唯一约束防重。
+- `share_known_users`：访客标识摘要与已关联账号的复合主键，识别退出登录后的本人访问及可关联账号。
+- `share_link_audiences`：链接与第一方访客摘要唯一，保存累计独立浏览器去重，90 天后清理访问明细不使浏览器重新计数。
+- `share_visits`：UUID、链接、访客/账号/会话/IP 摘要、滚动凭证摘要、可见秒数、上次节拍时间、结果/原因；pending/valid/duplicate/excluded，明细保留 90 天。不保存明文访客 IP 或暴露给分享者。
+- `share_events`：管理员、链接/归因、操作及原因，记录停用、恢复、纠正及身份合并。关联记录不物理删除，不提供随意加推广人数的入口。
+
+游客登录合并身份时保留首次归因，其他归因标为 merged 并重定向关联；撤销记录仍占用去重标识，不因清理或重试重新计算。历史 photo_shares 不回填有效人数；图片新分享操作继续写入既有互动日志以兼容图片统计。海报缓存只在私有 local 存储，经控制器重新鉴权和公开状态检查后读取。

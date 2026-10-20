@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SharePanel from '@/components/SharePanel.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import type { SeoPayload } from '@/types';
@@ -239,6 +240,7 @@ onUnmounted(() => {
                 </div>
             </template>
         </section>
+        <div class="mx-auto flex max-w-7xl justify-end px-4 pt-5 sm:px-6"><SharePanel type="home" target-key="home" :title="home.site.name" /></div>
 
         <section
             v-if="showCategoryModule"

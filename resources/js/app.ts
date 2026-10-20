@@ -1,5 +1,6 @@
 import '../css/app.css';
 
+import ShareVisitTracker from '@/components/ShareVisitTracker.vue';
 import PublicFooter from '@/components/PublicFooter.vue';
 import { createInertiaApp, router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
@@ -55,6 +56,7 @@ createInertiaApp({
                 return () =>
                     h('div', [
                         h(App, props),
+                        h(ShareVisitTracker),
                         showFooter.value && publicShell
                             ? h(PublicFooter, {
                                   footer: publicShell.footer,

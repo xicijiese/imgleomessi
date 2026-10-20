@@ -199,7 +199,7 @@ class BadgeService
             return '已停用，已获勋章永久保留';
         }
         if ($badge->rule_type === 'referrals_count') {
-            return '对应功能开放后可获得，累计目标为 50';
+            return '累计带来 50 位有效推广访客后自动获得';
         }
         if ($badge->rule_type === 'contributions_count') {
             return '投稿成功采纳累计 50 张后自动获得';
@@ -222,6 +222,7 @@ class BadgeService
     {
         return match ($badge->rule_type) {
             'registered' => true,
+            'referrals_count' => \App\Models\ShareReferral::where('user_id', $user->id)->where('status', 'valid')->count() >= 50,
             'contributions_count' => $this->contributionCount($user) >= 50,
             'anniversary' => $this->anniversaryOpen($badge),
             'favorites_count' => $user->photoFavorites()->count() >= max(1, (int) $badge->rule_threshold),
@@ -239,6 +240,7 @@ class BadgeService
         $target = $badge->rule_threshold;
         $current = match ($badge->rule_type) {
             'registered' => 1,
+            'referrals_count' => \App\Models\ShareReferral::where('user_id', $user->id)->where('status', 'valid')->count(),
             'contributions_count' => $this->contributionCount($user),
             'favorites_count' => $user->photoFavorites()->count(),
             'comments_count' => $user->comments()->discussion()->published()->count(),

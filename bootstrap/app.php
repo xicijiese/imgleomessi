@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             EnsureFreshUserSession::class,
             AwardAnniversaryBadges::class,
+            \App\Http\Middleware\MergeShareIdentity::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

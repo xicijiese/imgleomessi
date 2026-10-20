@@ -37,6 +37,17 @@ use App\Http\Controllers\UserSponsorshipController;
 use App\Http\Middleware\EnsureFreshUserSession;
 use Illuminate\Support\Facades\Route;
 
+
+Route::post('/sharing/links', [\App\Http\Controllers\SharePromotionController::class, 'create'])->middleware('throttle:30,1');
+Route::post('/sharing/{code}/operation', [\App\Http\Controllers\SharePromotionController::class, 'operation'])->middleware('throttle:30,1');
+Route::get('/s/{code}', [\App\Http\Controllers\SharePromotionController::class, 'landing'])->middleware('throttle:120,1');
+Route::post('/sharing/visits', [\App\Http\Controllers\SharePromotionController::class, 'start'])->middleware('throttle:60,1');
+Route::post('/sharing/visits/{id}/tick', [\App\Http\Controllers\SharePromotionController::class, 'tick'])->whereUuid('id')->middleware('throttle:120,1');
+Route::post('/sharing/{code}/poster', [\App\Http\Controllers\SharePromotionController::class, 'poster'])->middleware('throttle:10,1');
+Route::get('/sharing/{code}/poster', [\App\Http\Controllers\SharePromotionController::class, 'posterStatus'])->middleware('throttle:120,1');
+Route::get('/sharing/{code}/poster/image', [\App\Http\Controllers\SharePromotionController::class, 'posterImage']);
+Route::get('/me/shares', [\App\Http\Controllers\SharePromotionController::class, 'index'])->middleware(['auth', EnsureFreshUserSession::class])->name('me.shares.index');
+
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 Route::get('/robots.txt', RobotsController::class)->name('robots');
 Route::get('/', HomeController::class)->name('home');

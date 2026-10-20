@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SharePanel from '@/components/SharePanel.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import SimilarPhotoGrid from '@/components/SimilarPhotoGrid.vue';
@@ -7,10 +8,8 @@ import { Link, router } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     CalendarDays,
-    Check,
     ChevronLeft,
     ChevronRight,
-    Copy,
     ExternalLink,
     FileText,
     Flag,
@@ -20,14 +19,11 @@ import {
     Info,
     MessageCircle,
     PencilLine,
-    QrCode,
     Send,
-    Share2,
     Tag,
     ThumbsUp,
-    X,
 } from 'lucide-vue-next';
-import { toDataURL } from 'qrcode';
+
 import { computed, ref, watch } from 'vue';
 
 interface NavigationItem {
@@ -159,16 +155,16 @@ const props = defineProps<{
 
 type ComposerMode = 'discussion' | 'correction' | null;
 type ReportReason = 'spam' | 'abuse' | 'copyright' | 'misleading' | 'other';
-type ShareChannel = 'native_share' | 'copy_link' | 'weibo' | 'wechat_qr';
+
 
 const imageFailed = ref(false);
 const relatedImageFailures = ref<Record<number, boolean>>({});
 const favoritePending = ref(false);
 const likePending = ref(false);
-const sharePanelOpen = ref(false);
-const activeShareChannel = ref<ShareChannel | null>(null);
+
+
 const shareStatus = ref<string | null>(null);
-const wechatQrDataUrl = ref<string | null>(null);
+
 const activeReportId = ref<number | null>(null);
 const reportReason = ref<ReportReason>('spam');
 const reportDetails = ref('');
@@ -210,28 +206,12 @@ watch(
     { deep: true },
 );
 
-const pageUrl = computed(() =>
-    typeof window === 'undefined'
-        ? props.photoDetail.photo.url
-        : window.location.href,
-);
 const favoriteUrl = computed(
     () => '/photos/' + props.photoDetail.photo.uuid + '/favorite',
 );
 const likeUrl = computed(
     () => '/photos/' + props.photoDetail.photo.uuid + '/like',
 );
-const shareUrl = computed(
-    () => '/photos/' + props.photoDetail.photo.uuid + '/shares',
-);
-const weiboShareUrl = computed(() => {
-    const params = new URLSearchParams({
-        title: props.photoDetail.photo.title,
-        url: pageUrl.value,
-    });
-
-    return 'https://service.weibo.com/share/share.php?' + params.toString();
-});
 const commentUrl = computed(
     () => '/photos/' + props.photoDetail.photo.uuid + '/comments',
 );
@@ -435,65 +415,6 @@ const toggleLike = async () => {
     }
 };
 
-const canShare = () => {
-    if (!interactions.value.blocked_reason) {
-        return true;
-    }
-
-    shareStatus.value = interactions.value.blocked_reason;
-    clearShareStatus();
-
-    return false;
-};
-
-const setShareStatus = (message: string) => {
-    shareStatus.value = message;
-    clearShareStatus();
-};
-
-const writeShareLink = async () => {
-    if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(pageUrl.value);
-        return;
-    }
-
-    const textarea = document.createElement('textarea');
-    textarea.value = pageUrl.value;
-    textarea.setAttribute('readonly', 'true');
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    const copied = document.execCommand('copy');
-    document.body.removeChild(textarea);
-
-    if (!copied) {
-        throw new Error('copy_failed');
-    }
-};
-
-const recordShare = async (channel: ShareChannel, message: string) => {
-    activeShareChannel.value = channel;
-
-    try {
-        await interactionRequest<{ recorded: boolean }>(
-            shareUrl.value,
-            'POST',
-            {
-                channel,
-                page_url: pageUrl.value,
-            },
-        );
-        setShareStatus(message);
-        return true;
-    } catch {
-        setShareStatus('分享已完成，但记录失败');
-        return false;
-    } finally {
-        activeShareChannel.value = null;
-    }
-};
-
 const clearCommentStatus = () => {
     window.setTimeout(() => {
         commentStatus.value = null;
@@ -634,97 +555,6 @@ const submitCorrection = async () => {
         clearCommentStatus();
     }
 };
-const toggleSharePanel = () => {
-    if (!canShare()) {
-        return;
-    }
-
-    sharePanelOpen.value = !sharePanelOpen.value;
-};
-
-const copyShareLink = async (channel: ShareChannel = 'copy_link') => {
-    if (!canShare() || activeShareChannel.value) {
-        return;
-    }
-
-    try {
-        await writeShareLink();
-        await recordShare(channel, '链接已复制');
-    } catch {
-        setShareStatus('复制失败，请手动复制链接');
-    }
-};
-
-const shareWithNative = async () => {
-    if (!canShare() || activeShareChannel.value) {
-        return;
-    }
-
-    if (!navigator.share) {
-        await copyShareLink('copy_link');
-        return;
-    }
-
-    activeShareChannel.value = 'native_share';
-
-    try {
-        await navigator.share({
-            title: props.photoDetail.photo.title,
-            text: props.photoDetail.photo.description ?? undefined,
-            url: pageUrl.value,
-        });
-        await recordShare('native_share', '已调用系统分享');
-    } catch (error) {
-        setShareStatus(
-            error instanceof DOMException && error.name === 'AbortError'
-                ? '已取消分享'
-                : '系统分享失败，可复制链接',
-        );
-    } finally {
-        activeShareChannel.value = null;
-    }
-};
-
-const shareToWeibo = async () => {
-    if (!canShare() || activeShareChannel.value) {
-        return;
-    }
-
-    const opened = window.open(
-        weiboShareUrl.value,
-        '_blank',
-        'noopener,noreferrer,width=720,height=560',
-    );
-
-    await recordShare(
-        'weibo',
-        opened ? '已打开微博分享' : '微博窗口被拦截，可复制链接',
-    );
-};
-
-const showWechatQr = async () => {
-    if (!canShare() || activeShareChannel.value) {
-        return;
-    }
-
-    activeShareChannel.value = 'wechat_qr';
-
-    try {
-        wechatQrDataUrl.value = await toDataURL(pageUrl.value, {
-            width: 192,
-            margin: 1,
-            color: {
-                dark: '#094067',
-                light: '#fffffe',
-            },
-        });
-        await recordShare('wechat_qr', '微信扫码后可打开链接');
-    } catch {
-        setShareStatus('二维码生成失败，可复制链接');
-    } finally {
-        activeShareChannel.value = null;
-    }
-};
 </script>
 
 <template>
@@ -796,125 +626,8 @@ const showWechatQr = async () => {
                             <span>{{ interactions.likes_count }}</span>
                         </button>
 
-                        <div class="relative">
-                            <button
-                                type="button"
-                                class="inline-flex h-11 min-w-24 items-center justify-center gap-2 rounded-sm border border-[#90b4ce]/60 px-4 text-sm font-semibold transition hover:border-[#3da9fc] hover:text-[#3da9fc]"
-                                aria-controls="photo-share-panel"
-                                :aria-expanded="sharePanelOpen"
-                                @click="toggleSharePanel"
-                            >
-                                <Share2 class="h-4 w-4" aria-hidden="true" />
-                                分享
-                            </button>
-
-                            <div
-                                v-if="sharePanelOpen"
-                                id="photo-share-panel"
-                                class="absolute right-0 z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-sm border border-[#90b4ce]/35 bg-[#fffffe] p-4 text-[#094067] shadow-xl"
-                            >
-                                <div
-                                    class="mb-3 flex items-start justify-between gap-3"
-                                >
-                                    <div>
-                                        <h2 class="text-sm font-semibold">
-                                            分享这张图片
-                                        </h2>
-                                        <p class="mt-1 text-xs text-[#5f6c7b]">
-                                            微信先用二维码 /
-                                            链接引导，不接第三方 API。
-                                        </p>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        class="flex h-8 w-8 items-center justify-center rounded-sm border border-[#90b4ce]/40 text-[#5f6c7b] transition hover:border-[#ef4565] hover:text-[#ef4565]"
-                                        aria-label="关闭分享面板"
-                                        @click="sharePanelOpen = false"
-                                    >
-                                        <X class="h-4 w-4" aria-hidden="true" />
-                                    </button>
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-2">
-                                    <button
-                                        type="button"
-                                        class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-sm border border-[#90b4ce]/40 px-3 text-sm font-semibold transition hover:border-[#3da9fc] hover:text-[#3da9fc]"
-                                        @click="copyShareLink()"
-                                    >
-                                        <Copy
-                                            class="h-5 w-5"
-                                            aria-hidden="true"
-                                        />
-                                        复制链接
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-sm border border-[#90b4ce]/40 px-3 text-sm font-semibold transition hover:border-[#3da9fc] hover:text-[#3da9fc]"
-                                        @click="shareWithNative"
-                                    >
-                                        <Share2
-                                            class="h-5 w-5"
-                                            aria-hidden="true"
-                                        />
-                                        系统分享
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-sm border border-[#90b4ce]/40 px-3 text-sm font-semibold transition hover:border-[#ef4565] hover:text-[#ef4565]"
-                                        @click="shareToWeibo"
-                                    >
-                                        <ExternalLink
-                                            class="h-5 w-5"
-                                            aria-hidden="true"
-                                        />
-                                        微博分享
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-sm border border-[#90b4ce]/40 px-3 text-sm font-semibold transition hover:border-[#094067] hover:text-[#094067]"
-                                        @click="showWechatQr"
-                                    >
-                                        <QrCode
-                                            class="h-5 w-5"
-                                            aria-hidden="true"
-                                        />
-                                        微信扫码
-                                    </button>
-                                </div>
-
-                                <div
-                                    v-if="wechatQrDataUrl"
-                                    class="mt-4 grid justify-items-center gap-2 rounded-sm bg-[#d8eefe]/55 p-4 text-center"
-                                >
-                                    <img
-                                        :src="wechatQrDataUrl"
-                                        :alt="`微信扫码打开：${photoDetail.photo.title}`"
-                                        class="h-48 w-48 rounded-sm border border-[#90b4ce]/35 bg-[#fffffe] p-2"
-                                    />
-                                    <p class="text-xs text-[#5f6c7b]">
-                                        用微信扫一扫打开当前图片链接
-                                    </p>
-                                </div>
-
-                                <div
-                                    class="mt-3 rounded-sm bg-[#fffffe] text-xs"
-                                >
-                                    <p class="break-all text-[#5f6c7b]">
-                                        {{ pageUrl }}
-                                    </p>
-                                    <p
-                                        v-if="shareStatus"
-                                        class="mt-2 inline-flex items-center gap-1 font-semibold text-[#094067]"
-                                    >
-                                        <Check
-                                            class="h-3.5 w-3.5 text-[#3da9fc]"
-                                            aria-hidden="true"
-                                        />
-                                        {{ shareStatus }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
+                        <SharePanel type="photo" :target-key="photoDetail.photo.uuid" :title="photoDetail.photo.title" :blocked-reason="interactions.blocked_reason" />
+                        <p v-if="shareStatus" role="status" class="text-sm">{{ shareStatus }}</p>
                     </div>
                 </div>
 

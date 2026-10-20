@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import {
     Bell,
+    Share2,
     Flag,
     Heart,
     HeartHandshake,
@@ -36,6 +37,7 @@ defineProps<{
     user: UserPayload;
     summary: SummaryPayload;
     active:
+        | 'shares'
         | 'submissions'
         | 'overview'
         | 'favorites'
@@ -55,6 +57,7 @@ const items = [
         url: '/me/submissions',
         icon: Medal,
     },
+    { key: 'shares', label: '分享推广', url: '/me/shares', icon: Share2 },
     { key: 'favorites', label: '我的收藏', url: '/me/favorites', icon: Heart },
     {
         key: 'comments',

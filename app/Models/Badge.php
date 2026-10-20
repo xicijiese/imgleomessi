@@ -18,7 +18,7 @@ class Badge extends Model
         'supporter' => '运营守护者身份',
         'anniversary' => '纪念日登录访问',
         'contributions_count' => '累计采纳 50 张投稿',
-        'referrals_count' => '累计 50 位有效推广访客（待开放）',
+        'referrals_count' => '累计 50 位有效推广访客',
     ];
 
     protected $fillable = [

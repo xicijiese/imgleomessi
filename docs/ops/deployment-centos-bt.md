@@ -1949,3 +1949,126 @@ cd /www/wwwroot/img.leomessi.cn && /www/server/php/83/bin/php artisan schedule:r
 ```
 
 该命令只将已到期且未清理的暂存文件加入队列，正式图库不在范围内。未采纳/撤回从处理时间起满 7 天才到期，不从上传时间算；等待下一轮调度和 Worker 执行。不要给整个桶配置七天删除规则。回滚时先保留投稿记录及角色审计，不直接回滚删除已产生业务数据的表。
+
+
+## 网站分享推广增量发布（2026-10-20）
+
+本轮已完成本地开发和验收，生产未操作，代码尚未提交推送。包含个人中心页面简化：只保留分享按钮、有效访客进度、勋章入口和规则；渠道在弹层选择，不再显示“我的分享链接”或分页。后台渠道统计仍保留。不停站、不运行 Seeder，不更换已有 Worker 参数或计划任务。
+
+### 1. 本地提交并推送
+
+先在本地 PowerShell 检查差异，确认均为本轮文件，再提交：
+
+```powershell
+cd F:\cursor\messiimage
+git status --short
+git diff --stat
+git add -A
+git commit -m "完善网站分享推广、海报及有效访客勋章"
+git push origin main
+```
+
+.env、数据库和私有海报缓存不提交。不要将本地 APP_URL、备份文件或 Windows 字体路径上传覆盖生产配置。
+
+### 2. 宝塔备份与拉取
+
+通过宝塔备份生产数据库、网站 .env 和 public/build。服务器执行：
+
+```bash
+cd /www/wwwroot/img.leomessi.cn
+git status --short
+git pull --ff-only origin main
+```
+
+生产存在未提交代码修改时先核对保存，不强制覆盖。后续命令逐条执行，当前步骤报错则停止。
+
+### 3. 检查海报运行条件
+
+用宝塔 PHP 8.3 CLI 检查，不能用系统其他 PHP 替代：
+
+```bash
+/www/server/php/83/bin/php -r 'echo "GD: ".(extension_loaded("gd") ? "OK" : "MISSING").PHP_EOL; echo "FreeType: ".(function_exists("imagettftext") ? "OK" : "MISSING").PHP_EOL;'
+ls -l /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+```
+
+GD/FreeType 需均为 OK；缺失时在宝塔 PHP 8.3 中安装/启用相应扩展后再检查。若字体文件已存在，无需安装。Ubuntu 24.04 缺少中文字体时：
+
+```bash
+apt-get update
+apt-get install -y fonts-noto-cjk
+ls -l /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+```
+
+依据：[Ubuntu 字体软件包](https://packages.ubuntu.com/noble/fonts-noto-cjk)、[官方文件列表](https://packages.ubuntu.com/noble/all/fonts-noto-cjk/filelist)。不需要为此替换宝塔 PHP 或安装 Composer/npm 新依赖。
+
+在宝塔编辑生产 .env，对应键只保留一份：
+
+```dotenv
+APP_URL=https://img.leomessi.cn
+SHARE_POSTER_FONT=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+```
+
+已有其他可用中文字体时可填其真实绝对路径。缺字体只影响海报生成，但需修复后才能完成本模块验收。
+
+### 4. 自动加载及迁移
+
+```bash
+cd /www/wwwroot/img.leomessi.cn
+COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload --no-dev --optimize --no-scripts
+/www/server/php/83/bin/php artisan optimize:clear
+/www/server/php/83/bin/php artisan migrate --path=database/migrations/2026_10_20_000002_create_share_promotions.php --force
+/www/server/php/83/bin/php artisan migrate:status
+```
+
+确认该迁移为 Ran。新增七张分享表，不修改既有用户角色、图库文件及勋章记录。此前投稿迁移如尚未执行，需先按上一节完成，不能将其缺表问题视为本次分享迁移失败。
+
+### 5. 构建及缓存
+
+```bash
+npm run build
+/www/server/php/83/bin/php artisan filament:cache-components
+/www/server/php/83/bin/php artisan config:cache
+/www/server/php/83/bin/php artisan route:cache
+/www/server/php/83/bin/php artisan view:cache
+```
+
+海报使用 storage/app/private/sharing/posters，网站和Worker运行用户需有相应目录读写权限，不能将私有目录配置为公开下载。现有 storage 写入正常时无需批量改权限。多服务器部署需共享私有缓存，当前单服务器沿用现有目录。
+
+### 6. 重启宝塔现有队列守护
+
+宝塔“进程守护”重启本站既有进程即可，无需另外再执行 queue:restart，也不新增第二份 Worker：
+
+```bash
+/www/server/php/83/bin/php /www/wwwroot/img.leomessi.cn/artisan queue:work redis --queue=high,default,low --sleep=3 --tries=3 --timeout=120 --max-time=3600
+```
+
+重启后确认状态运行中。修改生产 .env 后也必须让 Worker 加载新配置。
+
+### 7. 沿用已有计划任务
+
+宝塔现有每分钟 schedule:run 的任务不改、不重复添加：
+
+```bash
+cd /www/wwwroot/img.leomessi.cn && /www/server/php/83/bin/php artisan schedule:run >> /dev/null 2>&1
+```
+
+终端检查：
+
+```bash
+/www/server/php/83/bin/php artisan schedule:list
+```
+
+应新增每日 sharing:cleanup，清理90天前访问明细和闲置海报缓存；累计归因、长期去重及审计保留，不删除正式图库，也不会重置推广进度。不需要手动执行清理作为上线步骤。
+
+### 8. 浏览器验收
+
+Ctrl+F5 强制刷新，检查：
+
+1. `/me/shares` 只显示统一分享按钮、有效访客进度、勋章入口和规则，无重复链接列表；弹层渠道均可用。
+2. `/admin/share-promotions` 出现分享图标和四页签，概览显示海报处理服务已连接。
+3. 系统设置“分享推广”配置网站宣传标题、摘要和封面。
+4. 生成一张海报，确认队列完成、中文可见、可保存，二维码指向正式域名，不能是 localhost 或 127.0.0.1。
+5. 本人访问不加人数；另一个未归因的测试访客前台停留至少10秒后才计入；重复访问不重复计数。不要用真实用户伪造50人数据验收发奖。
+6. 图片、相册、专题分享指向正确内容；COS图片读取、手机扫码/保存和微信浏览器环境现场验证。
+
+公众号目前无自定义分享接口权限，本轮不配置微信密钥、白名单或消息推送，也不把微信卡片外观当作已接入 SDK 的验收项。异常时查看队列失败记录与 `storage/logs/laravel.log`，不要批量重跑全部历史失败任务。回退代码时保留已有业务表和审计，不直接 migrate:rollback 删除数据。
