@@ -745,3 +745,17 @@ album_category.category_id 和 photo_category.category_id 均应使用限制删�
 ### 档案共建者阶段 2B 实现状态（2026-09-12）
 
 阶段 2B 已完成 contribution_focus 和 sort_order 字段、管理员资料编辑、公开开关和 /supporters 共建者名单。公开查询只输出 id、display_name、bio 和 contribution_focus；不输出邮箱、角色、授予人、授予时间、撤销信息或内部备注。未公开、已撤销、已封禁或非正常账号不会进入前台名单。
+
+
+### 勋章运营增量（2026-10-19，覆盖第 7 节早期限制）
+
+`2026_10_19_000002_extend_badge_operations` 增加：
+
+- `badges.image_path`：勋章原始图片路径，复用本地/COS 存储；GIF 不转码。
+- `badges.starts_on / ends_on`：纪念日起止日期，按北京时间含首尾日期。
+- 新规则 `anniversary`、`contributions_count`、`referrals_count`；后两者阈值固定 50，数据源未开放时不发奖。
+- `badge_events`：用户勋章、操作人、授予/撤销/恢复、原因、时间；旧数据仅补迁移基线，不能还原旧版未记录的完整历史。
+- `badge_grant_batches`：勋章、提交人、范围、状态、说明、失败提示及完成时间。
+- `badge_grant_recipients`：批次与用户唯一的接收者快照，状态 pending/awarded/skipped；每批最多处理 100 人，重试跳过已完成记录。
+
+`user_badges(user_id, badge_id)` 唯一约束保留，不限制同用户已佩戴记录数量。获得/恢复不自动佩戴，撤销不删除记录。勋章停用保留历史和佩戴；已存在发放记录或批次的勋章禁止删除。`awarded_by` 保留原授予人，后续操作人写事件表。

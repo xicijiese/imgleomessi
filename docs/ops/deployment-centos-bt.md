@@ -1885,3 +1885,28 @@ tail -n 200 storage/logs/laravel.log
 - 外部搜索引擎、相似图二期、真实支付和小程序等后续功能。
 
 项目所需的管理员用户治理已经完成；动态用户组、多角色并存、细粒度资源权限和通用权限冲突处理不属于本项目需求，不应重新标记为未开发项。
+
+
+## 勋章运营增强增量发布（2026-10-19）
+
+本轮本地已验收，生产尚未操作。正常拉取本轮代码后，沿用既有在线发布流程，先备份数据库，再执行：
+
+```bash
+cd /www/wwwroot/img.leomessi.cn
+/www/server/php/83/bin/php artisan migrate --path=database/migrations/2026_10_19_000002_extend_badge_operations.php --force
+npm run build
+/www/server/php/83/bin/php artisan optimize:clear
+/www/server/php/83/bin/php artisan filament:cache-components
+/www/server/php/83/bin/php artisan config:cache
+/www/server/php/83/bin/php artisan route:cache
+/www/server/php/83/bin/php artisan view:cache
+/www/server/php/83/bin/php artisan queue:restart
+```
+
+迁移只给 `badges` 增加图片和日期字段，新增三张运营表，按旧记录补审计基线，不删除旧勋章、不改变已有佩戴。无需重新运行 BadgeSeeder，也不需要停站。原有 Supervisor 启动命令保持：
+
+```bash
+/www/server/php/83/bin/php /www/wwwroot/img.leomessi.cn/artisan queue:work redis --queue=high,default,low --sleep=3 --tries=3 --timeout=120 --max-time=3600
+```
+
+守护程序应在 `queue:restart` 后自动重启。纪念日获取由登录访问触发，不依赖计划任务；批量发放需要 Worker。发布后检查 `/badges`、`/me/badges`、`/admin/badges` 三个入口、GIF 原图、独立取消佩戴、纪念日期和单个指定测试账号的批次状态。全体发放前核对弹窗人数与说明，不能用全体用户进行生产验收。

@@ -33,7 +33,8 @@ class BadgeTest extends TestCase
                 ->component('Me/Badges')
                 ->where('me.user.email', $user->email)
                 ->has('me.badges', 5)
-                ->where('me.equipped_badge.slug', 'archive-visitor')
+                ->where('me.equipped_badge', null)
+                ->has('me.equipped_badges', 0)
             );
 
         app(BadgeService::class)->award($user->refresh(), $manualBadge, 'manual');

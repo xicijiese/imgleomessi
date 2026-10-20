@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import BadgeIcon from '@/components/BadgeIcon.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import UserCenterNav from '@/components/UserCenterNav.vue';
-import { Head, router } from '@inertiajs/vue3';
-import { BadgeCheck, CheckCircle2, Medal } from 'lucide-vue-next';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 
 interface NavigationItem {
     label: string;
@@ -40,6 +41,9 @@ interface BadgeItem {
     description: string | null;
     icon_key: string | null;
     color: string;
+    image_url: string | null;
+    availability: string;
+    rule_type: string;
     rule_label: string;
     rule_threshold: number | null;
     is_earned: boolean;
@@ -55,20 +59,34 @@ interface MePayload {
     navigation: NavigationItem[];
     user: UserPayload;
     summary: SummaryPayload;
-    equipped_badge: BadgeItem | null;
+    equipped_badges: BadgeItem[];
     badges: BadgeItem[];
 }
 
-defineProps<{
+const props = defineProps<{
     me: MePayload;
 }>();
 
+const pending = ref<number | null>(null);
+const filter = ref('all');
+const visibleBadges = computed(() =>
+    props.me.badges.filter(
+        (badge) =>
+            filter.value === 'all' ||
+            (filter.value === 'earned' ? badge.is_earned : badge.is_equipped),
+    ),
+);
 const equipBadge = (badge: BadgeItem) => {
+    if (pending.value !== null) return;
+    pending.value = badge.id;
     router.patch(
         `/me/badges/${badge.id}/equip`,
-        {},
+        { equipped: !badge.is_equipped },
         {
             preserveScroll: true,
+            onFinish: () => {
+                pending.value = null;
+            },
         },
     );
 };
@@ -76,170 +94,153 @@ const equipBadge = (badge: BadgeItem) => {
 
 <template>
     <Head title="我的勋章" />
-
     <main class="min-h-screen bg-[#fffffe] text-[#094067]">
         <PublicHeader :navigation="me.navigation" :site="me.site" />
-
         <section
             class="border-b border-[#90b4ce]/30 bg-[#d8eefe] px-4 py-10 sm:px-6 lg:px-8"
         >
             <div class="mx-auto max-w-7xl">
-                <p class="mb-3 text-sm font-semibold text-[#3da9fc]">Badges</p>
-                <h1 class="text-4xl font-semibold sm:text-5xl">我的勋章</h1>
-                <p
-                    class="mt-4 max-w-2xl text-sm leading-7 text-[#5f6c7b] sm:text-base"
-                >
-                    查看已经获得的成就、当前佩戴的勋章，以及后续可以解锁的目标。
+                <h1 class="text-3xl font-semibold sm:text-4xl">我的勋章</h1>
+                <p class="mt-4 text-sm leading-7 text-[#5f6c7b]">
+                    获得后永久保留。佩戴由你选择，可以同时佩戴多枚，不限数量。
                 </p>
+                <Link
+                    href="/me/badges/hall"
+                    class="mt-3 inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4"
+                    >浏览勋章大厅</Link
+                >
             </div>
         </section>
-
         <section class="px-4 py-8 sm:px-6 lg:px-8">
             <div
-                class="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[280px_minmax(0,1fr)]"
+                class="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[280px_minmax(0,1fr)]"
             >
                 <UserCenterNav
                     :user="me.user"
                     :summary="me.summary"
                     active="badges"
                 />
-
-                <div class="space-y-6">
-                    <section
-                        class="rounded-sm border border-[#90b4ce]/35 bg-[#fffffe] p-5 shadow-sm"
-                    >
-                        <div class="flex items-start gap-4">
+                <div class="min-w-0 space-y-8">
+                    <section>
+                        <h2 class="text-xl font-semibold">
+                            当前佩戴 · {{ me.equipped_badges.length }} 枚
+                        </h2>
+                        <div
+                            v-if="me.equipped_badges.length"
+                            class="mt-4 flex flex-wrap gap-4"
+                        >
                             <div
-                                class="flex h-14 w-14 shrink-0 items-center justify-center rounded-sm text-[#fffffe]"
-                                :style="{
-                                    backgroundColor:
-                                        me.equipped_badge?.color ?? '#90b4ce',
-                                }"
-                            >
-                                <Medal class="h-7 w-7" aria-hidden="true" />
-                            </div>
-                            <div>
-                                <h2 class="text-xl font-semibold">
-                                    当前佩戴
-                                </h2>
-                                <p
-                                    v-if="me.equipped_badge"
-                                    class="mt-2 text-sm leading-6 text-[#5f6c7b]"
-                                >
-                                    {{ me.equipped_badge.name }} ·
-                                    {{ me.equipped_badge.rule_label }}
-                                </p>
-                                <p
-                                    v-else
-                                    class="mt-2 text-sm leading-6 text-[#5f6c7b]"
-                                >
-                                    暂无佩戴勋章，获得任意勋章后会自动佩戴第一枚。
-                                </p>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section
-                        class="rounded-sm border border-[#90b4ce]/35 bg-[#fffffe] p-5 shadow-sm"
-                    >
-                        <div class="mb-5 flex items-center justify-between gap-3">
-                            <div>
-                                <h2 class="text-xl font-semibold">
-                                    成就列表
-                                </h2>
-                                <p class="mt-1 text-sm text-[#5f6c7b]">
-                                    P1 阶段只展示基础规则和人工发放结果。
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                            <article
-                                v-for="badge in me.badges"
+                                v-for="badge in me.equipped_badges"
                                 :key="badge.id"
-                                class="rounded-sm border p-5 shadow-sm transition"
-                                :class="
-                                    badge.is_earned
-                                        ? 'border-[#3da9fc]/45 bg-[#f7fbff]'
-                                        : 'border-[#90b4ce]/35 bg-[#fffffe] opacity-85'
-                                "
+                                class="flex items-center gap-2"
                             >
-                                <div class="flex items-start justify-between gap-3">
-                                    <div
-                                        class="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm text-[#fffffe]"
-                                        :style="{ backgroundColor: badge.color }"
-                                    >
-                                        <BadgeCheck
-                                            class="h-6 w-6"
-                                            aria-hidden="true"
-                                        />
-                                    </div>
-                                    <span
-                                        class="rounded-full px-2 py-1 text-xs font-semibold"
-                                        :class="
-                                            badge.is_earned
-                                                ? 'bg-[#3da9fc] text-[#fffffe]'
-                                                : 'bg-[#d8eefe] text-[#094067]'
-                                        "
-                                    >
-                                        {{ badge.is_earned ? '已获得' : '未获得' }}
-                                    </span>
-                                </div>
-
-                                <h3 class="mt-4 text-lg font-semibold">
-                                    {{ badge.name }}
-                                </h3>
-                                <p class="mt-2 min-h-12 text-sm leading-6 text-[#5f6c7b]">
-                                    {{ badge.description ?? '暂无说明' }}
-                                </p>
-
-                                <div class="mt-4 space-y-2">
-                                    <div
-                                        class="flex items-center justify-between text-xs font-semibold text-[#5f6c7b]"
-                                    >
-                                        <span>{{ badge.rule_label }}</span>
-                                        <span v-if="badge.progress_target">
-                                            {{ badge.progress_current }} /
-                                            {{ badge.progress_target }}
-                                        </span>
-                                    </div>
-                                    <div
-                                        class="h-2 overflow-hidden rounded-full bg-[#d8eefe]"
-                                    >
+                                <BadgeIcon :badge="badge" /><span
+                                    class="text-sm"
+                                    >{{ badge.name }}</span
+                                >
+                            </div>
+                        </div>
+                        <p v-else class="mt-3 text-sm text-[#5f6c7b]">
+                            尚未佩戴勋章，可在下方选择已获得的勋章。
+                        </p>
+                    </section>
+                    <section>
+                        <div
+                            class="flex flex-wrap items-center justify-between gap-3 border-b border-[#90b4ce]/35 pb-4"
+                        >
+                            <h2 class="text-xl font-semibold">勋章收藏</h2>
+                            <label class="text-sm"
+                                >筛选
+                                <select
+                                    v-model="filter"
+                                    class="ml-2 min-h-11 rounded-sm border border-[#90b4ce] bg-white px-3"
+                                >
+                                    <option value="all">全部勋章</option>
+                                    <option value="earned">已获得</option>
+                                    <option value="equipped">正在佩戴</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div
+                            v-if="visibleBadges.length"
+                            class="grid gap-x-8 md:grid-cols-2"
+                        >
+                            <article
+                                v-for="badge in visibleBadges"
+                                :key="badge.id"
+                                class="border-b border-[#90b4ce]/30 py-6"
+                            >
+                                <div class="flex items-start gap-4">
+                                    <BadgeIcon :badge="badge" />
+                                    <div class="min-w-0 flex-1">
+                                        <h3
+                                            class="text-lg font-semibold break-words"
+                                        >
+                                            {{ badge.name }}
+                                        </h3>
+                                        <p class="mt-1 text-xs text-[#5f6c7b]">
+                                            {{
+                                                badge.is_earned
+                                                    ? `已获得 · ${badge.earned_at ?? ''}`
+                                                    : '未获得'
+                                            }}
+                                        </p>
+                                        <p
+                                            class="mt-3 text-sm leading-6 text-[#5f6c7b]"
+                                        >
+                                            {{
+                                                badge.description ??
+                                                badge.rule_label
+                                            }}
+                                        </p>
+                                        <p class="mt-2 text-sm leading-6">
+                                            {{ badge.availability }}
+                                        </p>
                                         <div
-                                            class="h-full rounded-full bg-[#3da9fc]"
-                                            :style="{
-                                                width: `${badge.progress_percent}%`,
-                                            }"
-                                        ></div>
+                                            v-if="
+                                                badge.progress_target &&
+                                                !badge.is_earned
+                                            "
+                                            class="mt-3"
+                                        >
+                                            <p class="text-xs text-[#5f6c7b]">
+                                                进度
+                                                {{ badge.progress_current }} /
+                                                {{ badge.progress_target }}
+                                            </p>
+                                            <progress
+                                                class="mt-1 h-2 w-full accent-[#3da9fc]"
+                                                :value="badge.progress_percent"
+                                                max="100"
+                                                :aria-label="`${badge.name}完成进度`"
+                                            />
+                                        </div>
+                                        <button
+                                            v-if="badge.is_earned"
+                                            type="button"
+                                            :disabled="
+                                                pending !== null ||
+                                                me.user.is_banned
+                                            "
+                                            class="mt-4 min-h-11 rounded-sm border border-[#094067] px-4 text-sm font-semibold transition hover:bg-[#d8eefe] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-wait disabled:opacity-50"
+                                            :aria-pressed="badge.is_equipped"
+                                            @click="equipBadge(badge)"
+                                        >
+                                            {{
+                                                pending === badge.id
+                                                    ? '保存中…'
+                                                    : badge.is_equipped
+                                                      ? '取消佩戴'
+                                                      : '佩戴勋章'
+                                            }}
+                                        </button>
                                     </div>
-                                </div>
-
-                                <div class="mt-5 flex min-h-10 items-center gap-3">
-                                    <span
-                                        v-if="badge.is_equipped"
-                                        class="inline-flex h-10 items-center gap-2 rounded-sm bg-[#094067] px-3 text-sm font-semibold text-[#fffffe]"
-                                    >
-                                        <CheckCircle2
-                                            class="h-4 w-4"
-                                            aria-hidden="true"
-                                        />
-                                        正在佩戴
-                                    </span>
-                                    <button
-                                        v-else-if="badge.is_earned"
-                                        type="button"
-                                        class="inline-flex h-10 items-center justify-center rounded-sm border border-[#3da9fc] px-3 text-sm font-semibold text-[#094067] transition hover:bg-[#d8eefe]"
-                                        @click="equipBadge(badge)"
-                                    >
-                                        佩戴
-                                    </button>
-                                    <span v-else class="text-sm text-[#5f6c7b]">
-                                        达成条件后自动获得
-                                    </span>
                                 </div>
                             </article>
                         </div>
+                        <p v-else class="py-10 text-sm text-[#5f6c7b]">
+                            这里还没有勋章，可以切换筛选或前往勋章大厅了解获取条件。
+                        </p>
                     </section>
                 </div>
             </div>

@@ -94,6 +94,7 @@ class HomepageSettings
 
         $state['category_module'] = $this->normalizeCategoryModule($state['category_module'] ?? []);
 
+
         return $state;
     }
 

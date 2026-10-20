@@ -30,7 +30,6 @@ class PublicUserProfile
 
         $badges = $user->userBadges()
             ->where('status', 'earned')
-            ->whereHas('badge', fn ($query) => $query->active())
             ->with('badge')
             ->orderByDesc('equipped')
             ->orderByDesc('awarded_at')
@@ -61,6 +60,7 @@ class PublicUserProfile
                 ],
                 'supporter' => $this->supporterItem($supporterProfile),
                 'equipped_badge' => collect($badges)->first(fn (array $badge): bool => $badge['is_equipped']),
+                'equipped_badges' => collect($badges)->where('is_equipped', true)->values()->all(),
                 'badges' => $badges,
                 'comments' => $comments,
             ],
@@ -129,6 +129,7 @@ class PublicUserProfile
             'description' => $badge->description,
             'icon_key' => $badge->icon_key,
             'color' => $badge->color,
+            'image_url' => $badge->image_url,
             'rule_label' => $badge->rule_label,
             'is_equipped' => $userBadge->equipped,
             'awarded_at' => $userBadge->awarded_at?->format('Y-m-d'),

@@ -144,6 +144,11 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasOne(UserBadge::class)->where('status', 'earned')->where('equipped', true);
     }
 
+    public function equippedBadges(): HasMany
+    {
+        return $this->userBadges()->where('status', 'earned')->where('equipped', true);
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         if ($panel->getId() !== 'admin') {

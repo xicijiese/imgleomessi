@@ -24,11 +24,25 @@ class UserBadgeController extends Controller
         ]);
     }
 
+    public function hall(Request $request): Response
+    {
+        return Inertia::render('Me/BadgeHall', [
+            'hall' => [
+                ...$this->center->shell($request->user()),
+                'badges' => Badge::query()->active()->orderBy('sort_order')->orderBy('id')->get()->map(fn (Badge $badge): array => [
+                    'id' => $badge->id, 'name' => $badge->name, 'description' => $badge->description,
+                    'image_url' => $badge->image_url, 'icon_key' => $badge->icon_key, 'color' => $badge->color,
+                    'rule_label' => $badge->rule_label, 'availability' => $this->badges->availability($badge),
+                ]),
+            ],
+        ]);
+    }
+
     public function equip(Request $request, Badge $badge): RedirectResponse
     {
-        abort_unless($badge->is_active, 404);
-
-        $this->badges->equip($request->user(), $badge);
+        abort_unless(($request->user()->status ?? 'active') === 'active' && ! $request->user()->isBanned(), 403);
+        $data = $request->validate(['equipped' => ['sometimes', 'boolean']]);
+        $this->badges->equip($request->user(), $badge, $data['equipped'] ?? true);
 
         return back(status: 303)->with('status', 'badge-equipped');
     }

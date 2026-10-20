@@ -44,6 +44,7 @@ Route::get('/photos/{uuid}', PhotoDetailController::class)->name('photos.show');
 Route::get('/rankings', RankingController::class)->name('rankings.index');
 Route::get('/support', SupportController::class)->name('support.index');
 Route::get('/supporters', SupporterWallController::class)->name('supporters.index');
+Route::redirect('/badges', '/me/badges/hall')->name('badges.index');
 Route::post('/photos/{uuid}/shares', [PhotoShareController::class, 'store'])->name('photos.shares.store');
 Route::middleware(['auth', EnsureFreshUserSession::class])->group(function (): void {
     Route::get('/me', [UserCenterController::class, 'show'])->name('me.show');
@@ -56,6 +57,7 @@ Route::middleware(['auth', EnsureFreshUserSession::class])->group(function (): v
     Route::patch('/me/notifications/{notification}/read', [UserNotificationController::class, 'markRead'])->name('me.notifications.read');
     Route::patch('/me/notifications/read-all', [UserNotificationController::class, 'markAllRead'])->name('me.notifications.read-all');
     Route::get('/me/sponsorships', [UserSponsorshipController::class, 'index'])->name('me.sponsorships.index');
+    Route::get('/me/badges/hall', [UserBadgeController::class, 'hall'])->name('me.badges.hall');
     Route::get('/me/badges', [UserBadgeController::class, 'index'])->name('me.badges.index');
     Route::patch('/me/badges/{badge}/equip', [UserBadgeController::class, 'equip'])->name('me.badges.equip');
     Route::patch('/me/sponsorships/profile', [UserSponsorshipController::class, 'updateProfile'])->name('me.sponsorships.profile');

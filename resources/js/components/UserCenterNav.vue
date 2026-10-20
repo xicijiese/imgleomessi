@@ -41,6 +41,7 @@ defineProps<{
         | 'comments'
         | 'reports'
         | 'sponsorships'
+        | 'badge-hall'
         | 'badges'
         | 'notifications';
 }>();
@@ -60,6 +61,12 @@ const items = [
         label: '我的赞助',
         url: '/me/sponsorships',
         icon: HeartHandshake,
+    },
+    {
+        key: 'badge-hall',
+        label: '勋章大厅',
+        url: '/me/badges/hall',
+        icon: Medal,
     },
     { key: 'badges', label: '我的勋章', url: '/me/badges', icon: Medal },
     {
