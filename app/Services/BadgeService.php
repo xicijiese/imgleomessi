@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Badge;
 use App\Models\BadgeEvent;
+use App\Models\PhotoSubmission;
 use App\Models\User;
 use App\Models\UserBadge;
 use App\Notifications\UserCenterNotification;
@@ -197,8 +198,11 @@ class BadgeService
         if (! $badge->is_active) {
             return '已停用，已获勋章永久保留';
         }
-        if (in_array($badge->rule_type, ['contributions_count', 'referrals_count'], true)) {
+        if ($badge->rule_type === 'referrals_count') {
             return '对应功能开放后可获得，累计目标为 50';
+        }
+        if ($badge->rule_type === 'contributions_count') {
+            return '投稿成功采纳累计 50 张后自动获得';
         }
         if ($badge->rule_type === 'anniversary') {
             return $badge->starts_on && $badge->ends_on
@@ -209,10 +213,16 @@ class BadgeService
         return $badge->rule_type === 'manual' ? '由管理员发放' : '达成条件后自动获得';
     }
 
+    public function contributionCount(User $user): int
+    {
+        return PhotoSubmission::query()->where('user_id', $user->id)->where('status', 'accepted')->whereNull('contribution_revoked_at')->count();
+    }
+
     private function qualifies(User $user, Badge $badge): bool
     {
         return match ($badge->rule_type) {
             'registered' => true,
+            'contributions_count' => $this->contributionCount($user) >= 50,
             'anniversary' => $this->anniversaryOpen($badge),
             'favorites_count' => $user->photoFavorites()->count() >= max(1, (int) $badge->rule_threshold),
             'comments_count' => $user->comments()->discussion()->published()->count() >= max(1, (int) $badge->rule_threshold),
@@ -229,6 +239,7 @@ class BadgeService
         $target = $badge->rule_threshold;
         $current = match ($badge->rule_type) {
             'registered' => 1,
+            'contributions_count' => $this->contributionCount($user),
             'favorites_count' => $user->photoFavorites()->count(),
             'comments_count' => $user->comments()->discussion()->published()->count(),
             'supporter' => $user->isSupporter() ? 1 : 0,

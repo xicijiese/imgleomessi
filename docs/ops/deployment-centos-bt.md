@@ -1910,3 +1910,42 @@ npm run build
 ```
 
 守护程序应在 `queue:restart` 后自动重启。纪念日获取由登录访问触发，不依赖计划任务；批量发放需要 Worker。发布后检查 `/badges`、`/me/badges`、`/admin/badges` 三个入口、GIF 原图、独立取消佩戴、纪念日期和单个指定测试账号的批次状态。全体发放前核对弹窗人数与说明，不能用全体用户进行生产验收。
+
+
+## 用户投稿增量发布（2026-10-20）
+
+本轮仅本地完成，生产未操作。按既有在线发布流程备份数据库、.env 和构建产物，确认本轮代码已提交推送后拉取。刷新自动加载并清理旧缓存，执行新增迁移：
+
+```bash
+cd /www/wwwroot/img.leomessi.cn
+COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload --no-dev --optimize --no-scripts
+/www/server/php/83/bin/php artisan optimize:clear
+/www/server/php/83/bin/php artisan migrate --path=database/migrations/2026_10_20_000001_create_photo_submissions.php --force
+npm run build
+/www/server/php/83/bin/php artisan filament:cache-components
+/www/server/php/83/bin/php artisan config:cache
+/www/server/php/83/bin/php artisan route:cache
+/www/server/php/83/bin/php artisan view:cache
+```
+
+本轮不新增依赖、不跑完整 Seeder、不批量改变已有用户角色，不需要 artisan down。新增 submitter 为可用角色，仅管理员通过申请后才授予。宝塔重启现有 Worker 即可加载新代码，原 `redis --queue=high,default,low --sleep=3 --tries=3 --timeout=120 --max-time=3600` 参数不变。现有每分钟 schedule:run 会调度每小时的投稿清理；可用 schedule:list 查看任务。用户提供的宝塔现有配置可直接沿用：Shell 脚本、每 1 分钟、进程锁勾选，内容为：
+
+```bash
+cd /www/wwwroot/img.leomessi.cn && /www/server/php/83/bin/php artisan schedule:run >> /dev/null 2>&1
+```
+
+无需为投稿另外创建计划任务，也无需改成每小时；调度器每分钟启动，投稿清理本身每小时执行。更新代码、执行迁移并重启队列后，在终端执行 `artisan schedule:list` 确认 `submissions:cleanup` 已注册；注册成功不等于文件已删除，还需 Worker 消费及实际权限验证。此命令将调度输出丢弃，排错结合宝塔任务状态、队列失败记录和 Laravel 日志。
+
+本次已包含投稿空记录/单页隐藏分页和后台两个入口导航图标修复，必须重新构建前端并刷新 Filament 组件缓存；浏览器强制刷新。生产未连接，本文不据用户配置截图推定部署或清理已成功。
+
+单张上传最大 5MB；每个请求仅上传一张，检查 Nginx/PHP 请求上限可以容纳 5MB 文件及表单，不随意覆盖现有更高配置。COS 公开图库桶如不能满足私有访问，可在系统设置填写单独私有投稿桶，同地域、沿用凭证；检查读取、私有写入、版本查询和删除权限。
+
+先用一个测试普通账号申请，管理员在“用户与权限 → 投稿资格申请”通过，再投稿单张测试图；审核在“社区与审核 → 图片投稿审核”，采纳成功后先为草稿，人工补齐分类发布。检查私有 URL 越权拒绝、署名公开开关、5MB 边界、入库重试以及 COS 真实版本清理。不要用真实用户批量授权或全站文件进行验收。
+
+可手动提交到期清理任务：
+
+```bash
+/www/server/php/83/bin/php artisan submissions:cleanup
+```
+
+该命令只将已到期且未清理的暂存文件加入队列，正式图库不在范围内。未采纳/撤回从处理时间起满 7 天才到期，不从上传时间算；等待下一轮调度和 Worker 执行。不要给整个桶配置七天删除规则。回滚时先保留投稿记录及角色审计，不直接回滚删除已产生业务数据的表。

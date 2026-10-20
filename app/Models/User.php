@@ -170,6 +170,12 @@ class User extends Authenticatable implements FilamentUser
             && ! $this->isBanned();
     }
 
+    public function canSubmitPhotos(): bool
+    {
+        return in_array($this->role, ['submitter', 'editor', 'admin'], true)
+            && ($this->status ?? 'active') === 'active' && ! $this->isBanned();
+    }
+
     public function canManageAdminResources(): bool
     {
         return $this->isAdministrator();
@@ -192,6 +198,7 @@ class User extends Authenticatable implements FilamentUser
             \App\Models\Category::class,
             \App\Models\Photo::class,
             \App\Models\Tag::class,
+            \App\Models\PhotoSubmission::class,
         ], true);
     }
 

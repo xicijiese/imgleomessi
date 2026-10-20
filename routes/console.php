@@ -1,7 +1,10 @@
 <?php
 
+use App\Jobs\CleanPhotoSubmission;
 use App\Models\PhotoImageSearch;
+use App\Models\PhotoSubmission;
 use App\Models\User;
+use App\Services\QueueWorkerStatus;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
@@ -65,3 +68,17 @@ Artisan::command('app:create-admin', function (): int {
 
     return 0;
 })->purpose('创建生产管理员账号');
+
+Artisan::command('submissions:cleanup', function (): void {
+    $count = 0;
+    PhotoSubmission::query()->whereNull('cleaned_at')->where('cleanup_at', '<=', now())
+        ->whereIn('status', ['uploading', 'temporary', 'rejected', 'withdrawn', 'accepted'])
+        ->orderBy('id')->chunk(100, function ($rows) use (&$count): void {
+            foreach ($rows as $row) {
+                CleanPhotoSubmission::dispatch($row->id)->onConnection(app(QueueWorkerStatus::class)->connection());
+                $count++;
+            }
+        });
+    $this->info('已提交 '.$count.' 个到期暂存文件清理任务。');
+})->purpose('清理到期投稿暂存文件，保留审核记录');
+Schedule::command('submissions:cleanup')->hourly()->withoutOverlapping();

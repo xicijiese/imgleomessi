@@ -28,6 +28,7 @@ class StorageSettings
                 'secret_key_saved' => false,
                 'region' => '',
                 'bucket' => '',
+                'submission_bucket' => '',
                 'cdn_url' => '',
                 'datawanxiang_enabled' => false,
             ],
@@ -70,6 +71,7 @@ class StorageSettings
             'secret_key' => $this->decryptSecret($encryptedSecret),
             'region' => (string) ($cos['region'] ?? ''),
             'bucket' => (string) ($cos['bucket'] ?? ''),
+            'submission_bucket' => (string) ($cos['submission_bucket'] ?? ''),
             'cdn_url' => (string) ($cos['cdn_url'] ?? ''),
             'datawanxiang_enabled' => (bool) ($cos['datawanxiang_enabled'] ?? false),
         ];
@@ -118,6 +120,7 @@ class StorageSettings
                 'secret_key' => filled($secretKey) ? Crypt::encryptString($secretKey) : '',
                 'region' => trim((string) ($cos['region'] ?? '')),
                 'bucket' => trim((string) ($cos['bucket'] ?? '')),
+                'submission_bucket' => trim((string) ($cos['submission_bucket'] ?? '')),
                 'cdn_url' => trim((string) ($cos['cdn_url'] ?? '')),
                 'datawanxiang_enabled' => (bool) ($cos['datawanxiang_enabled'] ?? false),
             ],

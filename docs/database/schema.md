@@ -36,6 +36,13 @@
 - admin_audit_logs
 - badges
 - user_badges
+- badge_events
+- badge_grant_batches
+- badge_grant_recipients
+- submission_applications
+- photo_submissions
+- photo_submission_claims
+- submission_events
 - photo_analysis_results
 - processing_jobs
 
@@ -47,7 +54,7 @@ Phase 1 明确不创建以下独立足球资料表：
 - competitions
 - matches
 
-2026-10-19 新增迁移（本地测试，生产未执行）：
+2026-10-19 新增迁移（已在当前本地库执行；生产执行及验收情况以主进度文档为准）：
 
 - `photo_similarity_groups`：代表图片与时间；`photo_similarity_group_members`：组成员，photo_id 唯一，每张图只属于一个自动组。
 - `photo_governance_runs`：类型、pending/running/done/failed 状态、结果数量、操作者、last_photo_id 分析游标、max_photo_id 批次上界、失败信息。
@@ -724,7 +731,7 @@ P1-11 已落库。当前任务类型包括 metadata、hash、ocr_placeholder、d
 
 ### 用户角色与内容权限
 
-users.role 继续使用 user、editor、admin。编辑员只能访问图片、相册、分类、标签和来源相关资源；用户、角色、赞助、支付、系统设置和安全资源只允许管理员访问。前台共建者名单读取 is_public = true 且 revoked_at is null 的记录，同时要求关联用户账号状态正常。
+users.role 当前使用 user、submitter、editor、admin；submitter 仅有前台投稿权限，资格审批独立于档案共建者。编辑员只能访问图片、相册、分类、标签和来源相关资源；用户、角色、赞助、支付、系统设置和安全资源只允许管理员访问。前台共建者名单读取 is_public = true 且 revoked_at is null 的记录，同时要求关联用户账号状态正常。
 
 ### 分类删除约束
 
@@ -753,9 +760,23 @@ album_category.category_id 和 photo_category.category_id 均应使用限制删�
 
 - `badges.image_path`：勋章原始图片路径，复用本地/COS 存储；GIF 不转码。
 - `badges.starts_on / ends_on`：纪念日起止日期，按北京时间含首尾日期。
-- 新规则 `anniversary`、`contributions_count`、`referrals_count`；后两者阈值固定 50，数据源未开放时不发奖。
+- 新规则 `anniversary`、`contributions_count`、`referrals_count`；后两者阈值固定 50。contributions_count 已读取成功采纳且未纠正撤销的投稿记录，referrals_count 数据源未开放时不发奖。
 - `badge_events`：用户勋章、操作人、授予/撤销/恢复、原因、时间；旧数据仅补迁移基线，不能还原旧版未记录的完整历史。
 - `badge_grant_batches`：勋章、提交人、范围、状态、说明、失败提示及完成时间。
 - `badge_grant_recipients`：批次与用户唯一的接收者快照，状态 pending/awarded/skipped；每批最多处理 100 人，重试跳过已完成记录。
 
 `user_badges(user_id, badge_id)` 唯一约束保留，不限制同用户已佩戴记录数量。获得/恢复不自动佩戴，撤销不删除记录。勋章停用保留历史和佩戴；已存在发放记录或批次的勋章禁止删除。`awarded_by` 保留原授予人，后续操作人写事件表。
+
+
+## 用户投稿数据模型（2026-10-20）
+
+新增迁移 `2026_10_20_000001_create_photo_submissions`，仅新增四张表，不改变已有用户角色值或图库记录：
+
+- `submission_applications`：用户、申请理由、pending/approved/rejected/revoked、审核人、原因、时间；重新申请创建新记录，过往审核事件保留。
+- `photo_submissions`：客户端请求 UUID 主键、服务端生成的独立 asset_uuid、批次 UUID、投稿人、文件信息与 SHA-256/dHash、相似档案 ID、私有暂存驱动/桶/地域/Key/版本、入库目标位置、资料 JSON、署名选择、revision、关联图库/高清替换目标、审核信息、采纳与贡献纠正时间、清理期限和实际完成时间。
+- `photo_submission_claims`：SHA-256 唯一主键及唯一投稿 ID，防止两份相同稿件并发采纳。成功采纳持续保留占用；入库失败明确不采纳后释放。
+- `submission_events`：申请或投稿、操作人、事件、原因及资料/版本快照；保存审核、修正、替换前原档案、贡献纠正及清理记录。
+
+稿件状态：uploading → temporary → pending → processing → accepted；pending 可撤回/不采纳，processing 失败转 failed，审核人员可重试或明确不采纳。未完成提交 24 小时清理，拒绝/撤回 7 天清理，入库失败保留，采纳成功即允许清理暂存副本。只有真实删除成功才设置 cleaned_at，删除失败保留可重试状态。
+
+角色仍用 users.role 字符串，新增 submitter，无批量角色迁移。已关联投稿的正式图片禁止物理删除，可归档；保留外键和贡献审计。公开响应不输出存储位置、版本 ID、内部备注或审核快照。

@@ -74,6 +74,10 @@ interface PhotoDetailCard {
     uuid: string;
     title: string;
     description: string | null;
+    submission: {
+        source_note: string | null;
+        credit: { name: string; url: string | null } | null;
+    } | null;
     url: string;
     image_url: string | null;
     alt: string;
@@ -1083,6 +1087,36 @@ const showWechatQr = async () => {
                                         }}</span
                                     >
                                 </div>
+                                <template v-if="photoDetail.photo.submission">
+                                    <dt>投稿来源说明</dt>
+                                    <dd>
+                                        {{
+                                            photoDetail.photo.submission
+                                                .source_note
+                                        }}
+                                    </dd>
+                                    <dt>图片投稿</dt>
+                                    <dd>
+                                        <a
+                                            v-if="
+                                                photoDetail.photo.submission
+                                                    .credit?.url
+                                            "
+                                            :href="
+                                                photoDetail.photo.submission
+                                                    .credit.url
+                                            "
+                                            class="underline"
+                                            >{{
+                                                photoDetail.photo.submission
+                                                    .credit.name
+                                            }}</a
+                                        ><span v-else>{{
+                                            photoDetail.photo.submission.credit
+                                                ?.name ?? '匿名投稿'
+                                        }}</span>
+                                    </dd>
+                                </template>
                                 <template v-if="photoDetail.photo.source">
                                     <a
                                         :href="

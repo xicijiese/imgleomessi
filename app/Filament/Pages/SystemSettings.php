@@ -400,6 +400,11 @@ class SystemSettings extends Page
                                             ->visible(fn (Get $get): bool => $get('storage.mode') === 'cos')
                                             ->required(fn (Get $get): bool => $get('storage.mode') === 'cos')
                                             ->maxLength(255),
+                                        TextInput::make('storage.cos.submission_bucket')
+                                            ->visible(fn (Get $get): bool => $get('storage.mode') === 'cos')
+                                            ->label('投稿私有存储桶（可选，同地域）')
+                                            ->maxLength(255)
+                                            ->helperText('留空使用当前桶的私有对象；若图库桶的公开策略覆盖私有 ACL，请填写独立私有桶。不会改变正式图库存储桶。'),
                                         TextInput::make('storage.cos.cdn_url')
                                             ->label('CDN 域名（可选）')
                                             ->url()

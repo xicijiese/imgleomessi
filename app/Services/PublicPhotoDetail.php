@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Comment;
 use App\Models\Photo;
 use App\Models\PhotoSimilarityCandidate;
+use App\Models\PhotoSubmission;
 use App\Models\Tag;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -313,6 +314,19 @@ class PublicPhotoDetail
     /**
      * @return array<string, mixed>
      */
+    private function submissionAttribution(Photo $photo): ?array
+    {
+        $submission = PhotoSubmission::query()->where('photo_id', $photo->id)->where('status', 'accepted')->latest('accepted_at')->with('user')->first();
+        if (! $submission) {
+            return null;
+        }
+        $user = $submission->user;
+        $credit = $submission->show_credit && $user && $user->status === 'active'
+            ? ['name' => $user->name, 'url' => $user->profile_public ? '/users/'.$user->id : null] : null;
+
+        return ['source_note' => $submission->metadata['source_note'] ?? null, 'credit' => $credit];
+    }
+
     private function photoDetail(Photo $photo, Request $request): array
     {
         $categories = $this->categories($photo->categories);
@@ -323,6 +337,7 @@ class PublicPhotoDetail
             'uuid' => $photo->uuid,
             'title' => $photo->title,
             'description' => $photo->description,
+            'submission' => $this->submissionAttribution($photo),
             'url' => '/photos/'.$photo->uuid,
             'image_url' => $this->mediaUrl($photo->display_key ?: $photo->thumbnail_key),
             'alt' => filled($photo->title) ? $photo->title : '梅西图片档案',

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ContributorProfile;
+use App\Models\SubmissionApplication;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -23,7 +24,7 @@ class ContributorService
             $needsRoleSnapshot = ! $profile->exists || ! $profile->isActive();
             if ($needsRoleSnapshot) {
                 $profile->role_before_grant = $target->role;
-                $profile->role_granted_by_contributor = $target->role === 'user';
+                $profile->role_granted_by_contributor = in_array($target->role, ['user', 'submitter'], true);
             }
 
             $profile->display_name = array_key_exists('display_name', $data)
@@ -44,7 +45,7 @@ class ContributorService
             $profile->revoked_by = null;
             $profile->save();
 
-            if ($profile->role_granted_by_contributor && $target->role === 'user') {
+            if ($profile->role_granted_by_contributor && in_array($target->role, ['user', 'submitter'], true)) {
                 $target->forceFill(['role' => 'editor'])->save();
             }
 
@@ -72,8 +73,12 @@ class ContributorService
             $target->refresh();
 
             if ($profile->role_granted_by_contributor && $target->role === 'editor') {
+                $restoreRole = $profile->role_before_grant ?: 'user';
+                if ($restoreRole === 'submitter' && SubmissionApplication::query()->where('user_id', $target->id)->latest('id')->value('status') === 'revoked') {
+                    $restoreRole = 'user';
+                }
                 $target->forceFill([
-                    'role' => $profile->role_before_grant ?: 'user',
+                    'role' => $restoreRole,
                 ])->save();
             }
 

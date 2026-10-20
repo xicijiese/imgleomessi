@@ -36,6 +36,7 @@ defineProps<{
     user: UserPayload;
     summary: SummaryPayload;
     active:
+        | 'submissions'
         | 'overview'
         | 'favorites'
         | 'comments'
@@ -48,6 +49,12 @@ defineProps<{
 
 const items = [
     { key: 'overview', label: '个人首页', url: '/me', icon: UserRound },
+    {
+        key: 'submissions',
+        label: '图片投稿',
+        url: '/me/submissions',
+        icon: Medal,
+    },
     { key: 'favorites', label: '我的收藏', url: '/me/favorites', icon: Heart },
     {
         key: 'comments',

@@ -12,6 +12,7 @@ class AdminUserManagementService
 {
     public const ROLES = [
         'user' => '普通用户',
+        'submitter' => '投稿者',
         'editor' => '编辑员',
         'admin' => '管理员',
     ];

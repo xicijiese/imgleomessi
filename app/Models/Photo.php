@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class Photo extends Model
 {
@@ -81,6 +82,11 @@ class Photo extends Model
 
     protected static function booted(): void
     {
+        static::deleting(function (Photo $photo): void {
+            if (PhotoSubmission::query()->where('photo_id', $photo->id)->orWhere('replacement_photo_id', $photo->id)->exists()) {
+                throw ValidationException::withMessages(['photo' => '该档案关联投稿审核记录，请使用归档代替删除。']);
+            }
+        });
         static::creating(function (Photo $photo): void {
             if (blank($photo->uuid)) {
                 $photo->uuid = (string) Str::uuid();

@@ -228,6 +228,9 @@ class PhotoResource extends Resource
                     ->sortable(),
             ])
             ->filters([
+                \Filament\Tables\Filters\Filter::make('id')->label('图片 ID')
+                    ->schema([TextInput::make('value')->label('图片 ID')->integer()->minValue(1)])
+                    ->query(fn (\Illuminate\Database\Eloquent\Builder $query, array $data) => $query->when($data['value'] ?? null, fn ($query, $id) => $query->whereKey($id))),
                 SelectFilter::make('status')
                     ->label('发布状态')
                     ->options(Photo::STATUSES),

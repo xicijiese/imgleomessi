@@ -134,6 +134,7 @@ class UserResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => [
                         'user' => '普通用户',
+                        'submitter' => '投稿者',
                         'editor' => '编辑员',
                         'admin' => '管理员',
                     ][$state] ?? '未知')
@@ -221,6 +222,8 @@ class UserResource extends Resource
                 ]),
             ])
             ->recordActions([
+                Action::make('submissionQualification')->label('投稿资格记录')
+                    ->url(fn (User $record) => '/admin/submission-applications?search='.urlencode($record->email)),
                 EditAction::make()
                     ->using(function (User $record, array $data, AdminUserManagementService $service): User {
                         $operator = auth()->user();
