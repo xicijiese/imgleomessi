@@ -12,6 +12,7 @@ interface NavigationItem {
 interface SitePayload {
     name: string;
     logo_url: string | null;
+    logo_light_url?: string | null;
     search_placeholder: string;
 }
 
@@ -62,6 +63,11 @@ const publicNavigationUrls = [
 const isSolidHeader = computed(
     () =>
         props.variant === 'solid' || hasScrolled.value || mobileMenuOpen.value,
+);
+const logoUrl = computed(() =>
+    isSolidHeader.value
+        ? props.site.logo_url
+        : props.site.logo_light_url || props.site.logo_url,
 );
 const visibleNavigationItems = computed(() =>
     props.navigation.filter((item) => publicNavigationUrls.includes(item.url)),
@@ -201,6 +207,16 @@ const onScroll = () => {
 onMounted(() => {
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
+
+    // 提前加载滚动后使用的图片，避免首次切换时等待下载。
+    if (
+        props.variant === 'overlay' &&
+        props.site.logo_light_url &&
+        props.site.logo_url
+    ) {
+        const logo = new Image();
+        logo.src = props.site.logo_url;
+    }
 });
 
 onUnmounted(() => {
@@ -252,8 +268,8 @@ onUnmounted(() => {
                 :title="site.name"
             >
                 <img
-                    v-if="site.logo_url"
-                    :src="site.logo_url"
+                    v-if="logoUrl"
+                    :src="logoUrl"
                     :alt="site.name"
                     class="h-10 w-auto max-w-[10rem] rounded-sm object-contain"
                 />
@@ -394,8 +410,8 @@ onUnmounted(() => {
                 :title="site.name"
             >
                 <img
-                    v-if="site.logo_url"
-                    :src="site.logo_url"
+                    v-if="logoUrl"
+                    :src="logoUrl"
                     :alt="site.name"
                     class="h-10 w-auto max-w-[10rem] rounded-sm object-contain"
                 />

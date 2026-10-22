@@ -22,6 +22,7 @@ class HomepageSettings
             'site' => [
                 'name' => '梅西影像档案库',
                 'logo_path' => null,
+                'logo_light_path' => null,
                 'search_placeholder' => '搜索图片、相册、赛事或年份',
                 'copyright_text' => '梅西影像档案库',
                 'icp_text' => null,

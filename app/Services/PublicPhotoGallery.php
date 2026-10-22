@@ -136,9 +136,21 @@ class PublicPhotoGallery
 
         if (filled($filters['q'])) {
             $keyword = str_replace(['%', '_'], ['\\%', '\\_'], $filters['q']);
-            $query->where(function (Builder $query) use ($keyword): void {
+            $matchingCategory = fn (Builder $query): Builder => $query
+                ->where('categories.visibility', 'public')
+                ->whereHas('parent', fn (Builder $query): Builder => $query->where('visibility', 'public'))
+                ->where('categories.name', 'like', "%{$keyword}%");
+
+            $query->where(function (Builder $query) use ($keyword, $matchingCategory): void {
                 $query->where('title', 'like', "%{$keyword}%")
-                    ->orWhere('description', 'like', "%{$keyword}%");
+                    ->orWhere('description', 'like', "%{$keyword}%")
+                    ->orWhereHas('tags', fn (Builder $query): Builder => $query->where('tags.name', 'like', "%{$keyword}%"))
+                    ->orWhereHas('categories', $matchingCategory)
+                    ->orWhereHas('albums', fn (Builder $query): Builder => $query
+                        ->published()
+                        ->where(fn (Builder $query): Builder => $query
+                            ->where('albums.title', 'like', "%{$keyword}%")
+                            ->orWhereHas('categories', $matchingCategory)));
             });
         }
 

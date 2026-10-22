@@ -98,7 +98,11 @@ class PublicAlbumIndex
             $query->where(function (Builder $query) use ($keyword): void {
                 $query->where('title', 'like', "%{$keyword}%")
                     ->orWhere('description', 'like', "%{$keyword}%")
-                    ->orWhere('slug', 'like', "%{$keyword}%");
+                    ->orWhere('slug', 'like', "%{$keyword}%")
+                    ->orWhereHas('categories', fn (Builder $query): Builder => $query
+                        ->where('categories.visibility', 'public')
+                        ->whereHas('parent', fn (Builder $query): Builder => $query->where('visibility', 'public'))
+                        ->where('categories.name', 'like', "%{$keyword}%"));
             });
         }
 

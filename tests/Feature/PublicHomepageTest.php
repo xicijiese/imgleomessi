@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Photo;
 use App\Models\Setting;
 use App\Services\HomepageSettings;
+use App\Services\PublicHomepage;
 use Database\Seeders\GalleryTaxonomySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -26,6 +27,31 @@ class PublicHomepageTest extends TestCase
                 ->where('home.latest_photos.display_count', 15)
                 ->where('home.hero_slides.0.title', '梅西影像档案库')
             );
+    }
+
+    public function test_navigation_logos_are_saved_and_returned_for_home_and_shared_pages(): void
+    {
+        $state = HomepageSettings::defaults();
+        $state['site']['logo_path'] = 'settings/logo/dark.png';
+        $state['site']['logo_light_path'] = 'settings/logo/light.png';
+        app(HomepageSettings::class)->save($state);
+
+        $this->get('/')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('home.site.logo_url', '/storage/settings/logo/dark.png')
+            ->where('home.site.logo_light_url', '/storage/settings/logo/light.png'));
+        $shell = app(PublicHomepage::class)->shell();
+        $this->assertSame('/storage/settings/logo/dark.png', $shell['site']['logo_url']);
+        $this->assertSame('/storage/settings/logo/light.png', $shell['site']['logo_light_url']);
+        $this->assertSame('settings/logo/light.png', Setting::value('site', 'basic')['logo_light_path']);
+    }
+
+    public function test_existing_single_logo_setting_remains_compatible(): void
+    {
+        Setting::setValue('site', 'basic', ['logo_path' => 'settings/logo/existing.png']);
+
+        $this->get('/')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('home.site.logo_url', '/storage/settings/logo/existing.png')
+            ->where('home.site.logo_light_url', null));
     }
 
     public function test_homepage_latest_photos_only_exposes_public_photos_with_pinned_first(): void

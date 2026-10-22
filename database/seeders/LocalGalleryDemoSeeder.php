@@ -634,7 +634,7 @@ class LocalGalleryDemoSeeder extends Seeder
         $topicAlbums = $albums->take(4)->values();
 
         Setting::setValue('site', 'basic', array_replace_recursive($defaults['site'], [
-            'search_placeholder' => '搜索测试图片、相册、赛事或年份',
+            'search_placeholder' => $defaults['site']['search_placeholder'],
         ]), null, '站点基础信息');
 
         $navigation = $defaults['navigation'];

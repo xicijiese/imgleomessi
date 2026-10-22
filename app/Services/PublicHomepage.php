@@ -63,6 +63,7 @@ class PublicHomepage
         return [
             'name' => $site['name'] ?? '梅西影像档案库',
             'logo_url' => $this->mediaUrl($site['logo_path'] ?? null),
+            'logo_light_url' => $this->mediaUrl($site['logo_light_path'] ?? null),
             'search_placeholder' => $site['search_placeholder'] ?? '搜索图片、相册、赛事或年份',
         ];
     }

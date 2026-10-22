@@ -84,7 +84,10 @@ class SystemSettings extends Page
                                             ->label('站点名称')
                                             ->required()
                                             ->maxLength(255),
-                                        self::settingImageUpload('site.logo_path', 'LOGO', 'settings/logo'),
+                                        self::settingImageUpload('site.logo_path', '白底导航 LOGO（深色／默认）', 'settings/logo')
+                                            ->helperText('用于滚动后的白底导航和其他页面。建议使用透明背景，与浅色版保持相同画布尺寸。'),
+                                        self::settingImageUpload('site.logo_light_path', '透明导航 LOGO（浅色／白色）', 'settings/logo')
+                                            ->helperText('用于首页顶部的透明导航；未上传时沿用默认 LOGO。建议使用透明背景。'),
                                         TextInput::make('site.search_placeholder')
                                             ->label('首页搜索占位文案')
                                             ->required()
