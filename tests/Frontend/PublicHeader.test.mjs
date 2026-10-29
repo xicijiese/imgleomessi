@@ -172,6 +172,28 @@ function expectLogos(header, source) {
     for (const logo of header.logos()) assert.equal(logo.props.src, source);
 }
 
+test('游客桌面和移动导航只显示登录，注册由登录页提供', async (t) => {
+    const header = mount(t);
+    const links = () => all(header.root, (element) => element.tag === 'a');
+    assert.equal(
+        links().filter((link) => link.props.href === '/register').length,
+        0,
+    );
+    assert.equal(
+        links().filter((link) => link.props.href === '/login').length,
+        1,
+    );
+    await header.menu();
+    assert.equal(
+        links().filter((link) => link.props.href === '/register').length,
+        0,
+    );
+    assert.equal(
+        links().filter((link) => link.props.href === '/login').length,
+        2,
+    );
+});
+
 test('首页透明导航使用白色标识，滚动后改为深色，返回顶部恢复', async (t) => {
     const header = mount(t);
     expectLogos(header, '/white.png');

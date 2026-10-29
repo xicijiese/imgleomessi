@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import SharePanel from '@/components/SharePanel.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
+import SharePanel from '@/components/SharePanel.vue';
 import type { SeoPayload } from '@/types';
 import { Link } from '@inertiajs/vue3';
+import { ArrowUp, Share2 } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 interface NavigationItem {
@@ -88,6 +89,18 @@ const props = withDefaults(
 const activeHeroIndex = ref(0);
 const activeCategoryIndex = ref(0);
 let heroTimer: number | null = null;
+const showBackToTop = ref(false);
+const updateScrollPosition = () => {
+    showBackToTop.value = window.scrollY > 400;
+};
+const scrollToTop = () => {
+    window.scrollTo({
+        top: 0,
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+            ? 'instant'
+            : 'smooth',
+    });
+};
 
 const activeHero = computed(
     () =>
@@ -118,6 +131,8 @@ const setHero = (index: number) => {
 };
 
 onMounted(() => {
+    updateScrollPosition();
+    window.addEventListener('scroll', updateScrollPosition, { passive: true });
     const reduceMotion = window.matchMedia(
         '(prefers-reduced-motion: reduce)',
     ).matches;
@@ -131,6 +146,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+    window.removeEventListener('scroll', updateScrollPosition);
     if (heroTimer !== null) {
         window.clearInterval(heroTimer);
     }
@@ -240,7 +256,35 @@ onUnmounted(() => {
                 </div>
             </template>
         </section>
-        <div class="mx-auto flex max-w-7xl justify-end px-4 pt-5 sm:px-6"><SharePanel type="home" target-key="home" :title="home.site.name" /></div>
+        <aside
+            class="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 flex flex-col gap-2 lg:right-6 lg:bottom-8"
+            aria-label="首页快捷工具"
+        >
+            <SharePanel type="home" target-key="home" :title="home.site.name">
+                <template #trigger="{ open }">
+                    <button
+                        type="button"
+                        class="flex h-14 w-14 flex-col items-center justify-center gap-1 rounded-lg border border-[#90b4ce]/60 bg-[#fffffe] text-[#094067] transition-colors hover:border-[#147dc1] hover:bg-[#eef6fc] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#147dc1] motion-reduce:transition-none sm:h-16 sm:w-16"
+                        aria-label="分享网站"
+                        aria-haspopup="dialog"
+                        @click="open"
+                    >
+                        <Share2 class="size-5" aria-hidden="true" />
+                        <span class="text-xs font-semibold">分享</span>
+                    </button>
+                </template>
+            </SharePanel>
+            <button
+                v-if="showBackToTop"
+                type="button"
+                class="hidden h-16 w-16 flex-col items-center justify-center gap-1 rounded-lg border border-[#90b4ce]/60 bg-[#fffffe] text-[#094067] transition-colors hover:border-[#147dc1] hover:bg-[#eef6fc] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#147dc1] motion-reduce:transition-none md:flex"
+                aria-label="返回顶部"
+                @click="scrollToTop"
+            >
+                <ArrowUp class="size-5" aria-hidden="true" />
+                <span class="text-xs font-semibold">顶部</span>
+            </button>
+        </aside>
 
         <section
             v-if="showCategoryModule"
@@ -261,7 +305,8 @@ onUnmounted(() => {
                     >
                         <div class="flex w-max gap-3">
                             <button
-                                v-for="(tab, index) in home.category_module.tabs"
+                                v-for="(tab, index) in home.category_module
+                                    .tabs"
                                 :key="`${tab.label}-${tab.category_id ?? index}`"
                                 type="button"
                                 class="shrink-0 rounded-full border px-5 py-2 text-sm font-semibold transition"
@@ -309,12 +354,14 @@ onUnmounted(() => {
                             class="h-full w-full bg-[linear-gradient(135deg,#d8eefe,#90b4ce)]"
                         />
                         <div
-                            class="absolute inset-0 bg-[#094067]/42 transition-colors duration-200 md:bg-[#094067]/0 md:group-hover:bg-[#094067]/58 motion-reduce:transition-none"
+                            class="absolute inset-0 bg-[#094067]/42 transition-colors duration-200 motion-reduce:transition-none md:bg-[#094067]/0 md:group-hover:bg-[#094067]/58"
                         />
                         <div
-                            class="absolute inset-x-0 bottom-0 p-5 opacity-100 transition-opacity duration-200 md:opacity-0 md:group-hover:opacity-100 motion-reduce:transition-none"
+                            class="absolute inset-x-0 bottom-0 p-5 opacity-100 transition-opacity duration-200 motion-reduce:transition-none md:opacity-0 md:group-hover:opacity-100"
                         >
-                            <span class="text-lg font-semibold text-[#fffffe] drop-shadow-sm">
+                            <span
+                                class="text-lg font-semibold text-[#fffffe] drop-shadow-sm"
+                            >
                                 {{ item.title }}
                             </span>
                         </div>

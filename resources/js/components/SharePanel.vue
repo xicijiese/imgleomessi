@@ -205,13 +205,15 @@ async function refreshPoster(current = generation) {
 }
 </script>
 <template>
-    <button
-        type="button"
-        class="inline-flex min-h-11 items-center justify-center gap-2 rounded-sm border border-[#90b4ce]/60 px-4 text-sm font-semibold text-[#094067] hover:border-[#3da9fc] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3da9fc]"
-        @click="open"
-    >
-        <Share2 class="h-4 w-4" aria-hidden="true" />分享
-    </button>
+    <slot name="trigger" :open="open">
+        <button
+            type="button"
+            class="inline-flex min-h-11 items-center justify-center gap-2 rounded-sm border border-[#90b4ce]/60 px-4 text-sm font-semibold text-[#094067] hover:border-[#3da9fc] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3da9fc]"
+            @click="open"
+        >
+            <Share2 class="h-4 w-4" aria-hidden="true" />分享
+        </button>
+    </slot>
     <dialog
         ref="dialog"
         class="m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-sm border border-[#90b4ce]/40 bg-[#fffffe] p-6 text-[#094067] shadow-xl backdrop:bg-black/40"

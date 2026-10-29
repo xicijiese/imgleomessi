@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
+import PasswordInput from '@/components/PasswordInput.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import AuthBase from '@/layouts/AuthLayout.vue';
+import AuthBase from '@/layouts/auth/AuthArchiveLayout.vue';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
@@ -20,12 +21,16 @@ defineProps<{
 </script>
 
 <template>
-    <AuthBase title="登录你的账号" description="输入邮箱和密码后即可登录">
+    <AuthBase
+        title="欢迎回来"
+        description="登录账号，继续收藏与查阅你的影像档案。"
+    >
         <Head title="登录" />
 
         <div
             v-if="status"
-            class="mb-4 text-center text-sm font-medium text-green-600"
+            role="status"
+            class="mb-6 rounded-md bg-[#ecfdf3] px-4 py-3 text-sm text-[#166534]"
         >
             {{ status }}
         </div>
@@ -40,16 +45,24 @@ defineProps<{
                 <div class="grid gap-2">
                     <Label for="email">邮箱地址</Label>
                     <Input
+                        class="auth-input"
                         id="email"
+                        :aria-invalid="Boolean(errors.email)"
+                        :aria-describedby="
+                            errors.email ? 'email-error' : undefined
+                        "
                         type="email"
                         name="email"
                         required
                         autofocus
-                        :tabindex="1"
                         autocomplete="email"
                         placeholder="email@example.com"
                     />
-                    <InputError :message="errors.email" />
+                    <InputError
+                        id="email-error"
+                        :message="errors.email"
+                        role="alert"
+                    />
                 </div>
 
                 <div class="grid gap-2">
@@ -58,49 +71,58 @@ defineProps<{
                         <TextLink
                             v-if="canResetPassword"
                             :href="request()"
-                            class="text-sm"
-                            :tabindex="5"
+                            class="auth-link text-sm"
                         >
                             忘记密码？
                         </TextLink>
                     </div>
-                    <Input
+                    <PasswordInput
                         id="password"
-                        type="password"
+                        :aria-invalid="Boolean(errors.password)"
+                        :aria-describedby="
+                            errors.password ? 'password-error' : undefined
+                        "
                         name="password"
                         required
-                        :tabindex="2"
                         autocomplete="current-password"
                         placeholder="请输入密码"
                     />
-                    <InputError :message="errors.password" />
+                    <InputError
+                        id="password-error"
+                        :message="errors.password"
+                        role="alert"
+                    />
                 </div>
 
                 <div class="flex items-center justify-between">
                     <Label for="remember" class="flex items-center space-x-3">
-                        <Checkbox id="remember" name="remember" :tabindex="3" />
+                        <Checkbox id="remember" name="remember" />
                         <span>保持登录</span>
                     </Label>
                 </div>
 
                 <Button
                     type="submit"
-                    class="mt-4 w-full"
-                    :tabindex="4"
+                    class="auth-submit mt-2 w-full"
                     :disabled="processing"
+                    :aria-busy="processing"
                     data-test="login-button"
                 >
                     <Spinner v-if="processing" />
-                    登录
+                    {{ processing ? '正在登录…' : '登录' }}
                 </Button>
             </div>
 
             <div
-                class="text-center text-sm text-muted-foreground"
+                class="rounded-md bg-[#eef6fc] px-4 py-4 text-center text-sm text-[#526b80]"
                 v-if="canRegister"
             >
                 还没有账号？
-                <TextLink :href="register()" :tabindex="5">注册</TextLink>
+                <TextLink
+                    :href="register()"
+                    class="auth-link ml-1 font-semibold underline"
+                    >创建账号</TextLink
+                >
             </div>
         </Form>
     </AuthBase>

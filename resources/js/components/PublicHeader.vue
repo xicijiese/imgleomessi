@@ -72,7 +72,6 @@ const logoUrl = computed(() =>
 const visibleNavigationItems = computed(() =>
     props.navigation.filter((item) => publicNavigationUrls.includes(item.url)),
 );
-const canRegister = computed(() => props.canRegister ?? true);
 const currentUser = computed(() => {
     const auth = page.props.auth as
         | { user?: { name?: string } | null }
@@ -81,14 +80,7 @@ const currentUser = computed(() => {
     return auth?.user ?? null;
 });
 const canAccessAdmin = computed(() => Boolean(page.props.canAccessAdmin));
-const guestAccountLinks = computed(() =>
-    canRegister.value
-        ? [
-              { label: '登录', url: '/login' },
-              { label: '注册', url: '/register' },
-          ]
-        : [{ label: '登录', url: '/login' }],
-);
+const guestAccountLinks = [{ label: '登录', url: '/login' }];
 const showSuggestionPanel = computed(
     () =>
         suggestionsOpen.value &&
@@ -245,10 +237,10 @@ onUnmounted(() => {
         ]"
     >
         <div
-            class="mx-auto hidden h-20 max-w-7xl grid-cols-[auto_minmax(0,1fr)_minmax(320px,1.2fr)] items-center gap-5 px-4 sm:px-6 lg:grid lg:px-8"
+            class="mx-auto hidden h-20 max-w-7xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-6 px-8 xl:grid"
         >
             <nav
-                class="order-2 flex min-w-0 items-center gap-5 text-base font-medium"
+                class="order-2 flex min-w-0 items-center gap-5 text-[17px] font-semibold"
                 aria-label="主导航"
             >
                 <Link
@@ -280,7 +272,7 @@ onUnmounted(() => {
                     M
                 </span>
                 <span
-                    class="pointer-events-none absolute top-full left-0 z-20 mt-2 whitespace-nowrap rounded-sm bg-[#094067] px-3 py-2 text-sm font-medium text-[#fffffe] opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+                    class="pointer-events-none absolute top-full left-0 z-20 mt-2 rounded-sm bg-[#094067] px-3 py-2 text-sm font-medium whitespace-nowrap text-[#fffffe] opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
                 >
                     {{ site.name }}
                 </span>
@@ -288,7 +280,7 @@ onUnmounted(() => {
 
             <div class="order-3 flex min-w-0 items-center justify-end gap-3">
                 <form
-                    class="relative flex max-w-md min-w-[220px] flex-1 items-center rounded-full border px-4 py-2 transition"
+                    class="relative flex w-[240px] shrink-0 items-center rounded-full border px-4 py-2 transition 2xl:w-[280px]"
                     :class="
                         isSolidHeader
                             ? 'border-[#90b4ce]/60 bg-[#fffffe] text-[#094067]'
@@ -401,7 +393,7 @@ onUnmounted(() => {
         </div>
 
         <div
-            class="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:hidden"
+            class="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 xl:hidden"
         >
             <Link
                 href="/"
@@ -422,7 +414,7 @@ onUnmounted(() => {
                     M
                 </span>
                 <span
-                    class="pointer-events-none absolute top-full left-0 z-20 mt-2 whitespace-nowrap rounded-sm bg-[#094067] px-3 py-2 text-sm font-medium text-[#fffffe] opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+                    class="pointer-events-none absolute top-full left-0 z-20 mt-2 rounded-sm bg-[#094067] px-3 py-2 text-sm font-medium whitespace-nowrap text-[#fffffe] opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
                 >
                     {{ site.name }}
                 </span>
@@ -441,7 +433,7 @@ onUnmounted(() => {
 
         <div
             v-if="mobileMenuOpen"
-            class="border-t border-[#90b4ce]/35 bg-[#fffffe] px-4 py-5 text-[#094067] lg:hidden"
+            class="border-t border-[#90b4ce]/35 bg-[#fffffe] px-4 py-5 text-[#094067] xl:hidden"
         >
             <form
                 class="relative mb-5 flex items-center rounded-full border border-[#90b4ce]/60 px-4 py-2"
