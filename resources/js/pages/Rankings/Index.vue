@@ -1,17 +1,10 @@
 <script setup lang="ts">
+import ArchivePagination from '@/components/ArchivePagination.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import type { SeoPayload } from '@/types';
 import { Link, router } from '@inertiajs/vue3';
-import {
-    Bookmark,
-    Flame,
-    Heart,
-    ImageOff,
-    MessageCircle,
-    Share2,
-    Trophy,
-} from 'lucide-vue-next';
+
 import { computed, ref } from 'vue';
 
 interface NavigationItem {
@@ -67,6 +60,13 @@ interface RankingsPayload {
         formula: string;
     };
     items: RankingItem[];
+    meta: {
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+    };
+    links: { prev: string | null; next: string | null };
 }
 
 const props = defineProps<{
@@ -93,221 +93,132 @@ const selectWindow = (window: string) => {
     );
 };
 
-const metricLabel = (key: keyof RankingItem['metrics']) =>
-    ({
-        hot_score: '热度',
-        likes: '点赞',
-        favorites: '收藏',
-        comments: '评论',
-        shares: '分享',
-    })[key];
+const metricKey = computed<keyof RankingItem['metrics']>(
+    () =>
+        (({
+            hot: 'hot_score',
+            likes: 'likes',
+            favorites: 'favorites',
+            comments: 'comments',
+            shares: 'shares',
+        })[props.rankings.filters.type] as keyof RankingItem['metrics']) ??
+        'hot_score',
+);
+const metricLabels = {
+    likes: '点赞',
+    favorites: '收藏',
+    comments: '评论',
+    shares: '分享',
+} as const;
 
-const formatDate = (date: string | null) => date ?? '日期待补充';
+import { useArchiveBrowserMotion } from '@/composables/useArchiveBrowserMotion';
+import '../../../css/archive-browser.css';
+const pageRoot = ref<HTMLElement | null>(null);
+useArchiveBrowserMotion(pageRoot);
 </script>
-
 <template>
     <SeoHead :seo="rankings.seo" />
-
-    <main class="min-h-screen bg-[#fffffe] text-[#094067]">
-        <PublicHeader :navigation="rankings.navigation" :site="rankings.site" />
-
-        <section
-            class="border-b border-[#90b4ce]/30 bg-[#d8eefe] px-4 py-10 sm:px-6 lg:px-8"
-        >
-            <div
-                class="mx-auto flex max-w-7xl flex-col gap-6 lg:flex-row lg:items-end lg:justify-between"
-            >
-                <div>
-                    <p class="mb-3 text-sm font-semibold text-[#3da9fc]">
-                        Rankings
-                    </p>
-                    <h1 class="text-4xl font-semibold sm:text-5xl">排行榜</h1>
-                    <p
-                        class="mt-4 max-w-2xl text-sm leading-7 text-[#5f6c7b] sm:text-base"
-                    >
-                        按点赞、收藏、评论和分享记录观察图片互动热度；这里只统计可公开展示的图片。
-                    </p>
-                </div>
-
-                <div
-                    class="rounded-sm bg-[#fffffe] px-4 py-3 text-sm text-[#5f6c7b] shadow-sm"
-                >
+    <main ref="pageRoot" class="archive-browser archive-community">
+        <PublicHeader
+            :site="rankings.site"
+            :navigation="rankings.navigation"
+            theme="afa"
+        />
+        <div class="community-main">
+            <section class="intro browser-heading">
+                <h1>排行榜</h1>
+                <p>
+                    按点赞、收藏、评论和分享记录观察图片互动热度；这里只统计可公开展示的图片。
+                </p>
+                <p class="summary">
                     当前 {{ rankings.summary.window_label }} ·
                     {{ rankings.summary.score_label }}
-                    <span class="ml-2 font-semibold text-[#094067]">{{
-                        rankings.summary.total_ranked
-                    }}</span>
-                    张上榜
+                    <strong>{{ rankings.summary.total_ranked }}</strong> 张上榜
+                </p>
+            </section>
+            <div class="rank-toolbar browser-quick-filters">
+                <div class="rank-tabs" role="group" aria-label="榜单类型">
+                    <button
+                        v-for="(label, value) in rankings.options.types"
+                        :key="value"
+                        type="button"
+                        :aria-pressed="rankings.filters.type === value"
+                        @click="selectType(String(value))"
+                    >
+                        {{ label }}
+                    </button>
+                </div>
+                <div class="window-tabs" role="group" aria-label="时间范围">
+                    <button
+                        v-for="(label, value) in rankings.options.windows"
+                        :key="value"
+                        type="button"
+                        :aria-pressed="rankings.filters.window === value"
+                        @click="selectWindow(String(value))"
+                    >
+                        {{ label }}
+                    </button>
                 </div>
             </div>
-        </section>
-
-        <section class="px-4 py-8 sm:px-6 lg:px-8">
-            <div class="mx-auto max-w-7xl space-y-6">
-                <div
-                    class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
-                >
-                    <div class="flex flex-wrap gap-2" aria-label="榜单类型">
-                        <button
-                            v-for="(label, value) in rankings.options.types"
-                            :key="value"
-                            type="button"
-                            class="rounded-sm border px-4 py-2 text-sm font-semibold transition"
-                            :class="
-                                rankings.filters.type === value
-                                    ? 'border-[#3da9fc] bg-[#3da9fc] text-[#fffffe]'
-                                    : 'border-[#90b4ce]/50 bg-[#fffffe] text-[#094067] hover:border-[#3da9fc] hover:text-[#3da9fc]'
-                            "
-                            @click="selectType(String(value))"
-                        >
-                            {{ label }}
-                        </button>
-                    </div>
-
-                    <div class="flex flex-wrap gap-2" aria-label="时间范围">
-                        <button
-                            v-for="(label, value) in rankings.options.windows"
-                            :key="value"
-                            type="button"
-                            class="rounded-sm border px-4 py-2 text-sm font-semibold transition"
-                            :class="
-                                rankings.filters.window === value
-                                    ? 'border-[#094067] bg-[#094067] text-[#fffffe]'
-                                    : 'border-[#90b4ce]/50 bg-[#fffffe] text-[#094067] hover:border-[#094067]'
-                            "
-                            @click="selectWindow(String(value))"
-                        >
-                            {{ label }}
-                        </button>
-                    </div>
-                </div>
-
-                <div
-                    class="rounded-sm border border-[#90b4ce]/35 bg-[#fffffe] px-4 py-3 text-sm leading-6 text-[#5f6c7b]"
-                >
-                    <span class="font-semibold text-[#094067]">统计口径：</span>
-                    {{
-                        rankings.summary.formula
-                    }}；评论只计算已发布普通评论，不计纠错投稿；不统计浏览量和第三方平台数据。
-                </div>
-
-                <div
-                    v-if="hasItems"
-                    class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            <p class="formula">
+                <strong>统计口径：</strong
+                >{{
+                    rankings.summary.formula
+                }}；评论只计算已发布普通评论，不计纠错投稿；不统计浏览量和第三方平台数据。
+            </p>
+            <div v-if="hasItems" class="rank-grid">
+                <article
+                    v-for="item in rankings.items"
+                    :key="item.id"
+                    class="rank-card"
                 >
                     <Link
-                        v-for="item in rankings.items"
-                        :key="item.id"
+                        class="cover"
                         :href="item.url"
-                        class="group overflow-hidden rounded-sm border border-[#90b4ce]/30 bg-[#fffffe] shadow-sm transition hover:-translate-y-0.5 hover:border-[#3da9fc] hover:shadow-md"
+                        :aria-label="`查看图片：${item.title}`"
+                        ><img
+                            v-if="item.image_url && !imageFailures[item.id]"
+                            :src="item.image_url"
+                            :alt="item.alt"
+                            loading="lazy"
+                            @error="imageFailures[item.id] = true"
+                        /><span v-else class="failed">图片暂时无法显示</span
+                        ><span
+                            class="rank-number"
+                            :class="{ top: item.rank <= 3 }"
+                            >#{{ item.rank }}</span
+                        ></Link
                     >
-                        <div class="relative aspect-[4/3] bg-[#d8eefe]">
-                            <img
-                                v-if="item.image_url && !imageFailures[item.id]"
-                                :src="item.image_url"
-                                :alt="item.alt"
-                                class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                                loading="lazy"
-                                @error="imageFailures[item.id] = true"
-                            />
-                            <div
-                                v-else
-                                class="flex h-full w-full items-center justify-center text-[#5f6c7b]"
-                            >
-                                <ImageOff class="h-8 w-8" aria-hidden="true" />
-                            </div>
-                            <div
-                                class="absolute top-3 left-3 flex h-10 min-w-10 items-center justify-center rounded-sm bg-[#094067] px-3 text-sm font-bold text-[#fffffe]"
-                            >
-                                #{{ item.rank }}
-                            </div>
-                            <div
-                                class="absolute right-3 bottom-3 flex items-center gap-1 rounded-sm bg-[#fffffe]/90 px-3 py-1 text-sm font-bold text-[#094067] shadow-sm"
-                            >
-                                <Flame
-                                    class="h-4 w-4 text-[#ef4565]"
-                                    aria-hidden="true"
-                                />
-                                {{ item.metrics.hot_score }}
-                            </div>
-                        </div>
-
-                        <div class="space-y-3 p-4">
-                            <div>
-                                <h2
-                                    class="line-clamp-2 min-h-12 text-base leading-6 font-semibold text-[#094067]"
-                                >
-                                    {{ item.title }}
-                                </h2>
-                                <p class="mt-2 text-xs text-[#5f6c7b]">
-                                    {{ formatDate(item.event_date) }}
-                                </p>
-                                <p
-                                    class="mt-1 line-clamp-1 text-xs text-[#5f6c7b]"
-                                >
-                                    {{ item.category_summary }}
-                                </p>
-                            </div>
-
-                            <div
-                                class="grid grid-cols-4 gap-2 text-xs text-[#5f6c7b]"
-                            >
-                                <span
-                                    class="flex items-center gap-1"
-                                    :title="metricLabel('likes')"
-                                >
-                                    <Heart class="h-4 w-4" aria-hidden="true" />
-                                    {{ item.metrics.likes }}
-                                </span>
-                                <span
-                                    class="flex items-center gap-1"
-                                    :title="metricLabel('favorites')"
-                                >
-                                    <Bookmark
-                                        class="h-4 w-4"
-                                        aria-hidden="true"
-                                    />
-                                    {{ item.metrics.favorites }}
-                                </span>
-                                <span
-                                    class="flex items-center gap-1"
-                                    :title="metricLabel('comments')"
-                                >
-                                    <MessageCircle
-                                        class="h-4 w-4"
-                                        aria-hidden="true"
-                                    />
-                                    {{ item.metrics.comments }}
-                                </span>
-                                <span
-                                    class="flex items-center gap-1"
-                                    :title="metricLabel('shares')"
-                                >
-                                    <Share2
-                                        class="h-4 w-4"
-                                        aria-hidden="true"
-                                    />
-                                    {{ item.metrics.shares }}
-                                </span>
-                            </div>
-                        </div>
-                    </Link>
-                </div>
-
-                <div
-                    v-else
-                    class="flex min-h-80 flex-col items-center justify-center rounded-sm border border-dashed border-[#90b4ce]/60 bg-[#fffffe] px-6 text-center"
-                >
-                    <Trophy
-                        class="h-10 w-10 text-[#3da9fc]"
-                        aria-hidden="true"
-                    />
-                    <h2 class="mt-4 text-xl font-semibold">暂无互动数据</h2>
-                    <p class="mt-3 max-w-md text-sm leading-6 text-[#5f6c7b]">
-                        当前筛选范围内还没有点赞、收藏、评论或分享记录。产生互动后，这里会自动显示上榜图片。
+                    <h2>
+                        <Link :href="item.url">{{ item.title }}</Link>
+                    </h2>
+                    <div class="metric-lead">
+                        <span>{{ rankings.summary.score_label }}</span
+                        ><strong>{{ item.metrics[metricKey] }}</strong>
+                    </div>
+                    <p v-if="rankings.filters.type !== 'hot'">
+                        综合热度 {{ item.metrics.hot_score }}
                     </p>
-                </div>
+                    <div class="metrics">
+                        <span v-for="(label, key) in metricLabels" :key="key"
+                            >{{ label
+                            }}<strong>{{ item.metrics[key] }}</strong></span
+                        >
+                    </div>
+                </article>
             </div>
-        </section>
+            <section v-else class="empty">
+                <h2>暂无互动数据</h2>
+                <p>
+                    当前筛选范围内还没有点赞、收藏、评论或分享记录。产生互动后，这里会自动显示上榜图片。
+                </p>
+            </section>
+            <ArchivePagination
+                :meta="rankings.meta"
+                :links="rankings.links"
+                label="排行榜分页"
+            />
+        </div>
     </main>
 </template>
+<style scoped src="../../../css/community-pages.css"></style>

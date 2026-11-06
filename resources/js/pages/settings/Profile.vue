@@ -5,7 +5,6 @@ import { Form, Head, Link, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 
 import DeleteUser from '@/components/DeleteUser.vue';
-import HeadingSmall from '@/components/HeadingSmall.vue';
 import InputError from '@/components/InputError.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -331,177 +330,203 @@ onBeforeUnmount(() => {
 <template>
     <Head title="个人资料" />
 
-    <SettingsLayout>
-        <div class="flex flex-col space-y-6">
-            <HeadingSmall
-                title="个人资料"
-                description="更新你的头像、昵称、手机号和邮箱地址"
-            />
+    <SettingsLayout variant="archive">
+        <div class="profile-content">
+            <div class="profile-heading browser-heading">
+                <div>
+                    <h1>个人资料</h1>
+                    <p>更新头像、昵称和联系方式。</p>
+                </div>
+            </div>
 
             <Form
                 v-bind="ProfileController.update.form()"
-                class="space-y-6"
+                class="profile-form"
                 v-slot="{ errors, processing, recentlySuccessful }"
             >
-                <div class="grid gap-3">
-                    <Label for="avatar">头像</Label>
-                    <div class="flex items-center gap-4">
-                        <Avatar class="h-16 w-16 overflow-hidden rounded-full">
-                            <AvatarImage
-                                v-if="displayedAvatarUrl"
-                                :src="displayedAvatarUrl"
-                                :alt="user.name"
-                            />
-                            <AvatarFallback
-                                class="bg-[#d8eefe] text-[#094067]"
-                                >{{
-                                    user.name.slice(0, 1).toUpperCase()
-                                }}</AvatarFallback
+                <section class="profile-panel">
+                    <div class="profile-section-heading">
+                        <h2>头像与基本资料</h2>
+                        <p>资料修改后，点击保存资料。</p>
+                    </div>
+                    <div class="avatar-field">
+                        <Label for="avatar-file">头像</Label>
+                        <div class="avatar-row">
+                            <Avatar
+                                class="h-16 w-16 overflow-hidden rounded-full"
                             >
-                        </Avatar>
-                        <div class="grid gap-2">
-                            <input
-                                id="avatar-file"
-                                ref="avatarInput"
-                                class="peer sr-only"
-                                type="file"
-                                name="avatar"
-                                accept="image/jpeg,image/png,image/webp"
-                                @change="handleAvatarSelection"
-                            />
-                            <div class="flex flex-wrap items-center gap-3">
-                                <label
-                                    for="avatar-file"
-                                    class="inline-flex h-10 cursor-pointer items-center justify-center rounded-md bg-[#3da9fc] px-4 text-sm font-medium text-[#fffffe] transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#3da9fc]/40 peer-focus-visible:ring-offset-2 hover:bg-[#094067]"
-                                >
-                                    选择头像文件
-                                </label>
-                                <span
-                                    v-if="selectedAvatarName"
-                                    class="max-w-60 truncate text-sm text-foreground"
-                                >
-                                    {{ selectedAvatarName }}
-                                </span>
-                            </div>
-                            <p class="text-xs text-muted-foreground">
-                                支持 JPG、PNG、WebP，最大
-                                2MB。选择图片后可裁剪为正方形。
-                            </p>
-                            <p
-                                v-if="fileError"
-                                class="text-sm text-destructive"
-                                role="alert"
-                            >
-                                {{ fileError }}
-                            </p>
-                            <label
-                                v-if="user.avatar"
-                                class="flex items-center gap-2 text-sm text-muted-foreground"
-                            >
-                                <input
-                                    v-model="removeAvatar"
-                                    type="checkbox"
-                                    name="remove_avatar"
-                                    value="1"
+                                <AvatarImage
+                                    v-if="displayedAvatarUrl"
+                                    :src="displayedAvatarUrl"
+                                    :alt="user.name"
                                 />
-                                移除当前头像
-                            </label>
+                                <AvatarFallback
+                                    class="bg-[#d8eefe] text-[#094067]"
+                                    >{{
+                                        user.name.slice(0, 1).toUpperCase()
+                                    }}</AvatarFallback
+                                >
+                            </Avatar>
+                            <div class="grid gap-2">
+                                <input
+                                    id="avatar-file"
+                                    ref="avatarInput"
+                                    class="peer sr-only"
+                                    type="file"
+                                    name="avatar"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    @change="handleAvatarSelection"
+                                />
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <label
+                                        for="avatar-file"
+                                        class="profile-avatar-button"
+                                    >
+                                        选择头像文件
+                                    </label>
+                                    <span
+                                        v-if="selectedAvatarName"
+                                        class="max-w-60 truncate text-sm text-foreground"
+                                    >
+                                        {{ selectedAvatarName }}
+                                    </span>
+                                </div>
+                                <p class="text-xs text-muted-foreground">
+                                    支持 JPG、PNG、WebP，最大
+                                    2MB。选择图片后可裁剪为正方形。
+                                </p>
+                                <p
+                                    v-if="fileError"
+                                    class="text-sm text-destructive"
+                                    role="alert"
+                                >
+                                    {{ fileError }}
+                                </p>
+                                <label
+                                    v-if="user.avatar"
+                                    class="flex items-center gap-2 text-sm text-muted-foreground"
+                                >
+                                    <input
+                                        v-model="removeAvatar"
+                                        type="checkbox"
+                                        name="remove_avatar"
+                                        value="1"
+                                    />
+                                    移除当前头像
+                                </label>
+                            </div>
+                        </div>
+                        <InputError class="mt-2" :message="errors.avatar" />
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="name"
+                            >昵称 <span class="field-hint">必填</span></Label
+                        >
+                        <Input
+                            id="name"
+                            class="profile-input"
+                            name="name"
+                            :default-value="user.name"
+                            required
+                            autocomplete="name"
+                            placeholder="请输入昵称"
+                        />
+                        <InputError class="mt-2" :message="errors.name" />
+                    </div>
+                </section>
+                <section class="profile-panel">
+                    <div class="profile-section-heading">
+                        <h2>联系方式</h2>
+                        <p>请填写可使用的邮箱。手机号码可留空。</p>
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="email"
+                            >邮箱地址
+                            <span class="field-hint">必填</span></Label
+                        >
+                        <Input
+                            id="email"
+                            type="email"
+                            class="profile-input"
+                            name="email"
+                            :default-value="user.email"
+                            required
+                            autocomplete="username"
+                            placeholder="请输入邮箱地址"
+                        />
+                        <InputError class="mt-2" :message="errors.email" />
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="phone"
+                            >手机号码
+                            <span class="field-hint">选填</span></Label
+                        >
+                        <Input
+                            id="phone"
+                            type="tel"
+                            class="profile-input"
+                            name="phone"
+                            :default-value="user.phone ?? undefined"
+                            autocomplete="tel"
+                            placeholder="请输入 11 位手机号码"
+                        />
+                        <InputError class="mt-2" :message="errors.phone" />
+                    </div>
+                    <div
+                        v-if="mustVerifyEmail && !user.email_verified_at"
+                        class="profile-verification"
+                    >
+                        <p class="-mt-4 text-sm text-muted-foreground">
+                            你的邮箱地址尚未验证。
+                            <Link
+                                :href="send()"
+                                as="button"
+                                class="profile-resend"
+                            >
+                                点击重新发送验证邮件。
+                            </Link>
+                        </p>
+
+                        <div
+                            v-if="status === 'verification-link-sent'"
+                            class="mt-2 text-sm font-medium text-green-600"
+                        >
+                            新的验证邮件已发送。
                         </div>
                     </div>
-                    <InputError class="mt-2" :message="errors.avatar" />
-                </div>
 
-                <div class="grid gap-2">
-                    <Label for="name">昵称</Label>
-                    <Input
-                        id="name"
-                        class="mt-1 block w-full border-[#90b4ce]/60 bg-[#fffffe] text-[#094067] shadow-none placeholder:text-[#5f6c7b]/60 focus-visible:border-[#3da9fc] focus-visible:ring-[#3da9fc]/30 dark:border-[#90b4ce]/60 dark:bg-[#fffffe] dark:text-[#094067] dark:placeholder:text-[#5f6c7b]/60"
-                        name="name"
-                        :default-value="user.name"
-                        required
-                        autocomplete="name"
-                        placeholder="请输入昵称"
-                    />
-                    <InputError class="mt-2" :message="errors.name" />
-                </div>
-
-                <div class="grid gap-2">
-                    <Label for="email">邮箱地址</Label>
-                    <Input
-                        id="email"
-                        type="email"
-                        class="mt-1 block w-full border-[#90b4ce]/60 bg-[#fffffe] text-[#094067] shadow-none placeholder:text-[#5f6c7b]/60 focus-visible:border-[#3da9fc] focus-visible:ring-[#3da9fc]/30 dark:border-[#90b4ce]/60 dark:bg-[#fffffe] dark:text-[#094067] dark:placeholder:text-[#5f6c7b]/60"
-                        name="email"
-                        :default-value="user.email"
-                        required
-                        autocomplete="username"
-                        placeholder="请输入邮箱地址"
-                    />
-                    <InputError class="mt-2" :message="errors.email" />
-                </div>
-
-                <div class="grid gap-2">
-                    <Label for="phone">手机号码</Label>
-                    <Input
-                        id="phone"
-                        type="tel"
-                        class="mt-1 block w-full border-[#90b4ce]/60 bg-[#fffffe] text-[#094067] shadow-none placeholder:text-[#5f6c7b]/60 focus-visible:border-[#3da9fc] focus-visible:ring-[#3da9fc]/30 dark:border-[#90b4ce]/60 dark:bg-[#fffffe] dark:text-[#094067] dark:placeholder:text-[#5f6c7b]/60"
-                        name="phone"
-                        :default-value="user.phone ?? undefined"
-                        autocomplete="tel"
-                        placeholder="请输入 11 位手机号码"
-                    />
-                    <InputError class="mt-2" :message="errors.phone" />
-                </div>
-                <div v-if="mustVerifyEmail && !user.email_verified_at">
-                    <p class="-mt-4 text-sm text-muted-foreground">
-                        你的邮箱地址尚未验证。
-                        <Link
-                            :href="send()"
-                            as="button"
-                            class="text-[#094067] underline decoration-[#90b4ce] underline-offset-4 transition-colors duration-300 ease-out hover:text-[#3da9fc] hover:decoration-[#3da9fc]"
+                    <div class="profile-save-row">
+                        <Button
+                            class="profile-primary"
+                            :disabled="processing"
+                            data-test="update-profile-button"
+                            >保存资料</Button
                         >
-                            点击重新发送验证邮件。
-                        </Link>
-                    </p>
 
-                    <div
-                        v-if="status === 'verification-link-sent'"
-                        class="mt-2 text-sm font-medium text-green-600"
-                    >
-                        新的验证邮件已发送。
+                        <Transition
+                            enter-active-class="transition ease-in-out"
+                            enter-from-class="opacity-0"
+                            leave-active-class="transition ease-in-out"
+                            leave-to-class="opacity-0"
+                        >
+                            <p
+                                v-show="recentlySuccessful"
+                                role="status"
+                                aria-live="polite"
+                                class="text-sm text-neutral-600"
+                            >
+                                已保存。
+                            </p>
+                        </Transition>
                     </div>
-                </div>
-
-                <div class="flex items-center gap-4">
-                    <Button
-                        class="bg-[#3da9fc] text-[#fffffe] hover:bg-[#094067] focus-visible:ring-[#3da9fc]/40"
-                        :disabled="processing"
-                        data-test="update-profile-button"
-                        >保存资料</Button
-                    >
-
-                    <Transition
-                        enter-active-class="transition ease-in-out"
-                        enter-from-class="opacity-0"
-                        leave-active-class="transition ease-in-out"
-                        leave-to-class="opacity-0"
-                    >
-                        <p
-                            v-show="recentlySuccessful"
-                            class="text-sm text-neutral-600"
-                        >
-                            已保存。
-                        </p>
-                    </Transition>
-                </div>
+                </section>
             </Form>
         </div>
 
         <Dialog :open="isCropDialogOpen" @update:open="handleCropDialogChange">
-            <DialogContent
-                class="border-[#90b4ce]/35 bg-[#fffffe] text-[#094067] sm:max-w-lg dark:border-[#90b4ce]/35 dark:bg-[#fffffe] dark:text-[#094067]"
-            >
+            <DialogContent class="profile-crop-dialog sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>裁剪头像</DialogTitle>
                     <DialogDescription class="text-[#5f6c7b]">
@@ -512,7 +537,7 @@ onBeforeUnmount(() => {
                 <div class="grid gap-5">
                     <div
                         ref="cropViewport"
-                        class="relative mx-auto aspect-square w-full max-w-[320px] cursor-grab touch-none overflow-hidden rounded-lg bg-[#094067] active:cursor-grabbing"
+                        class="relative mx-auto aspect-square w-full max-w-[320px] cursor-grab touch-none overflow-hidden rounded-lg bg-[#042240] active:cursor-grabbing"
                         @pointerdown="startCropDrag"
                         @pointermove="moveCropDrag"
                         @pointerup="endCropDrag"
@@ -545,7 +570,7 @@ onBeforeUnmount(() => {
                         </div>
                         <input
                             id="avatar-zoom"
-                            class="h-2 w-full cursor-pointer accent-[#3da9fc]"
+                            class="h-2 w-full cursor-pointer accent-[#ba9f6c]"
                             type="range"
                             min="1"
                             max="3"
@@ -568,7 +593,7 @@ onBeforeUnmount(() => {
                     </Button>
                     <Button
                         type="button"
-                        class="bg-[#3da9fc] text-[#fffffe] hover:bg-[#094067] focus-visible:ring-[#3da9fc]/40"
+                        class="profile-primary"
                         :disabled="isCropping"
                         @click="confirmCrop"
                     >
@@ -578,6 +603,8 @@ onBeforeUnmount(() => {
             </DialogContent>
         </Dialog>
 
-        <DeleteUser />
+        <DeleteUser variant="archive" />
     </SettingsLayout>
 </template>
+
+<style scoped src="./Profile.css"></style>

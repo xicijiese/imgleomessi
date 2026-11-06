@@ -1,17 +1,15 @@
 <script setup lang="ts">
+import ArchivePagination from '@/components/ArchivePagination.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
+import { useArchiveBrowserMotion } from '@/composables/useArchiveBrowserMotion';
 import type { SeoPayload } from '@/types';
 import { Link, router } from '@inertiajs/vue3';
-import {
-    CalendarDays,
-    ChevronLeft,
-    ChevronRight,
-    ImageOff,
-    Images,
-    SlidersHorizontal,
-} from 'lucide-vue-next';
-import { computed, reactive, ref } from 'vue';
+import { gsap } from 'gsap';
+import { ImageOff, SlidersHorizontal, X } from 'lucide-vue-next';
+import { computed, onUnmounted, reactive, ref } from 'vue';
+import '../../../css/archive-browser.css';
+import './Albums.css';
 
 interface NavigationItem {
     label: string;
@@ -93,14 +91,47 @@ const props = defineProps<{
 }>();
 
 const filtersOpen = ref(false);
+const root = ref<HTMLElement | null>(null);
+const filterDialog = ref<HTMLDialogElement | null>(null);
+const loading = ref(false);
+let dialogTween: gsap.core.Tween | undefined;
+useArchiveBrowserMotion(root);
+const openFilters = () => {
+    filterDialog.value?.showModal();
+    filtersOpen.value = true;
+    if (
+        filterDialog.value &&
+        !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+        dialogTween?.revert();
+        dialogTween = gsap.fromTo(
+            filterDialog.value,
+            { y: 12, opacity: 0 },
+            {
+                y: 0,
+                opacity: 1,
+                duration: 0.2,
+                clearProps: 'opacity,transform',
+            },
+        );
+    }
+};
+const closeFilters = () => {
+    filterDialog.value?.close();
+    filtersOpen.value = false;
+};
+onUnmounted(() => dialogTween?.revert());
 const imageFailures = ref<Record<number, boolean>>({});
 
 const form = reactive({
     q: props.albumIndex.filters.q,
     categories: Object.fromEntries(
-        Object.entries(props.albumIndex.filters.categories).map(
-            ([slug, id]) => [slug, String(id)],
-        ),
+        props.albumIndex.filter_options.category_groups.map((group) => [
+            group.slug,
+            props.albumIndex.filters.categories[group.slug]
+                ? String(props.albumIndex.filters.categories[group.slug])
+                : '',
+        ]),
     ) as Record<string, string>,
     sort: props.albumIndex.filters.sort,
 });
@@ -134,15 +165,22 @@ const queryParams = () => {
 };
 
 const applyFilters = () => {
+    closeFilters();
     router.get('/albums', queryParams(), {
         preserveScroll: false,
         preserveState: false,
         replace: true,
+        onStart: () => {
+            loading.value = true;
+        },
+        onFinish: () => {
+            loading.value = false;
+        },
     });
-    filtersOpen.value = false;
 };
 
 const resetFilters = () => {
+    closeFilters();
     router.get(
         '/albums',
         {},
@@ -150,307 +188,290 @@ const resetFilters = () => {
             preserveScroll: false,
             preserveState: false,
             replace: true,
+            onStart: () => {
+                loading.value = true;
+            },
+            onFinish: () => {
+                loading.value = false;
+            },
         },
     );
-    filtersOpen.value = false;
 };
 
 const formatDate = (date: string | null) => date ?? '发布时间待补充';
-</script>
 
+const quickGroups = computed(() =>
+    props.albumIndex.filter_options.category_groups.filter((group) =>
+        ['career-stage', 'year'].includes(group.slug),
+    ),
+);
+const chips = computed(() => [
+    ...(props.albumIndex.filters.q
+        ? [{ key: 'q', label: `关键词：${props.albumIndex.filters.q}` }]
+        : []),
+    ...Object.entries(props.albumIndex.filters.categories).map(([slug, id]) => {
+        const group = props.albumIndex.filter_options.category_groups.find(
+            (item) => item.slug === slug,
+        );
+        return {
+            key: slug,
+            label: `${group?.name ?? slug}：${group?.children.find((item) => item.id === id)?.name ?? id}`,
+        };
+    }),
+]);
+const removeChip = (key: string) => {
+    if (key === 'q') form.q = '';
+    else form.categories[key] = '';
+    applyFilters();
+};
+</script>
 <template>
     <SeoHead :seo="albumIndex.seo" />
-
-    <main class="min-h-screen bg-[#fffffe] text-[#094067]">
+    <main ref="root" class="archive-browser archive-albums">
         <PublicHeader
             :navigation="albumIndex.navigation"
             :site="albumIndex.site"
+            theme="afa"
         />
-
-        <section
-            class="border-b border-[#90b4ce]/30 bg-[#d8eefe] px-4 py-10 sm:px-6 lg:px-8"
-        >
-            <div
-                class="mx-auto flex max-w-7xl flex-col gap-6 lg:flex-row lg:items-end lg:justify-between"
-            >
+        <div class="browser-container">
+            <div class="browser-heading">
                 <div>
-                    <p class="mb-3 text-sm font-semibold text-[#3da9fc]">
-                        Albums
-                    </p>
-                    <h1 class="text-4xl font-semibold sm:text-5xl">相册</h1>
-                    <p
-                        class="mt-4 max-w-2xl text-sm leading-7 text-[#5f6c7b] sm:text-base"
-                    >
-                        按赛事、年份、球队和主题浏览已发布的梅西影像集合。
-                    </p>
-                </div>
-
-                <div
-                    class="rounded-sm bg-[#fffffe] px-4 py-3 text-sm text-[#5f6c7b] shadow-sm"
-                >
-                    <span class="font-semibold text-[#094067]">{{
-                        albumIndex.albums.meta.total
-                    }}</span>
-                    个公开相册
-                    <span
-                        v-if="albumIndex.albums.meta.from !== null"
-                        class="ml-2"
-                    >
-                        当前 {{ albumIndex.albums.meta.from }}-{{
-                            albumIndex.albums.meta.to
-                        }}
-                    </span>
+                    <h1>相册</h1>
+                    <p>按赛事、年份、球队和主题浏览已发布的梅西影像集合。</p>
                 </div>
             </div>
-        </section>
-
-        <section class="px-4 py-8 sm:px-6 lg:px-8">
-            <div class="mx-auto max-w-7xl">
-                <div
-                    class="mb-5 flex flex-wrap items-center justify-between gap-3"
-                >
-                    <button
-                        type="button"
-                        class="inline-flex h-11 items-center gap-2 rounded-sm border border-[#90b4ce]/60 px-4 text-sm font-semibold text-[#094067]"
-                        @click="filtersOpen = !filtersOpen"
-                    >
-                        <SlidersHorizontal class="h-4 w-4" aria-hidden="true" />
-                        筛选
-                    </button>
-                    <button
-                        v-if="hasActiveFilters"
-                        type="button"
-                        class="h-11 text-sm font-semibold text-[#3da9fc]"
-                        @click="resetFilters"
-                    >
-                        清空全部
-                    </button>
-                </div>
-
-                <form
-                    class="mb-8 rounded-sm border border-[#90b4ce]/35 bg-[#fffffe] p-4 shadow-sm lg:p-5"
-                    :class="filtersOpen ? 'block' : 'hidden lg:block'"
-                    @submit.prevent="applyFilters"
-                >
-                    <div class="grid gap-4 lg:grid-cols-12">
-                        <label class="grid gap-2 lg:col-span-5">
-                            <span class="text-sm font-semibold">关键词</span>
+            <form @submit.prevent="applyFilters">
+                <div class="browser-quick-filters">
+                    <label class="browser-keyword"
+                        ><span>关键词</span>
+                        <div class="browser-search-input">
                             <input
                                 v-model="form.q"
                                 type="search"
-                                class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
+                                aria-label="关键词"
                                 placeholder="标题、说明或 URL 标识"
-                            />
-                        </label>
-
-                        <label class="grid gap-2 lg:col-span-3">
-                            <span class="text-sm font-semibold">排序</span>
-                            <select
-                                v-model="form.sort"
-                                class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
+                            /><button
+                                class="browser-search-submit"
+                                type="submit"
                             >
-                                <option
-                                    v-for="sort in albumIndex.filter_options
-                                        .sorts"
-                                    :key="sort.value"
-                                    :value="sort.value"
-                                >
-                                    {{ sort.label }}
-                                </option>
-                            </select>
-                        </label>
-                    </div>
-
-                    <div
-                        v-if="albumIndex.filter_options.category_groups.length"
-                        class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+                                搜索
+                            </button>
+                        </div></label
+                    ><label
+                        v-for="group in quickGroups"
+                        :key="group.slug"
+                        class="browser-quick-category"
+                        ><span>{{ group.name }}</span
+                        ><select
+                            v-model="form.categories[group.slug]"
+                            :aria-label="group.name"
+                        >
+                            <option value="">全部{{ group.name }}</option>
+                            <option
+                                v-for="child in group.children"
+                                :key="child.id"
+                                :value="String(child.id)"
+                            >
+                                {{ child.name }}
+                            </option>
+                        </select></label
+                    ><button
+                        class="browser-filter-toggle browser-outline"
+                        type="button"
+                        :aria-expanded="filtersOpen"
+                        @click="openFilters"
                     >
-                        <label
-                            v-for="group in albumIndex.filter_options
-                                .category_groups"
-                            :key="group.slug"
-                            class="grid gap-2"
-                        >
-                            <span class="text-sm font-semibold">{{
-                                group.name
-                            }}</span>
-                            <select
-                                v-model="form.categories[group.slug]"
-                                class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
-                            >
-                                <option value="">全部</option>
-                                <option
-                                    v-for="child in group.children"
-                                    :key="child.id"
-                                    :value="String(child.id)"
-                                >
-                                    {{ child.name }}
-                                </option>
-                            </select>
-                        </label>
-                    </div>
-
-                    <div class="mt-6 flex flex-wrap items-center gap-3">
+                        <SlidersHorizontal
+                            :size="18"
+                            aria-hidden="true"
+                        />全部筛选</button
+                    ><button
+                        class="browser-apply-top browser-primary"
+                        type="submit"
+                    >
+                        应用筛选
+                    </button>
+                </div>
+                <dialog
+                    ref="filterDialog"
+                    class="browser-filter-dialog"
+                    aria-label="相册筛选"
+                    @close="filtersOpen = false"
+                >
+                    <div class="browser-dialog-heading">
+                        <div>
+                            <h2>筛选相册</h2>
+                            <p>组合分类查找相册。</p>
+                        </div>
                         <button
-                            type="submit"
-                            class="h-11 rounded-sm bg-[#3da9fc] px-5 text-sm font-semibold text-[#fffffe] transition hover:bg-[#1e94e6]"
-                        >
-                            应用筛选
-                        </button>
-                        <button
-                            v-if="hasActiveFilters"
+                            class="browser-close-filter"
                             type="button"
-                            class="h-11 rounded-sm border border-[#90b4ce]/60 px-5 text-sm font-semibold"
+                            aria-label="关闭筛选"
+                            @click="closeFilters"
+                        >
+                            <X :size="22" aria-hidden="true" />
+                        </button>
+                    </div>
+                    <div class="browser-filter-scroll">
+                        <div class="browser-advanced-fields">
+                            <label
+                                v-for="group in albumIndex.filter_options
+                                    .category_groups"
+                                :key="group.slug"
+                                ><span>{{ group.name }}</span
+                                ><select
+                                    v-model="form.categories[group.slug]"
+                                    :aria-label="group.name"
+                                >
+                                    <option value="">全部</option>
+                                    <option
+                                        v-for="child in group.children"
+                                        :key="child.id"
+                                        :value="String(child.id)"
+                                    >
+                                        {{ child.name }}
+                                    </option>
+                                </select></label
+                            >
+                        </div>
+                    </div>
+                    <div class="browser-filter-actions">
+                        <button
+                            class="browser-text-button"
+                            type="button"
                             @click="resetFilters"
                         >
-                            清空全部
+                            重置条件</button
+                        ><button class="browser-primary" type="submit">
+                            应用筛选
                         </button>
                     </div>
-                </form>
-
-                <div
-                    v-if="hasAlbums"
-                    class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                </dialog>
+            </form>
+            <div v-if="chips.length" class="browser-active-chips">
+                <button
+                    v-for="chip in chips"
+                    :key="chip.key"
+                    class="browser-chip"
+                    type="button"
+                    :aria-label="`移除${chip.label}`"
+                    @click="removeChip(chip.key)"
                 >
-                    <Link
-                        v-for="album in albumIndex.albums.data"
-                        :key="album.slug"
-                        :href="album.url"
-                        class="group overflow-hidden rounded-sm border border-[#90b4ce]/25 bg-[#fffffe] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#3da9fc]"
-                        :aria-label="`查看相册：${album.title}`"
+                    {{ chip.label }} <span aria-hidden="true">×</span></button
+                ><button
+                    class="browser-text-button"
+                    type="button"
+                    @click="resetFilters"
+                >
+                    清空全部
+                </button>
+            </div>
+            <div class="browser-results-toolbar">
+                <p v-if="loading" role="status">正在加载相册…</p>
+                <p v-else>
+                    <strong>{{ albumIndex.albums.meta.total }}</strong>
+                    个公开相册
+                    <span
+                        v-if="albumIndex.albums.meta.from !== null"
+                        class="browser-range"
+                        >当前 {{ albumIndex.albums.meta.from }}–{{
+                            albumIndex.albums.meta.to
+                        }}</span
                     >
-                        <div
-                            class="aspect-[16/10] overflow-hidden bg-[#d8eefe]"
+                </p>
+                <label class="browser-sort-control"
+                    >排序<select v-model="form.sort" aria-label="相册排序">
+                        <option
+                            v-for="sort in albumIndex.filter_options.sorts"
+                            :key="sort.value"
+                            :value="sort.value"
                         >
-                            <img
-                                v-if="
-                                    album.cover_image_url &&
-                                    !imageFailures[album.id]
-                                "
-                                :src="album.cover_image_url"
-                                :alt="album.cover_alt"
-                                loading="lazy"
-                                class="h-full w-full object-cover transition duration-500 group-hover:scale-105 group-hover:brightness-95"
-                                @error="imageFailures[album.id] = true"
-                            />
-                            <div
-                                v-else
-                                class="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#d8eefe,#90b4ce)] text-[#094067]"
-                            >
-                                <ImageOff class="h-8 w-8" aria-hidden="true" />
-                            </div>
-                        </div>
-                        <div class="grid min-h-44 gap-3 p-4">
-                            <div>
-                                <h2
-                                    class="line-clamp-2 text-base leading-6 font-semibold text-[#094067]"
-                                >
-                                    {{ album.title }}
-                                </h2>
-                                <div
-                                    class="mt-2 flex flex-wrap items-center gap-3 text-sm text-[#5f6c7b]"
-                                >
-                                    <span
-                                        class="inline-flex items-center gap-1.5"
-                                    >
-                                        <CalendarDays
-                                            class="h-4 w-4"
-                                            aria-hidden="true"
-                                        />
-                                        {{ formatDate(album.published_at) }}
-                                    </span>
-                                    <span
-                                        class="inline-flex items-center gap-1.5"
-                                    >
-                                        <Images
-                                            class="h-4 w-4"
-                                            aria-hidden="true"
-                                        />
-                                        {{ album.public_photos_count }} 张
-                                    </span>
-                                </div>
-                            </div>
-                            <p
-                                v-if="album.description"
-                                class="line-clamp-3 text-sm leading-6 text-[#5f6c7b]"
-                            >
-                                {{ album.description }}
-                            </p>
-                            <p
-                                v-if="album.category_summary"
-                                class="truncate text-sm text-[#5f6c7b]"
-                            >
-                                {{ album.category_summary }}
-                            </p>
-                        </div>
-                    </Link>
-                </div>
-
-                <div
-                    v-else
-                    class="rounded-sm bg-[#d8eefe] px-6 py-14 text-center"
+                            {{ sort.label }}
+                        </option>
+                    </select></label
                 >
-                    <h2 class="text-2xl font-semibold text-[#094067]">
-                        {{ emptyTitle }}
-                    </h2>
-                    <p
-                        class="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#5f6c7b]"
-                    >
-                        {{ emptyDescription }}
-                    </p>
+            </div>
+            <div
+                v-if="loading"
+                class="album-grid"
+                aria-label="正在加载相册"
+                aria-busy="true"
+            >
+                <div v-for="n in 6" :key="n" class="browser-skeleton">
+                    <div class="browser-photo"></div>
+                    <div></div>
+                    <div></div>
+                </div>
+            </div>
+            <div v-else-if="hasAlbums" class="album-grid">
+                <Link
+                    v-for="album in albumIndex.albums.data"
+                    :key="album.slug"
+                    :href="album.url"
+                    class="album-card"
+                    :aria-label="`查看相册：${album.title}`"
+                    ><div class="album-cover">
+                        <img
+                            v-if="
+                                album.cover_image_url &&
+                                !imageFailures[album.id]
+                            "
+                            :src="album.cover_image_url"
+                            :alt="album.cover_alt"
+                            loading="lazy"
+                            @error="imageFailures[album.id] = true"
+                        />
+                        <div
+                            v-else
+                            class="browser-image-error"
+                            role="img"
+                            :aria-label="album.cover_alt + '，封面暂不可用'"
+                        >
+                            <ImageOff :size="28" aria-hidden="true" />
+                        </div>
+                        <span class="album-count"
+                            >{{ album.public_photos_count }} 张</span
+                        >
+                    </div>
+                    <div class="album-card-copy">
+                        <h2>{{ album.title }}</h2>
+                        <time>{{ formatDate(album.published_at) }}</time>
+                        <p v-if="album.category_summary" class="album-category">
+                            {{ album.category_summary }}
+                        </p>
+                    </div>
+                    <p v-if="album.description" class="album-description">
+                        {{ album.description }}
+                    </p></Link
+                >
+            </div>
+            <section v-else class="browser-empty-state">
+                <h2>{{ emptyTitle }}</h2>
+                <p>{{ emptyDescription }}</p>
+                <div v-if="hasActiveFilters">
                     <button
-                        v-if="hasActiveFilters"
+                        class="browser-primary"
                         type="button"
-                        class="mt-6 h-11 rounded-sm bg-[#3da9fc] px-5 text-sm font-semibold text-[#fffffe]"
                         @click="resetFilters"
                     >
                         清空全部
                     </button>
                 </div>
-
-                <nav
-                    v-if="albumIndex.albums.meta.last_page > 1"
-                    class="mt-10 flex items-center justify-between gap-4 border-t border-[#90b4ce]/30 pt-6"
-                    aria-label="相册分页"
-                >
-                    <Link
-                        v-if="albumIndex.albums.links.prev"
-                        :href="albumIndex.albums.links.prev"
-                        class="inline-flex h-11 items-center gap-2 rounded-sm border border-[#90b4ce]/60 px-4 text-sm font-semibold text-[#094067] hover:border-[#3da9fc] hover:text-[#3da9fc]"
-                    >
-                        <ChevronLeft class="h-4 w-4" aria-hidden="true" />
-                        上一页
-                    </Link>
-                    <span
-                        v-else
-                        class="inline-flex h-11 items-center gap-2 rounded-sm border border-[#90b4ce]/30 px-4 text-sm font-semibold text-[#90b4ce]"
-                    >
-                        <ChevronLeft class="h-4 w-4" aria-hidden="true" />
-                        上一页
-                    </span>
-
-                    <p class="text-sm text-[#5f6c7b]">
-                        第 {{ albumIndex.albums.meta.current_page }} /
-                        {{ albumIndex.albums.meta.last_page }} 页
-                    </p>
-
-                    <Link
-                        v-if="albumIndex.albums.links.next"
-                        :href="albumIndex.albums.links.next"
-                        class="inline-flex h-11 items-center gap-2 rounded-sm border border-[#90b4ce]/60 px-4 text-sm font-semibold text-[#094067] hover:border-[#3da9fc] hover:text-[#3da9fc]"
-                    >
-                        下一页
-                        <ChevronRight class="h-4 w-4" aria-hidden="true" />
-                    </Link>
-                    <span
-                        v-else
-                        class="inline-flex h-11 items-center gap-2 rounded-sm border border-[#90b4ce]/30 px-4 text-sm font-semibold text-[#90b4ce]"
-                    >
-                        下一页
-                        <ChevronRight class="h-4 w-4" aria-hidden="true" />
-                    </span>
-                </nav>
-            </div>
-        </section>
+            </section>
+            <ArchivePagination
+                v-if="!loading"
+                :meta="albumIndex.albums.meta"
+                :links="albumIndex.albums.links"
+                label="相册分页"
+            />
+            <button
+                v-if="hasActiveFilters && !chips.length"
+                class="browser-text-button mt-4"
+                type="button"
+                @click="resetFilters"
+            >
+                清空全部
+            </button>
+        </div>
     </main>
 </template>

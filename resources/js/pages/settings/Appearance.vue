@@ -2,20 +2,23 @@
 import { Head } from '@inertiajs/vue3';
 
 import AppearanceTabs from '@/components/AppearanceTabs.vue';
-import HeadingSmall from '@/components/HeadingSmall.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 </script>
 
 <template>
     <Head title="外观设置" />
 
-    <SettingsLayout>
-        <div class="space-y-6">
-            <HeadingSmall
-                title="外观设置"
-                description="调整账号页面的显示偏好"
-            />
+    <SettingsLayout variant="archive">
+        <div class="appearance-content">
+            <div class="appearance-heading browser-heading">
+                <div>
+                    <h1>外观设置</h1>
+                    <p>选择适合自己的显示模式。</p>
+                </div>
+            </div>
             <AppearanceTabs />
         </div>
     </SettingsLayout>
 </template>
+
+<style scoped src="./Appearance.css"></style>

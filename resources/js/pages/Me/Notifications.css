@@ -1,0 +1,490 @@
+.notifications-page {
+    display: flow-root;
+    min-height: 100vh;
+    background: #f5f5fa;
+    color: #042240;
+}
+.notifications-page :deep(header[data-theme='afa']) {
+    background: #98cef0;
+    color: #042240;
+}
+.notifications-page :deep(header[data-theme='afa'] form) {
+    background: transparent;
+    border-color: #04224055;
+    color: #042240;
+}
+.notifications-page :deep(header[data-theme='afa'] input::placeholder) {
+    color: currentColor;
+    opacity: 0.8;
+}
+.notifications-workspace {
+    display: grid;
+    grid-template-columns: 216px minmax(0, 1fr);
+    gap: 32px;
+    max-width: 1360px;
+    margin: 24px auto 40px;
+    padding: 0 32px;
+}
+.page-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 22px;
+}
+.page-heading h1 {
+    font-size: 30px;
+    line-height: 1.4;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+}
+.page-heading p {
+    font-size: 14px;
+    line-height: 1.8;
+    color: #526779;
+    margin-top: 6px;
+}
+.notifications-page :is(a, button, input, select, summary):focus-visible {
+    outline: 2px solid #042240;
+    outline-offset: 3px;
+}
+@media (max-width: 1279px) {
+    .notifications-workspace {
+        grid-template-columns: 190px minmax(0, 1fr);
+        gap: 24px;
+    }
+}
+@media (max-width: 767px) {
+    .notifications-page {
+        background: #fff;
+    }
+    .notifications-workspace {
+        display: block;
+        padding: 0 20px;
+        margin-top: 20px;
+    }
+    .page-heading {
+        margin-bottom: 18px;
+    }
+    .page-heading h1 {
+        font-size: 26px;
+    }
+}
+.comment-filters {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) auto;
+    align-items: end;
+    gap: 16px;
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+}
+.comment-filter {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+}
+.comment-filter label {
+    font-size: 13px;
+    font-weight: 500;
+}
+.comment-filter select {
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+    border: 1px solid #9fb5c5;
+    border-radius: 5px;
+    background: #fff;
+    padding: 0 12px;
+    color: #042240;
+    font-size: 14px;
+}
+.comment-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.filter-primary,
+.filter-clear {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 5px;
+    font-size: 13px;
+    white-space: nowrap;
+    transition:
+        background 0.18s,
+        transform 0.18s;
+}
+.filter-primary {
+    border: 1px solid #ba9f6c;
+    background: #ba9f6c;
+    color: #042240;
+    font-weight: 600;
+}
+.filter-primary:hover {
+    background: #b09662;
+}
+.filter-clear {
+    border: 1px solid #a8bfd0;
+    background: #fff;
+    color: #042240;
+}
+.filter-clear:hover {
+    background: #edf7fd;
+}
+.filter-primary:active,
+.filter-clear:active {
+    transform: scale(0.98);
+}
+.record-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0 16px;
+    color: #526779;
+    font-size: 13px;
+    line-height: 1.8;
+}
+.record-toolbar p:last-child {
+    font-size: 12px;
+}
+.comment-records {
+    display: grid;
+    gap: 18px;
+}
+.record {
+    padding: 22px;
+    background: #fff;
+    border-radius: 8px;
+    min-width: 0;
+}
+.photo-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    min-height: 36px;
+    padding: 4px 11px;
+    border: 1px solid #a8bfd0;
+    border-radius: 4px;
+    font-size: 12px;
+    background: #fff;
+    white-space: nowrap;
+    transition:
+        background 0.18s,
+        transform 0.18s;
+}
+.photo-link:hover {
+    background: #edf7fd;
+}
+.photo-link:active {
+    transform: scale(0.98);
+}
+.records-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 300px;
+    padding: 30px;
+    background: #fff;
+    border-radius: 8px;
+}
+.records-empty h2 {
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.6;
+}
+.records-empty p {
+    font-size: 14px;
+    color: #526779;
+    line-height: 1.9;
+    margin-top: 10px;
+    max-width: 420px;
+}
+.records-empty a,
+.records-empty button {
+    margin-top: 22px;
+}
+@media (max-width: 1023px) {
+    .comment-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .comment-filter-actions {
+        grid-column: 1/-1;
+        justify-content: flex-end;
+    }
+}
+@media (max-width: 767px) {
+    .comment-filters {
+        padding: 0;
+        background: transparent;
+        gap: 14px 12px;
+    }
+    .comment-filter select {
+        font-size: 16px;
+        height: 46px;
+        padding: 0 9px;
+    }
+    .comment-filter label {
+        font-size: 13px;
+    }
+    .comment-filter-actions {
+        justify-content: flex-start;
+    }
+    .filter-primary,
+    .filter-clear {
+        min-height: 46px;
+    }
+    .record-toolbar {
+        font-size: 12px;
+        margin-top: 18px;
+    }
+    .record-toolbar p:last-child {
+        font-size: 11px;
+    }
+    .comment-records {
+        gap: 18px;
+    }
+    .record {
+        padding: 16px;
+        background: #f5f5fa;
+        border-radius: 8px;
+    }
+    .photo-link {
+        margin-top: 7px;
+        min-height: 36px;
+        font-size: 11px;
+        padding: 4px 9px;
+    }
+    .records-empty {
+        background: #f5f5fa;
+        padding: 24px 18px;
+        min-height: 280px;
+    }
+    .records-empty h2 {
+        font-size: 20px;
+    }
+    .records-empty p {
+        font-size: 13px;
+    }
+}
+@media (max-width: 767px) {
+    .photo-link {
+        min-height: 44px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .notifications-page * {
+        transition: none !important;
+        animation: none !important;
+        scroll-behavior: auto !important;
+    }
+}
+:deep(.browser-pagination) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    margin: 30px 0 0;
+    color: #526779;
+    font-size: 13px;
+}
+:deep(.browser-page-button) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    min-width: 104px;
+    padding: 10px 15px;
+    border: 1px solid #a8bfd0;
+    border-radius: 5px;
+    background: #fff;
+    color: #042240;
+    font-size: 13px;
+    transition:
+        background 0.18s,
+        transform 0.18s;
+}
+:deep(.browser-page-next) {
+    background: #98cef0;
+    border-color: #98cef0;
+}
+:deep(.browser-page-button:hover) {
+    background: #e9dfcf;
+    border-color: #ba9f6c;
+}
+:deep(.browser-page-button:active) {
+    transform: scale(0.98);
+}
+:deep(.browser-page-button:disabled) {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: #fff;
+    border-color: #a8bfd0;
+    transform: none;
+}
+:deep(.browser-page-button svg) {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.18s;
+}
+:deep(.browser-page-next:not(:disabled):hover svg) {
+    transform: translateX(3px);
+}
+:deep(.browser-page-button:not(:disabled):not(.browser-page-next):hover svg) {
+    transform: translateX(-3px);
+}
+@media (prefers-reduced-motion: reduce) {
+    .notifications-page :deep(*) {
+        transition: none !important;
+        animation: none !important;
+        scroll-behavior: auto !important;
+    }
+}
+@media (max-width: 767px) {
+    :deep(.browser-pagination) {
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 12px;
+    }
+    :deep(.browser-page-button) {
+        min-width: 86px;
+        padding: 9px 10px;
+        font-size: 12px;
+        gap: 5px;
+    }
+}
+.notices-work {
+    min-width: 0;
+}
+.all-action {
+    display: grid;
+    gap: 7px;
+    justify-items: end;
+}
+.all-action span {
+    font-size: 11px;
+    line-height: 1.6;
+    color: #526779;
+}
+.all-action button {
+    min-height: 44px;
+}
+.notice {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 22px;
+    background: #fff;
+    border-radius: 8px;
+}
+.notice[data-read='false'] {
+    background: #fcfaf5;
+}
+.notice + .notice {
+    margin-top: 12px;
+}
+.notice-main {
+    min-width: 0;
+    flex: 1;
+}
+.notice-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 12px;
+    line-height: 1.8;
+    color: #526779;
+}
+.read-label {
+    font-weight: 500;
+}
+.notice[data-read='false'] .read-label {
+    color: #72551f;
+}
+.notice h2 {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.7;
+    margin: 8px 0;
+    overflow-wrap: anywhere;
+}
+.notice-message {
+    font-size: 14px;
+    line-height: 1.9;
+    color: #526779;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.notice-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex-shrink: 0;
+    margin-top: 30px;
+}
+.notice-actions button:disabled,
+.all-action button:disabled {
+    opacity: 0.55;
+    cursor: wait;
+}
+#feedback {
+    padding: 12px 16px;
+    background: #edf7fd;
+    font-size: 13px;
+    margin-bottom: 14px;
+}
+#feedback[role='alert'] {
+    background: #fff1f0;
+    color: #a32823;
+}
+@media (max-width: 1023px) {
+    .page-heading {
+        align-items: flex-start;
+    }
+    .notice {
+        display: block;
+    }
+    .notice-actions {
+        margin-top: 16px;
+    }
+}
+@media (max-width: 767px) {
+    .page-heading {
+        display: block;
+    }
+    .all-action {
+        justify-items: start;
+        margin-top: 18px;
+    }
+    .notice {
+        padding: 16px;
+        background: #f5f5fa;
+    }
+    .notice[data-read='false'] {
+        background: #fcfaf5;
+    }
+    .notice h2 {
+        font-size: 15px;
+    }
+    .notice-meta {
+        font-size: 11px;
+    }
+    .notice-actions {
+        margin-top: 16px;
+    }
+    .notice-actions .filter-clear {
+        font-size: 12px;
+    }
+    .notice-message {
+        font-size: 14px;
+    }
+}

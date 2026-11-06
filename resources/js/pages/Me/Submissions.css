@@ -1,0 +1,335 @@
+.submissions-page {
+    display: flow-root;
+    min-height: 100vh;
+    background: #f5f5fa;
+    color: #042240;
+}
+.submissions-page :deep(header[data-theme='afa']) {
+    background: #98cef0;
+    color: #042240;
+}
+.submissions-page :deep(header[data-theme='afa'] form) {
+    background: transparent;
+    border-color: #04224055;
+    color: #042240;
+}
+.submissions-page :deep(header[data-theme='afa'] input::placeholder) {
+    color: currentColor;
+    opacity: 0.8;
+}
+.submissions-workspace {
+    display: grid;
+    grid-template-columns: 216px minmax(0, 1fr);
+    gap: 32px;
+    max-width: 1360px;
+    margin: 24px auto 40px;
+    padding: 0 32px;
+}
+.page-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 22px;
+}
+.page-heading h1 {
+    font-size: 30px;
+    line-height: 1.4;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+}
+.page-heading p {
+    font-size: 14px;
+    line-height: 1.8;
+    color: #526779;
+    margin-top: 6px;
+}
+.secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    border: 1px solid #a8bfd0;
+    border-radius: 5px;
+    padding: 7px 13px;
+    background: #fff;
+    font-size: 13px;
+    transition:
+        background 0.18s,
+        transform 0.18s;
+}
+.secondary:hover {
+    background: #edf7fd;
+}
+.secondary:active {
+    transform: scale(0.98);
+}
+.submissions-page :is(a, button, input, select, summary):focus-visible {
+    outline: 2px solid #042240;
+    outline-offset: 3px;
+}
+@media (max-width: 1279px) {
+    .submissions-workspace {
+        grid-template-columns: 190px minmax(0, 1fr);
+        gap: 24px;
+    }
+}
+@media (max-width: 767px) {
+    .submissions-page {
+        background: #fff;
+    }
+    .submissions-workspace {
+        display: block;
+        padding: 0 20px;
+        margin-top: 20px;
+    }
+    .page-heading {
+        margin-bottom: 18px;
+    }
+    .page-heading h1 {
+        font-size: 26px;
+    }
+}
+
+.submission-work {
+    min-width: 0;
+}
+.qualification-panel,
+.upload-panel {
+    padding: 22px;
+    background: #fff;
+    border-radius: 8px;
+    margin-bottom: 26px;
+}
+.submission-work h2 {
+    font-size: 20px;
+    line-height: 1.6;
+}
+.submission-work :deep(input:not([type='checkbox'])),
+.submission-work :deep(select),
+.submission-work :deep(textarea) {
+    border-color: #a8bfd0;
+    border-radius: 5px;
+    color: #042240;
+    background: #fff;
+}
+.submission-work :deep(input:not([type='checkbox'])) {
+    height: 44px;
+}
+.submission-work :deep(label) {
+    line-height: 1.8;
+    align-content: start;
+}
+.submission-work :deep(label input),
+.submission-work :deep(label select),
+.submission-work :deep(label textarea) {
+    max-width: 100%;
+    min-width: 0;
+}
+.submission-work :deep(input[type='checkbox']) {
+    accent-color: #042240;
+}
+.submission-work :deep(details > summary) {
+    min-height: 44px;
+    cursor: pointer;
+    line-height: 1.8;
+}
+.submission-work button {
+    border-radius: 5px;
+    border-color: #a8bfd0;
+    color: #042240;
+    font-weight: 500;
+    transition:
+        background 0.18s,
+        transform 0.18s;
+}
+.submission-work button:hover:not(:disabled) {
+    background: #edf7fd;
+}
+.submission-work button:active:not(:disabled) {
+    transform: scale(0.98);
+}
+.submission-work button:disabled {
+    cursor: not-allowed;
+}
+.submission-work button[type='submit'] {
+    background: #ba9f6c;
+    border-color: #ba9f6c;
+}
+.submission-work :deep(.text-\[\#5f6c7b\]) {
+    color: #526779;
+}
+.submission-work :deep(.bg-\[\#d8eefe\]) {
+    background: #edf7fd;
+}
+.submission-record {
+    padding: 22px;
+    background: #fff;
+    border-radius: 8px;
+}
+.submission-record + .submission-record {
+    margin-top: 16px;
+}
+.submission-record > div > div {
+    min-width: 0;
+}
+.submission-record h3 {
+    font-size: 15px;
+    line-height: 1.8;
+}
+.submission-record p {
+    line-height: 1.9;
+    overflow-wrap: anywhere;
+}
+.submission-record :is(img, span.h-24) {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    border-radius: 4px;
+    background: #edf7fd;
+}
+.submission-record a {
+    min-height: 44px;
+    align-items: center;
+}
+.edit-form {
+    border-top: 1px solid #e5edf2;
+    padding-top: 18px;
+}
+.history-section {
+    margin-top: 28px;
+}
+.history-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 18px;
+    border: 1px solid #c7dce9;
+    background: #edf7fd;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+}
+.history-toggle:before {
+    content: '＋';
+}
+.history-section[open] > .history-toggle:before {
+    content: '−';
+}
+.history-hint {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 400;
+    color: #526779;
+}
+.history-body {
+    margin-top: 18px;
+}
+.submission-work nav[aria-label='投稿记录分页'] {
+    justify-content: center;
+    align-items: center;
+    margin-top: 24px;
+}
+.submission-work nav[aria-label='投稿记录分页'] a {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    transition:
+        background 0.18s,
+        transform 0.18s;
+}
+.submission-work nav a:hover {
+    background: #e9dfcf;
+}
+.submission-work nav a:active {
+    transform: scale(0.98);
+}
+.submission-work nav a[aria-current='page'] {
+    background: #98cef0;
+}
+.submission-work > details:last-child {
+    margin-top: 24px;
+}
+.submission-work > p[role='status'] {
+    background: #edf7fd;
+    margin-bottom: 16px;
+}
+.upload-panel > details {
+    border-color: #c7dce9;
+}
+.upload-panel > div.border-dashed {
+    border-color: #9fb5c5;
+    background: #edf7fd;
+    border-radius: 6px;
+}
+.upload-panel > div.border-dashed label {
+    flex-wrap: wrap;
+}
+.upload-panel > div.border-dashed input {
+    width: 100%;
+    height: auto;
+}
+.submission-work :deep(progress) {
+    accent-color: #529cc9;
+}
+@media (max-width: 767px) {
+    .qualification-panel,
+    .upload-panel {
+        padding: 18px;
+        background: #f5f5fa;
+    }
+    .submission-work h2 {
+        font-size: 18px;
+    }
+    .submission-work :deep(input:not([type='checkbox'])),
+    .submission-work :deep(select),
+    .submission-work :deep(textarea) {
+        font-size: 16px;
+    }
+    .submission-record {
+        padding: 16px;
+        background: #f5f5fa;
+    }
+    .submission-record :is(img, span.h-24) {
+        width: 56px;
+        height: 56px;
+    }
+    .submission-record h3 {
+        font-size: 14px;
+    }
+    .submission-record .flex.gap-4 {
+        gap: 12px;
+    }
+    .submission-work button {
+        font-size: 12px;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+    .history-toggle {
+        flex-wrap: wrap;
+        font-size: 14px;
+        padding: 14px 12px;
+    }
+    .history-hint {
+        font-size: 11px;
+    }
+    .submission-work :deep(.grid) {
+        min-width: 0;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .submissions-page :deep(*) {
+        transition: none !important;
+        animation: none !important;
+    }
+}
+@media (max-width: 767px) {
+    .submission-work :deep(.grid) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .submission-work :deep(.sm\:col-span-2) {
+        grid-column: 1/-1;
+    }
+}

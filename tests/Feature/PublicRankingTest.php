@@ -111,6 +111,72 @@ class PublicRankingTest extends TestCase
             ->assertOk();
     }
 
+    public function test_rankings_paginates_twenty_photos_with_continuous_ranks_and_filters(): void
+    {
+        $user = User::factory()->create();
+        for ($index = 0; $index < 25; $index++) {
+            $this->like($this->publicPhoto('分页图片 '.$index), $user, now()->subDays(2));
+        }
+        $this->publicPhoto('没有互动不应上榜');
+
+        $this->get('/rankings?type=likes&window=7d')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('rankings.items', 20)
+                ->where('rankings.summary.total_ranked', 25)
+                ->where('rankings.meta.per_page', 20)
+                ->where('rankings.meta.last_page', 2)
+                ->where('rankings.items.0.rank', 1)
+                ->where('rankings.items.19.rank', 20)
+                ->where('rankings.links.prev', null)
+                ->where('rankings.links.next', fn ($url) => str_contains($url, 'type=likes') && str_contains($url, 'window=7d') && str_contains($url, 'page=2'))
+            );
+        $this->get('/rankings?type=likes&window=7d&page=2')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('rankings.items', 5)
+                ->where('rankings.meta.current_page', 2)
+                ->where('rankings.items.0.rank', 21)
+                ->where('rankings.items.4.rank', 25)
+                ->where('rankings.items.0.title', '分页图片 4')
+                ->where('rankings.links.next', null)
+                ->where('rankings.links.prev', fn ($url) => str_contains($url, 'type=likes') && str_contains($url, 'window=7d'))
+            );
+    }
+
+    public function test_rankings_only_exposes_top_fifty_even_when_requesting_later_pages(): void
+    {
+        $user = User::factory()->create();
+        for ($index = 0; $index < 55; $index++) {
+            $this->like($this->publicPhoto('前五十图片 '.$index), $user);
+        }
+
+        foreach ([1 => [20, 1, 20], 2 => [20, 21, 40], 3 => [10, 41, 50]] as $number => [$count, $first, $last]) {
+            $this->get('/rankings?type=likes&window=all&page='.$number)
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->has('rankings.items', $count)
+                    ->where('rankings.summary.total_ranked', 50)
+                    ->where('rankings.meta.total', 50)
+                    ->where('rankings.meta.last_page', 3)
+                    ->where('rankings.items.0.rank', $first)
+                    ->where('rankings.items.'.($count - 1).'.rank', $last)
+                );
+        }
+        $this->get('/rankings?type=likes&window=all&page=3')
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('rankings.items.9.title', '前五十图片 5')
+                ->where('rankings.links.next', null)
+            );
+        $this->get('/rankings?type=likes&window=all&page=4')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('rankings.items', 0)
+                ->where('rankings.meta.total', 50)
+                ->where('rankings.meta.last_page', 3)
+            );
+    }
+
     /**
      * @param  array<string, mixed>  $attributes
      */

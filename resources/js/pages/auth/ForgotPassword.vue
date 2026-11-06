@@ -22,32 +22,44 @@ defineProps<{
     >
         <Head title="找回密码" />
 
-        <div
-            v-if="status"
-            class="mb-4 text-center text-sm font-medium text-green-600"
-        >
+        <div v-if="status" class="auth-status" role="status">
             {{ status }}
         </div>
 
-        <div class="space-y-6">
-            <Form v-bind="email.form()" v-slot="{ errors, processing }">
-                <div class="grid gap-2">
+        <div class="auth-fields">
+            <Form
+                v-bind="email.form()"
+                v-slot="{ errors, processing }"
+                class="auth-form"
+            >
+                <div class="auth-field">
                     <Label for="email">邮箱地址</Label>
                     <Input
+                        class="auth-input"
                         id="email"
+                        :aria-invalid="Boolean(errors.email)"
+                        :aria-describedby="
+                            errors.email ? 'email-error' : undefined
+                        "
                         type="email"
                         name="email"
                         autocomplete="off"
                         autofocus
-                        placeholder="email@example.com"
+                        placeholder="请输入邮箱地址"
                     />
-                    <InputError :message="errors.email" />
+                    <InputError
+                        id="email-error"
+                        class="auth-error"
+                        :message="errors.email"
+                        role="alert"
+                    />
                 </div>
 
-                <div class="my-6 flex items-center justify-start">
+                <div class="auth-secondary">
                     <Button
-                        class="w-full"
+                        class="auth-submit"
                         :disabled="processing"
+                        :aria-busy="processing"
                         data-test="email-password-reset-link-button"
                     >
                         <Spinner v-if="processing" />
@@ -56,9 +68,9 @@ defineProps<{
                 </div>
             </Form>
 
-            <div class="space-x-1 text-center text-sm text-muted-foreground">
+            <div class="auth-foot">
                 <span>或者返回</span>
-                <TextLink :href="login()">登录</TextLink>
+                <TextLink :href="login()" class="auth-link">登录</TextLink>
             </div>
         </div>
     </AuthLayout>

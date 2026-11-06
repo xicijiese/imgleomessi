@@ -1,0 +1,25 @@
+.appearance-content {
+    min-width: 0;
+    max-width: 820px;
+    color: #042240;
+}
+.appearance-heading {
+    margin-bottom: 24px;
+}
+.appearance-heading h1 {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: -0.02em;
+}
+.appearance-heading p {
+    font-size: 14px;
+    color: #526779;
+    line-height: 1.8;
+    margin-top: 6px;
+}
+@media (max-width: 767px) {
+    .appearance-heading h1 {
+        font-size: 24px;
+    }
+}

@@ -1,0 +1,560 @@
+/* 详情页沿用首页视觉基准，局部样式不影响其他页面。 */
+.archive-detail {
+    --detail-ink: #042240;
+    --detail-muted: #526779;
+    --detail-line: #cbd8e2;
+    --detail-gold: #ba9f6c;
+    min-height: 100vh;
+    background: #fff;
+    color: var(--detail-ink);
+    font-family:
+        'Instrument Sans', 'PingFang SC', 'Microsoft YaHei', system-ui,
+        sans-serif;
+}
+.archive-detail header[data-theme='afa'] {
+    background: #98cef0;
+    color: var(--detail-ink);
+}
+.archive-detail header[data-theme='afa'] form {
+    background: transparent;
+    border-color: #04224055;
+    color: var(--detail-ink);
+}
+.archive-detail header[data-theme='afa'] input::placeholder {
+    color: currentColor;
+    opacity: 0.8;
+}
+.archive-detail
+    header[data-theme='afa']
+    nav[aria-label='主导航']
+    a[href='/photos'] {
+    text-decoration: underline;
+    text-decoration-color: var(--detail-gold);
+    text-decoration-thickness: 3px;
+    text-underline-offset: 10px;
+}
+.archive-detail .detail-container {
+    max-width: 1344px;
+    margin: auto;
+    padding: 16px 32px 40px;
+}
+.archive-detail .detail-context {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 44px;
+    margin-bottom: 16px;
+    font-size: 14px;
+}
+.archive-detail .detail-context a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+}
+.archive-detail .detail-context > span {
+    font-size: 13px;
+    color: var(--detail-muted);
+}
+.archive-detail .detail-context svg,
+.archive-detail .detail-actions svg,
+.archive-detail .detail-adjacent svg,
+.archive-detail .detail-album svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+.archive-detail .detail-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 36px;
+    align-items: start;
+}
+.archive-detail .detail-viewer-column {
+    min-width: 0;
+}
+.archive-detail .detail-viewer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: min(68vh, 650px);
+    min-height: 360px;
+    margin: 0;
+    overflow: hidden;
+    border-radius: 6px;
+    background: #f5f5fa;
+}
+.archive-detail .detail-viewer > img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.archive-detail .detail-image-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    height: 100%;
+    min-height: inherit;
+    padding: 20px;
+    text-align: center;
+    color: var(--detail-muted);
+}
+.archive-detail .detail-image-error svg {
+    width: 32px;
+    height: 32px;
+}
+.archive-detail .detail-image-error small {
+    font-size: 13px;
+}
+.archive-detail .detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding-top: 12px;
+}
+.archive-detail .detail-actions > button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px;
+    border: 1px solid var(--detail-line);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--detail-ink);
+    font-size: 14px;
+    transition:
+        background-color 160ms,
+        border-color 160ms,
+        transform 120ms;
+}
+.archive-detail .detail-actions > button[aria-pressed='true'] {
+    background: var(--detail-gold);
+    border-color: var(--detail-gold);
+}
+.archive-detail .detail-actions > button:disabled {
+    opacity: 0.55;
+    cursor: wait;
+}
+.archive-detail .detail-display-spec {
+    margin-left: auto;
+    color: var(--detail-muted);
+    font-size: 12px;
+}
+.archive-detail .detail-adjacent {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 18px;
+}
+.archive-detail .detail-adjacent a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    min-height: 72px;
+    padding: 12px;
+    border: 1px solid var(--detail-line);
+    border-radius: 6px;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+.archive-detail .detail-adjacent small {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--detail-muted);
+    font-size: 12px;
+}
+.archive-detail .detail-next {
+    grid-column: 2;
+    justify-content: flex-end;
+    text-align: right;
+}
+.archive-detail .detail-metadata {
+    min-width: 0;
+    font-size: 14px;
+    line-height: 1.7;
+}
+.archive-detail .detail-title h1 {
+    font-size: 26px;
+    line-height: 1.4;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+.archive-detail .detail-title p {
+    margin-top: 12px;
+    white-space: pre-line;
+    color: var(--detail-muted);
+    line-height: 1.8;
+}
+.archive-detail .detail-metadata section {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--detail-line);
+}
+.archive-detail .detail-metadata h2 {
+    margin-bottom: 10px;
+    font-size: 15px;
+    font-weight: 600;
+}
+.archive-detail .detail-metadata dl {
+    display: grid;
+    grid-template-columns: 80px minmax(0, 1fr);
+    gap: 8px 12px;
+}
+.archive-detail .detail-metadata dt,
+.archive-detail .detail-taxonomy > span {
+    color: var(--detail-muted);
+}
+.archive-detail .detail-metadata dd {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.archive-detail .detail-metadata dd a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+.archive-detail .detail-metadata dd svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+.archive-detail .detail-taxonomy {
+    display: grid;
+    grid-template-columns: 80px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    margin-top: 8px;
+}
+.archive-detail .detail-taxonomy > span {
+    padding-top: 4px;
+}
+.archive-detail .detail-taxonomy a,
+.archive-detail .detail-tags a {
+    justify-self: start;
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: #98cef026;
+}
+.archive-detail .detail-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+.archive-detail .detail-album {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+}
+.archive-detail .detail-metadata-toggle {
+    display: none;
+}
+.archive-detail .detail-section {
+    margin-top: 36px;
+}
+.archive-detail .detail-section h2 {
+    font-size: 23px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+.archive-detail .detail-comments {
+    border-top: 1px solid var(--detail-line);
+    padding-top: 28px;
+}
+.archive-detail .detail-comments button {
+    min-height: 44px;
+    border-radius: 6px;
+    transition:
+        border-color 160ms,
+        transform 120ms;
+}
+.archive-detail .detail-comments form {
+    border-radius: 6px;
+}
+.archive-detail .detail-comments textarea,
+.archive-detail .detail-comments input,
+.archive-detail .detail-comments select {
+    border-radius: 6px;
+}
+.archive-detail .detail-comments article {
+    padding: 20px 0;
+    border: 0;
+    border-bottom: 1px solid var(--detail-line);
+    border-radius: 0;
+    background: #fff;
+}
+.archive-detail .detail-comments article > p {
+    font-size: 15px;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+.archive-detail .detail-section-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+.archive-detail .detail-section-heading > span {
+    color: var(--detail-muted);
+    font-size: 13px;
+}
+.archive-detail .detail-notice {
+    margin-top: 14px;
+    padding: 14px 16px;
+    border-radius: 6px;
+    background: #f5f5fa;
+    color: var(--detail-muted);
+    font-size: 14px;
+    line-height: 1.7;
+}
+.archive-detail .detail-similar > p {
+    margin: 12px 0 18px;
+    color: var(--detail-muted);
+    font-size: 14px;
+    line-height: 1.7;
+}
+.archive-detail .detail-related,
+.archive-detail .detail-similar > div {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 28px 20px;
+}
+.archive-detail .detail-related > a,
+.archive-detail .detail-similar > div > a {
+    min-width: 0;
+    border: 0;
+    border-radius: 6px;
+    box-shadow: none;
+}
+.archive-detail .detail-thumbnail,
+.archive-detail .detail-similar > div > a > div {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 4/3;
+    border-radius: 6px;
+    background: #f5f5fa;
+}
+.archive-detail .detail-thumbnail img,
+.archive-detail .detail-similar img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 240ms;
+}
+.archive-detail .detail-related h3 {
+    margin-top: 12px;
+    font-size: 15px;
+    line-height: 1.6;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+.archive-detail .detail-related p {
+    margin-top: 4px;
+    color: var(--detail-muted);
+    font-size: 12px;
+}
+.archive-detail .detail-similar > div > a > p {
+    white-space: normal;
+    padding: 12px 0 0;
+    color: var(--detail-ink);
+    overflow-wrap: anywhere;
+}
+.archive-detail .detail-entry-arrow {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #fff;
+    opacity: 0;
+}
+.archive-detail .detail-related a:focus-visible .detail-entry-arrow {
+    opacity: 1;
+}
+.archive-detail
+    .detail-container
+    :is(a, button, input, textarea, select):focus-visible {
+    outline: 2px solid var(--detail-ink);
+    outline-offset: 4px;
+}
+.archive-detail .detail-container button:not(:disabled):active {
+    transform: scale(0.97);
+}
+@media (hover: hover) {
+    .archive-detail .detail-actions > button:not(:disabled):hover,
+    .archive-detail .detail-adjacent a:hover,
+    .archive-detail .detail-comments button:hover {
+        border-color: var(--detail-gold);
+    }
+    .archive-detail .detail-taxonomy a:hover,
+    .archive-detail .detail-tags a:hover {
+        background: #ba9f6c26;
+    }
+    .archive-detail .detail-related a:hover .detail-thumbnail {
+        outline: 1px solid var(--detail-gold);
+        outline-offset: 3px;
+    }
+    .archive-detail .detail-related a:hover img {
+        transform: scale(1.025);
+    }
+    .archive-detail .detail-related a:hover .detail-entry-arrow {
+        opacity: 1;
+    }
+}
+@media (max-width: 1023px) {
+    .archive-detail .detail-layout {
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 24px;
+    }
+    .archive-detail .detail-viewer {
+        height: 560px;
+        min-height: 0;
+    }
+    .archive-detail .detail-title h1 {
+        font-size: 23px;
+    }
+    .archive-detail .detail-display-spec {
+        display: none;
+    }
+    .archive-detail .detail-related,
+    .archive-detail .detail-similar > div {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+@media (max-width: 767px) {
+    .archive-detail .detail-container {
+        padding: 8px 20px 28px;
+    }
+    .archive-detail .detail-context {
+        margin-bottom: 8px;
+    }
+    .archive-detail .detail-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+    .archive-detail .detail-viewer-column,
+    .archive-detail .detail-metadata {
+        width: 100%;
+    }
+    .archive-detail .detail-viewer {
+        height: auto;
+        min-height: 0;
+    }
+    .archive-detail .detail-viewer > img {
+        height: auto;
+        max-height: 65svh;
+    }
+    .archive-detail .detail-viewer .detail-image-error {
+        min-height: 320px;
+    }
+    .archive-detail .detail-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .archive-detail .detail-actions > button {
+        width: 100%;
+        min-width: 0;
+        padding: 0 8px;
+        font-size: 13px;
+    }
+    .archive-detail .detail-actions > div {
+        min-width: 0;
+    }
+    .archive-detail .detail-title h1 {
+        line-height: 1.5;
+    }
+    .archive-detail .detail-metadata-toggle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        min-height: 56px;
+        margin-top: 16px;
+        padding: 0 14px;
+        border: 1px solid var(--detail-line);
+        border-radius: 6px;
+        background: #98cef026;
+        text-align: left;
+    }
+    .archive-detail .detail-metadata-toggle strong {
+        font-size: 15px;
+        font-weight: 600;
+    }
+    .archive-detail .detail-metadata-toggle > span {
+        margin-left: auto;
+        color: var(--detail-muted);
+        font-size: 13px;
+    }
+    .archive-detail .detail-metadata-toggle svg {
+        width: 18px;
+        height: 18px;
+        transition: transform 160ms;
+    }
+    .archive-detail .detail-metadata-toggle[aria-expanded='true'] {
+        border-color: var(--detail-gold);
+    }
+    .archive-detail .detail-metadata-toggle[aria-expanded='true'] svg {
+        transform: rotate(180deg);
+    }
+    .archive-detail .detail-metadata section {
+        margin-top: 16px;
+        padding-top: 16px;
+    }
+    .archive-detail #photo-metadata-content > section:first-child {
+        padding-top: 0;
+        border-top: 0;
+    }
+    .archive-detail .detail-adjacent a {
+        gap: 6px;
+        padding: 10px;
+        font-size: 12px;
+    }
+    .archive-detail .detail-section {
+        margin-top: 28px;
+    }
+    .archive-detail .detail-section h2 {
+        font-size: 21px;
+    }
+    .archive-detail .detail-comments {
+        padding-top: 24px;
+    }
+    .archive-detail .detail-related,
+    .archive-detail .detail-similar > div {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 22px 14px;
+    }
+    .archive-detail .detail-related h3 {
+        font-size: 13px;
+    }
+    .archive-detail .detail-notice {
+        font-size: 13px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .archive-detail .detail-container * {
+        transition: none !important;
+        animation: none !important;
+    }
+    .archive-detail .detail-container button:not(:disabled):active,
+    .archive-detail .detail-related a:hover img {
+        transform: none;
+    }
+}

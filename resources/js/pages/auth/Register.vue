@@ -23,10 +23,10 @@ import { Form, Head } from '@inertiajs/vue3';
             v-bind="store.form()"
             :reset-on-success="['password', 'password_confirmation']"
             v-slot="{ errors, processing }"
-            class="flex flex-col gap-6"
+            class="auth-form"
         >
-            <div class="grid gap-5">
-                <div class="grid gap-2">
+            <div class="auth-fields">
+                <div class="auth-field">
                     <Label for="name">昵称</Label>
                     <Input
                         class="auth-input"
@@ -43,13 +43,14 @@ import { Form, Head } from '@inertiajs/vue3';
                         placeholder="请输入昵称"
                     />
                     <InputError
+                        class="auth-error"
                         id="name-error"
                         :message="errors.name"
                         role="alert"
                     />
                 </div>
 
-                <div class="grid gap-2">
+                <div class="auth-field">
                     <Label for="email">邮箱地址</Label>
                     <Input
                         class="auth-input"
@@ -62,16 +63,17 @@ import { Form, Head } from '@inertiajs/vue3';
                         required
                         autocomplete="email"
                         name="email"
-                        placeholder="email@example.com"
+                        placeholder="请输入邮箱地址"
                     />
                     <InputError
+                        class="auth-error"
                         id="email-error"
                         :message="errors.email"
                         role="alert"
                     />
                 </div>
 
-                <div class="grid gap-2">
+                <div class="auth-field">
                     <Label for="phone">手机号码</Label>
                     <Input
                         class="auth-input"
@@ -89,13 +91,14 @@ import { Form, Head } from '@inertiajs/vue3';
                         placeholder="请输入 11 位手机号码"
                     />
                     <InputError
+                        class="auth-error"
                         id="phone-error"
                         :message="errors.phone"
                         role="alert"
                     />
                 </div>
 
-                <div class="grid gap-2">
+                <div class="auth-field">
                     <Label for="password">密码</Label>
                     <PasswordInput
                         id="password"
@@ -109,16 +112,18 @@ import { Form, Head } from '@inertiajs/vue3';
                         placeholder="设置登录密码"
                     />
                     <InputError
+                        class="auth-error"
                         id="password-error"
                         :message="errors.password"
                         role="alert"
                     />
                 </div>
 
-                <div class="grid gap-2">
+                <div class="auth-field">
                     <Label for="password_confirmation">确认密码</Label>
                     <PasswordInput
                         id="password_confirmation"
+                        label="确认密码"
                         :aria-invalid="Boolean(errors.password_confirmation)"
                         :aria-describedby="
                             errors.password_confirmation
@@ -131,6 +136,7 @@ import { Form, Head } from '@inertiajs/vue3';
                         placeholder="请再次输入密码"
                     />
                     <InputError
+                        class="auth-error"
                         id="password_confirmation-error"
                         :message="errors.password_confirmation"
                         role="alert"
@@ -139,7 +145,7 @@ import { Form, Head } from '@inertiajs/vue3';
 
                 <Button
                     type="submit"
-                    class="auth-submit mt-2 w-full"
+                    class="auth-submit"
                     :disabled="processing"
                     :aria-busy="processing"
                     data-test="register-user-button"
@@ -149,9 +155,7 @@ import { Form, Head } from '@inertiajs/vue3';
                 </Button>
             </div>
 
-            <div
-                class="rounded-md bg-[#eef6fc] px-4 py-4 text-center text-sm text-[#526b80]"
-            >
+            <div class="auth-foot">
                 已有账号？
                 <TextLink
                     :href="login()"

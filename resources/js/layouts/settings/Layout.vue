@@ -3,6 +3,8 @@ import Heading from '@/components/Heading.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import UserCenterNav from '@/components/UserCenterNav.vue';
+import { useArchiveBrowserMotion } from '@/composables/useArchiveBrowserMotion';
 import { toUrl, urlIsActive } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editProfile } from '@/routes/profile';
@@ -17,7 +19,14 @@ import {
     ShieldCheck,
     UserRound,
 } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+
+withDefaults(defineProps<{ variant?: 'default' | 'archive' }>(), {
+    variant: 'default',
+});
+type CenterProps = InstanceType<typeof UserCenterNav>['$props'];
+const root = ref<HTMLElement | null>(null);
+useArchiveBrowserMotion(root);
 
 interface NavigationItem {
     label: string;
@@ -92,12 +101,43 @@ const settingsShell = computed(
         (page.props.settingsShell as SettingsShellPayload | undefined) ??
         fallbackShell,
 );
+const settingsCenter = computed(
+    () =>
+        page.props.settingsCenter as
+            | { user: CenterProps['user']; summary: CenterProps['summary'] }
+            | undefined,
+);
+const activeSettings = computed(
+    () =>
+        (page.url.split('?')[0] ||
+            '/settings/profile') as CenterProps['active'],
+);
 const currentPath =
     typeof window !== 'undefined' ? window.location.pathname : '';
 </script>
 
 <template>
-    <main class="min-h-screen bg-[#fffffe] text-[#094067]">
+    <div
+        v-if="variant === 'archive' && settingsCenter"
+        ref="root"
+        class="settings-archive"
+    >
+        <PublicHeader
+            :navigation="settingsShell.navigation"
+            :site="settingsShell.site"
+            theme="afa"
+        />
+        <div class="settings-workspace">
+            <UserCenterNav
+                :user="settingsCenter.user"
+                :summary="settingsCenter.summary"
+                :active="activeSettings"
+                variant="archive"
+            />
+            <main class="settings-content"><slot /></main>
+        </div>
+    </div>
+    <main v-else class="min-h-screen bg-[#fffffe] text-[#094067]">
         <PublicHeader
             :navigation="settingsShell.navigation"
             :site="settingsShell.site"
@@ -183,3 +223,5 @@ const currentPath =
         </section>
     </main>
 </template>
+
+<style scoped src="./Layout.css"></style>

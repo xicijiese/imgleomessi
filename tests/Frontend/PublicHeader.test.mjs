@@ -108,6 +108,7 @@ function mount(
     t,
     {
         variant = 'overlay',
+        theme = 'default',
         scrollY = 0,
         light = '/white.png',
         dark = '/dark.png',
@@ -125,6 +126,7 @@ function mount(
     const root = node('root');
     const app = renderer.createApp(PublicHeader, {
         variant,
+        theme,
         navigation: [],
         site: {
             name: '站点标识',
@@ -248,4 +250,21 @@ test('未配置任何图片时保留默认文字标识', (t) => {
         ).length,
         2,
     );
+});
+
+test('首页AFA配色不改变透明、滚动及移动菜单的标识切换', async (t) => {
+    const header = mount(t, { theme: 'afa' });
+    expectLogos(header, '/white.png');
+    assert.equal(
+        all(header.root, (e) => e.tag === 'header')[0].props['data-theme'],
+        'afa',
+    );
+    await header.scroll(100);
+    expectLogos(header, '/dark.png');
+    await header.scroll(0);
+    expectLogos(header, '/white.png');
+    await header.menu();
+    expectLogos(header, '/dark.png');
+    await header.menu();
+    expectLogos(header, '/white.png');
 });

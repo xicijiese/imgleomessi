@@ -30,10 +30,12 @@ const props = withDefaults(
         navigation: NavigationItem[];
         site: SitePayload;
         variant?: 'overlay' | 'solid';
+        theme?: 'default' | 'afa';
     }>(),
     {
         canRegister: true,
         variant: 'solid',
+        theme: 'default',
     },
 );
 
@@ -228,6 +230,7 @@ onUnmounted(() => {
 
 <template>
     <header
+        :data-theme="theme"
         class="inset-x-0 top-0 z-50 transition-all duration-300"
         :class="[
             variant === 'overlay' ? 'fixed' : 'sticky',

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
+import PasswordInput from '@/components/PasswordInput.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,53 +27,82 @@ const inputEmail = ref(props.email);
             :transform="(data) => ({ ...data, token, email })"
             :reset-on-success="['password', 'password_confirmation']"
             v-slot="{ errors, processing }"
+            class="auth-form"
         >
-            <div class="grid gap-6">
-                <div class="grid gap-2">
+            <div class="auth-fields">
+                <div class="auth-field">
                     <Label for="email">邮箱地址</Label>
                     <Input
                         id="email"
+                        :aria-invalid="Boolean(errors.email)"
+                        :aria-describedby="
+                            errors.email ? 'email-error' : undefined
+                        "
                         type="email"
                         name="email"
                         autocomplete="email"
                         v-model="inputEmail"
-                        class="mt-1 block w-full"
+                        class="auth-input"
                         readonly
                     />
-                    <InputError :message="errors.email" class="mt-2" />
+                    <InputError
+                        id="email-error"
+                        class="auth-error"
+                        :message="errors.email"
+                        role="alert"
+                    />
                 </div>
 
-                <div class="grid gap-2">
+                <div class="auth-field">
                     <Label for="password">新密码</Label>
-                    <Input
+                    <PasswordInput
                         id="password"
-                        type="password"
+                        label="新密码"
+                        :aria-invalid="Boolean(errors.password)"
+                        :aria-describedby="
+                            errors.password ? 'password-error' : undefined
+                        "
                         name="password"
                         autocomplete="new-password"
-                        class="mt-1 block w-full"
                         autofocus
                         placeholder="请输入新密码"
                     />
-                    <InputError :message="errors.password" />
+                    <InputError
+                        id="password-error"
+                        class="auth-error"
+                        :message="errors.password"
+                        role="alert"
+                    />
                 </div>
 
-                <div class="grid gap-2">
+                <div class="auth-field">
                     <Label for="password_confirmation">确认密码</Label>
-                    <Input
+                    <PasswordInput
                         id="password_confirmation"
-                        type="password"
+                        :aria-invalid="Boolean(errors.password_confirmation)"
+                        :aria-describedby="
+                            errors.password_confirmation
+                                ? 'password_confirmation-error'
+                                : undefined
+                        "
+                        label="确认密码"
                         name="password_confirmation"
                         autocomplete="new-password"
-                        class="mt-1 block w-full"
                         placeholder="请再次输入新密码"
                     />
-                    <InputError :message="errors.password_confirmation" />
+                    <InputError
+                        id="password_confirmation-error"
+                        class="auth-error"
+                        :message="errors.password_confirmation"
+                        role="alert"
+                    />
                 </div>
 
                 <Button
                     type="submit"
-                    class="mt-4 w-full"
+                    class="auth-submit"
                     :disabled="processing"
+                    :aria-busy="processing"
                     data-test="reset-password-button"
                 >
                     <Spinner v-if="processing" />

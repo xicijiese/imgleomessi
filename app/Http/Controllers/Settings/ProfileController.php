@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
 use App\Services\PublicHomepage;
 use App\Services\UserAvatarService;
+use App\Services\UserCenter;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -18,12 +20,13 @@ class ProfileController extends Controller
     /**
      * Show the user's profile settings page.
      */
-    public function edit(Request $request, PublicHomepage $homepage): Response
+    public function edit(Request $request, PublicHomepage $homepage, UserCenter $center): Response
     {
         return Inertia::render('settings/Profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
             'settingsShell' => $homepage->shell(),
+            'settingsCenter' => $center->shell($request->user()),
         ]);
     }
 
@@ -46,7 +49,7 @@ class ProfileController extends Controller
 
         $user->save();
 
-        if ($avatar instanceof \Illuminate\Http\UploadedFile) {
+        if ($avatar instanceof UploadedFile) {
             $avatars->replace($user, $avatar);
         } elseif ($removeAvatar) {
             $avatars->remove($user);

@@ -1,18 +1,15 @@
 <script setup lang="ts">
-import SharePanel from '@/components/SharePanel.vue';
+import ArchivePagination from '@/components/ArchivePagination.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
+import SharePanel from '@/components/SharePanel.vue';
 import type { SeoPayload } from '@/types';
 import { Link, router } from '@inertiajs/vue3';
-import {
-    ArrowLeft,
-    CalendarDays,
-    ChevronLeft,
-    ChevronRight,
-    ImageOff,
-    Images,
-} from 'lucide-vue-next';
-import { reactive, ref } from 'vue';
+import { gsap } from 'gsap';
+import { ArrowLeft, ChevronDown, ImageOff } from 'lucide-vue-next';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import '../../../css/archive-browser.css';
+import './Albums.css';
 
 interface NavigationItem {
     label: string;
@@ -124,135 +121,142 @@ const applySort = () => {
 };
 
 const formatDate = (date: string | null) => date ?? '日期待补充';
-</script>
 
+const root = ref<HTMLElement | null>(null);
+const isMobile = ref(false);
+const infoExpanded = ref(false);
+const infoVisible = computed(() => !isMobile.value || infoExpanded.value);
+let mobileQuery: MediaQueryList | undefined;
+let motion: gsap.MatchMedia | undefined;
+const syncMobile = () => {
+    isMobile.value = mobileQuery?.matches ?? false;
+};
+onMounted(() => {
+    mobileQuery = window.matchMedia('(max-width: 767px)');
+    syncMobile();
+    mobileQuery.addEventListener('change', syncMobile);
+    motion = gsap.matchMedia();
+    motion.add(
+        '(prefers-reduced-motion: no-preference)',
+        () => {
+            gsap.from('.album-intro', {
+                y: 6,
+                duration: 0.24,
+                clearProps: 'transform',
+            });
+        },
+        root.value ?? undefined,
+    );
+});
+onUnmounted(() => {
+    mobileQuery?.removeEventListener('change', syncMobile);
+    motion?.revert();
+});
+watch(
+    () => props.albumDetail.album.slug,
+    () => {
+        infoExpanded.value = false;
+        coverFailed.value = false;
+        imageFailures.value = {};
+    },
+);
+</script>
 <template>
     <SeoHead :seo="albumDetail.seo" />
-
-    <main class="min-h-screen bg-[#fffffe] text-[#094067]">
+    <main ref="root" class="archive-browser archive-albums">
         <PublicHeader
             :navigation="albumDetail.navigation"
             :site="albumDetail.site"
+            theme="afa"
         />
-
-        <section class="bg-[#d8eefe] px-4 py-8 sm:px-6 lg:px-8">
-            <div
-                class="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:items-center"
+        <div class="browser-container">
+            <Link href="/albums" class="album-back"
+                ><ArrowLeft :size="18" aria-hidden="true" />返回相册</Link
             >
-                <div class="min-w-0">
-                    <Link
-                        href="/albums"
-                        class="mb-6 inline-flex h-11 items-center gap-2 rounded-sm border border-[#90b4ce]/60 px-4 text-sm font-semibold text-[#094067] hover:border-[#3da9fc] hover:text-[#3da9fc]"
-                    >
-                        <ArrowLeft class="h-4 w-4" aria-hidden="true" />
-                        返回相册
-                    </Link>
-                    <p class="mb-3 text-sm font-semibold text-[#3da9fc]">
-                        Album
-                    </p>
-                    <h1
-                        class="max-w-4xl text-4xl leading-tight font-semibold sm:text-5xl"
-                    >
-                        {{ albumDetail.album.title }}
-                    </h1>
-                    <div class="mt-4"><SharePanel type="album" :target-key="albumDetail.album.slug" :title="albumDetail.album.title" /></div>
-                    <p
-                        v-if="albumDetail.album.description"
-                        class="mt-5 max-w-3xl text-sm leading-7 text-[#5f6c7b] sm:text-base"
-                    >
-                        {{ albumDetail.album.description }}
-                    </p>
+            <div class="album-intro">
+                <div class="album-cover">
+                    <img
+                        v-if="albumDetail.album.cover_image_url && !coverFailed"
+                        :src="albumDetail.album.cover_image_url"
+                        :alt="albumDetail.album.cover_alt"
+                        @error="coverFailed = true"
+                    />
                     <div
-                        class="mt-5 flex flex-wrap gap-3 text-sm text-[#5f6c7b]"
+                        v-else
+                        class="browser-image-error"
+                        role="img"
+                        :aria-label="
+                            albumDetail.album.cover_alt + '，封面暂不可用'
+                        "
                     >
-                        <span
-                            class="inline-flex min-h-11 items-center gap-2 rounded-sm bg-[#fffffe] px-3 shadow-sm"
+                        <ImageOff :size="28" aria-hidden="true" /><span
+                            >封面暂时无法显示</span
                         >
-                            <CalendarDays
-                                class="h-4 w-4 text-[#3da9fc]"
-                                aria-hidden="true"
-                            />
-                            {{ formatDate(albumDetail.album.published_at) }}
-                        </span>
-                        <span
-                            class="inline-flex min-h-11 items-center gap-2 rounded-sm bg-[#fffffe] px-3 shadow-sm"
-                        >
-                            <Images
-                                class="h-4 w-4 text-[#3da9fc]"
-                                aria-hidden="true"
-                            />
-                            {{ albumDetail.album.public_photos_count }}
-                            张公开图片
-                        </span>
-                    </div>
-                    <div
-                        v-if="albumDetail.album.categories.length"
-                        class="mt-5 flex flex-wrap gap-2"
-                    >
-                        <span
-                            v-for="category in albumDetail.album.categories"
-                            :key="category.id"
-                            class="rounded-full bg-[#fffffe] px-3 py-1.5 text-xs font-medium text-[#094067] shadow-sm"
-                        >
-                            {{ category.root_name }} / {{ category.name }}
-                        </span>
                     </div>
                 </div>
-
-                <div
-                    class="overflow-hidden rounded-sm border border-[#90b4ce]/35 bg-[#fffffe] shadow-sm"
-                >
-                    <div class="aspect-[16/10] bg-[#d8eefe]">
-                        <img
-                            v-if="
-                                albumDetail.album.cover_image_url &&
-                                !coverFailed
-                            "
-                            :src="albumDetail.album.cover_image_url"
-                            :alt="albumDetail.album.cover_alt"
-                            class="h-full w-full object-cover"
-                            @error="coverFailed = true"
+                <div class="album-intro-copy">
+                    <div class="album-title-row">
+                        <h1>{{ albumDetail.album.title }}</h1>
+                        <SharePanel
+                            type="album"
+                            :target-key="albumDetail.album.slug"
+                            :title="albumDetail.album.title"
+                            theme="archive"
                         />
-                        <div
-                            v-else
-                            class="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#d8eefe,#90b4ce)] text-[#094067]"
+                    </div>
+                    <p class="album-summary">
+                        {{ albumDetail.album.public_photos_count }} 张公开图片 ·
+                        发布于 {{ formatDate(albumDetail.album.published_at) }}
+                    </p>
+                    <button
+                        type="button"
+                        class="album-info-toggle"
+                        :aria-expanded="infoVisible"
+                        aria-controls="album-info"
+                        @click="infoExpanded = !infoExpanded"
+                    >
+                        <strong>相册资料</strong
+                        ><span>{{ infoVisible ? '收起' : '展开' }}</span
+                        ><ChevronDown :size="18" aria-hidden="true" />
+                    </button>
+                    <div id="album-info" v-show="infoVisible">
+                        <p
+                            v-if="albumDetail.album.description"
+                            class="album-description"
                         >
-                            <ImageOff class="h-10 w-10" aria-hidden="true" />
+                            {{ albumDetail.album.description }}
+                        </p>
+                        <div
+                            v-if="albumDetail.album.categories.length"
+                            class="album-categories"
+                        >
+                            <span
+                                v-for="category in albumDetail.album.categories"
+                                :key="category.id"
+                                >{{ category.root_name }} /
+                                {{ category.name }}</span
+                            >
                         </div>
                     </div>
                 </div>
             </div>
-        </section>
-
-        <section class="px-4 py-8 sm:px-6 lg:px-8">
-            <div class="mx-auto max-w-7xl">
-                <div
-                    class="mb-6 flex flex-wrap items-center justify-between gap-4"
-                >
-                    <div>
-                        <h2 class="text-2xl font-semibold text-[#094067]">
-                            相册图片
-                        </h2>
-                        <p class="mt-2 text-sm text-[#5f6c7b]">
-                            共 {{ albumDetail.photos.meta.total }} 张公开图片
-                            <span v-if="albumDetail.photos.meta.from !== null"
-                                >，当前 {{ albumDetail.photos.meta.from }}-{{
-                                    albumDetail.photos.meta.to
-                                }}</span
-                            >
-                        </p>
-                    </div>
-                    <form
-                        class="flex items-center gap-2"
-                        @submit.prevent="applySort"
-                    >
-                        <label class="sr-only" for="album-photo-sort"
-                            >排序</label
+            <div class="album-photo-toolbar">
+                <div>
+                    <h2>相册图片</h2>
+                    <p>
+                        共 {{ albumDetail.photos.meta.total }} 张公开图片<span
+                            v-if="albumDetail.photos.meta.from !== null"
+                            >，当前 {{ albumDetail.photos.meta.from }}–{{
+                                albumDetail.photos.meta.to
+                            }}</span
                         >
-                        <select
-                            id="album-photo-sort"
+                    </p>
+                </div>
+                <form @submit.prevent="applySort">
+                    <label class="browser-sort-control"
+                        >排序<select
                             v-model="form.sort"
-                            class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
+                            aria-label="相册图片排序"
                             @change="applySort"
                         >
                             <option
@@ -262,114 +266,63 @@ const formatDate = (date: string | null) => date ?? '日期待补充';
                             >
                                 {{ sort.label }}
                             </option>
-                        </select>
-                    </form>
-                </div>
-
-                <div
-                    class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                >
-                    <Link
-                        v-for="photo in albumDetail.photos.data"
-                        :key="photo.uuid"
-                        :href="photo.url"
-                        class="group overflow-hidden rounded-sm border border-[#90b4ce]/25 bg-[#fffffe] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#3da9fc]"
-                        :aria-label="`查看图片：${photo.title}`"
+                        </select></label
                     >
-                        <div class="aspect-[4/3] overflow-hidden bg-[#d8eefe]">
-                            <img
-                                v-if="
-                                    photo.image_url && !imageFailures[photo.id]
-                                "
-                                :src="photo.image_url"
-                                :alt="photo.alt"
-                                loading="lazy"
-                                class="h-full w-full object-cover transition duration-500 group-hover:scale-105 group-hover:brightness-95"
-                                @error="imageFailures[photo.id] = true"
-                            />
-                            <div
-                                v-else
-                                class="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#d8eefe,#90b4ce)] text-[#094067]"
-                            >
-                                <ImageOff class="h-8 w-8" aria-hidden="true" />
-                            </div>
-                        </div>
-                        <div class="grid min-h-36 gap-3 p-4">
-                            <div>
-                                <h3
-                                    class="line-clamp-2 text-base leading-6 font-semibold text-[#094067]"
-                                >
-                                    {{ photo.title }}
-                                </h3>
-                                <p class="mt-2 text-sm text-[#5f6c7b]">
-                                    {{ formatDate(photo.event_date) }}
-                                </p>
-                            </div>
-                            <p
-                                v-if="photo.category_summary"
-                                class="truncate text-sm text-[#5f6c7b]"
-                            >
-                                {{ photo.category_summary }}
-                            </p>
-                            <div
-                                v-if="photo.tags.length"
-                                class="flex flex-wrap gap-2"
-                            >
-                                <span
-                                    v-for="tag in photo.tags.slice(0, 3)"
-                                    :key="tag.id"
-                                    class="rounded-full bg-[#d8eefe] px-2.5 py-1 text-xs font-medium text-[#094067]"
-                                >
-                                    {{ tag.name }}
-                                </span>
-                            </div>
-                        </div>
-                    </Link>
-                </div>
-
-                <nav
-                    v-if="albumDetail.photos.meta.last_page > 1"
-                    class="mt-10 flex items-center justify-between gap-4 border-t border-[#90b4ce]/30 pt-6"
-                    aria-label="相册图片分页"
-                >
-                    <Link
-                        v-if="albumDetail.photos.links.prev"
-                        :href="albumDetail.photos.links.prev"
-                        class="inline-flex h-11 items-center gap-2 rounded-sm border border-[#90b4ce]/60 px-4 text-sm font-semibold text-[#094067] hover:border-[#3da9fc] hover:text-[#3da9fc]"
-                    >
-                        <ChevronLeft class="h-4 w-4" aria-hidden="true" />
-                        上一页
-                    </Link>
-                    <span
-                        v-else
-                        class="inline-flex h-11 items-center gap-2 rounded-sm border border-[#90b4ce]/30 px-4 text-sm font-semibold text-[#90b4ce]"
-                    >
-                        <ChevronLeft class="h-4 w-4" aria-hidden="true" />
-                        上一页
-                    </span>
-
-                    <p class="text-sm text-[#5f6c7b]">
-                        第 {{ albumDetail.photos.meta.current_page }} /
-                        {{ albumDetail.photos.meta.last_page }} 页
-                    </p>
-
-                    <Link
-                        v-if="albumDetail.photos.links.next"
-                        :href="albumDetail.photos.links.next"
-                        class="inline-flex h-11 items-center gap-2 rounded-sm border border-[#90b4ce]/60 px-4 text-sm font-semibold text-[#094067] hover:border-[#3da9fc] hover:text-[#3da9fc]"
-                    >
-                        下一页
-                        <ChevronRight class="h-4 w-4" aria-hidden="true" />
-                    </Link>
-                    <span
-                        v-else
-                        class="inline-flex h-11 items-center gap-2 rounded-sm border border-[#90b4ce]/30 px-4 text-sm font-semibold text-[#90b4ce]"
-                    >
-                        下一页
-                        <ChevronRight class="h-4 w-4" aria-hidden="true" />
-                    </span>
-                </nav>
+                </form>
             </div>
-        </section>
+            <div class="browser-photo-grid">
+                <Link
+                    v-for="photo in albumDetail.photos.data"
+                    :key="photo.uuid"
+                    :href="photo.url"
+                    class="browser-photo-card"
+                    :aria-label="`查看图片：${photo.title}`"
+                    ><div class="browser-photo">
+                        <img
+                            v-if="photo.image_url && !imageFailures[photo.id]"
+                            :src="photo.image_url"
+                            :alt="photo.alt"
+                            loading="lazy"
+                            @error="imageFailures[photo.id] = true"
+                        />
+                        <div
+                            v-else
+                            class="browser-image-error"
+                            role="img"
+                            :aria-label="photo.title + '，预览暂不可用'"
+                        >
+                            <ImageOff :size="28" aria-hidden="true" />
+                        </div>
+                        <span class="browser-entry-arrow" aria-hidden="true"
+                            >↗</span
+                        >
+                    </div>
+                    <div class="browser-card-copy">
+                        <h3>{{ photo.title }}</h3>
+                        <p class="browser-date">
+                            {{ formatDate(photo.event_date) }}
+                        </p>
+                        <p
+                            v-if="photo.category_summary"
+                            class="browser-category"
+                        >
+                            {{ photo.category_summary }}
+                        </p>
+                        <div v-if="photo.tags.length" class="browser-tags">
+                            <span
+                                v-for="tag in photo.tags.slice(0, 3)"
+                                :key="tag.id"
+                                >{{ tag.name }}</span
+                            >
+                        </div>
+                    </div></Link
+                >
+            </div>
+            <ArchivePagination
+                :meta="albumDetail.photos.meta"
+                :links="albumDetail.photos.links"
+                label="相册图片分页"
+            />
+        </div>
     </main>
 </template>

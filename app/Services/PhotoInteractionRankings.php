@@ -29,7 +29,26 @@ class PhotoInteractionRankings
     {
         $type = $this->normalizeType($filters['type'] ?? null);
         $window = $this->normalizeWindow($filters['window'] ?? null);
-        $items = $this->rankedPhotos($type, $window, 24);
+        $sortColumn = $this->sortColumn($type);
+        $page = max(1, (int) ($filters['page'] ?? 1));
+        $topPhotos = Photo::query()
+            ->fromSub($this->rankingQuery($window)->toBase(), 'photos')
+            ->where($sortColumn, '>', 0)
+            ->orderByDesc($sortColumn)
+            ->orderByDesc('photos.published_at')
+            ->orderByDesc('photos.id')
+            ->limit(50);
+        $paginator = Photo::query()
+            ->fromSub($topPhotos->toBase(), 'photos')
+            ->with(['categories.parent'])
+            ->orderByDesc($sortColumn)
+            ->orderByDesc('photos.published_at')
+            ->orderByDesc('photos.id')
+            ->paginate(20, ['*'], 'page', $page)
+            ->appends(['type' => $type, 'window' => $window]);
+        $items = $paginator->getCollection()
+            ->map(fn (Photo $photo, int $index): array => $this->photoRow($photo, ($paginator->firstItem() ?? 1) + $index))
+            ->all();
 
         return array_merge($this->homepage->shell(), [
             'seo' => $this->seo->rankings([
@@ -44,12 +63,22 @@ class PhotoInteractionRankings
                 'windows' => $this->windowOptions(),
             ],
             'summary' => [
-                'total_ranked' => count($items),
+                'total_ranked' => $paginator->total(),
                 'score_label' => $this->typeOptions()[$type] ?? '综合热度',
                 'window_label' => $this->windowOptions()[$window] ?? '全部时间',
                 'formula' => '收藏 x4 + 点赞 x3 + 评论 x2 + 分享 x1',
             ],
             'items' => $items,
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+            'links' => [
+                'prev' => $paginator->previousPageUrl(),
+                'next' => $paginator->nextPageUrl(),
+            ],
         ]);
     }
 

@@ -1,0 +1,371 @@
+.badges-page {
+    display: flow-root;
+    min-height: 100vh;
+    background: #f5f5fa;
+    color: #042240;
+}
+.badges-page :deep(header[data-theme='afa']) {
+    background: #98cef0;
+    color: #042240;
+}
+.badges-page :deep(header[data-theme='afa'] form) {
+    background: transparent;
+    border-color: #04224055;
+    color: #042240;
+}
+.badges-page :deep(header[data-theme='afa'] input::placeholder) {
+    color: currentColor;
+    opacity: 0.8;
+}
+.badges-workspace {
+    display: grid;
+    grid-template-columns: 216px minmax(0, 1fr);
+    gap: 32px;
+    max-width: 1360px;
+    margin: 24px auto 40px;
+    padding: 0 32px;
+}
+.page-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 22px;
+}
+.page-heading h1 {
+    font-size: 30px;
+    line-height: 1.4;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+}
+.page-heading p {
+    font-size: 14px;
+    line-height: 1.8;
+    color: #526779;
+    margin-top: 6px;
+}
+.secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    border: 1px solid #a8bfd0;
+    border-radius: 5px;
+    padding: 7px 13px;
+    background: #fff;
+    font-size: 13px;
+    transition:
+        background 0.18s,
+        transform 0.18s;
+}
+.secondary:hover {
+    background: #edf7fd;
+}
+.secondary:active {
+    transform: scale(0.98);
+}
+.badges-page :is(a, button, input, select, summary):focus-visible {
+    outline: 2px solid #042240;
+    outline-offset: 3px;
+}
+@media (max-width: 1279px) {
+    .badges-workspace {
+        grid-template-columns: 190px minmax(0, 1fr);
+        gap: 24px;
+    }
+}
+@media (max-width: 767px) {
+    .badges-page {
+        background: #fff;
+    }
+    .badges-workspace {
+        display: block;
+        padding: 0 20px;
+        margin-top: 20px;
+    }
+    .page-heading {
+        margin-bottom: 18px;
+    }
+    .page-heading h1 {
+        font-size: 26px;
+    }
+}
+
+.badges-work {
+    min-width: 0;
+}
+.equipped-panel {
+    padding: 22px;
+    background: #fff;
+    border-radius: 8px;
+}
+.equipped-panel h2,
+.collection-heading h2 {
+    font-size: 20px;
+    line-height: 1.6;
+    font-weight: 600;
+}
+.equipped-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px 24px;
+    margin-top: 16px;
+}
+.worn-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 100%;
+    font-size: 13px;
+}
+.worn-badge > span:last-child {
+    overflow-wrap: anywhere;
+    min-width: 0;
+}
+.badge-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    border-radius: 3px;
+    overflow: hidden;
+}
+.worn-badge :deep(> span:first-child) {
+    width: 40px;
+    height: 40px;
+}
+.worn-badge :deep(svg) {
+    width: 24px;
+    height: 24px;
+}
+.empty-equipped {
+    font-size: 14px;
+    line-height: 1.9;
+    color: #526779;
+    margin-top: 12px;
+}
+.collection-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin: 26px 0 18px;
+}
+.collection-heading > div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.collection-heading label {
+    font-size: 13px;
+    color: #526779;
+}
+.collection-heading select {
+    min-height: 44px;
+    border: 1px solid #a8bfd0;
+    border-radius: 5px;
+    background: #fff;
+    padding: 0 12px;
+    color: #042240;
+    font-size: 14px;
+}
+#badge-collection {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+.badge-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 22px;
+    background: #fff;
+    border-radius: 8px;
+}
+.badge-overview {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.badge-overview > div {
+    min-width: 0;
+}
+.badge-overview h3 {
+    font-size: 16px;
+    line-height: 1.7;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+.earned-state {
+    font-size: 11px;
+    color: #526779;
+    line-height: 1.8;
+    margin-top: 5px;
+}
+.badge-description {
+    font-size: 14px;
+    line-height: 1.9;
+    color: #526779;
+    overflow-wrap: anywhere;
+    margin-top: 16px;
+    white-space: pre-wrap;
+}
+.availability {
+    font-size: 13px;
+    line-height: 1.9;
+    margin: 10px 0 16px;
+    overflow-wrap: anywhere;
+}
+.badge-progress {
+    margin-top: auto;
+}
+.badge-progress p {
+    font-size: 12px;
+    color: #526779;
+}
+.badge-progress progress {
+    width: 100%;
+    height: 6px;
+    accent-color: #529cc9;
+    margin-top: 8px;
+}
+.equip-action {
+    align-self: flex-start;
+    margin-top: auto;
+    min-height: 44px;
+    padding: 7px 16px;
+    border: 1px solid #a8bfd0;
+    border-radius: 5px;
+    background: #fff;
+    font-size: 13px;
+    color: #042240;
+    transition:
+        background 0.18s,
+        transform 0.18s;
+}
+.equipped-action {
+    background: #e9dfcf;
+    border-color: #ba9f6c;
+}
+.equip-action:hover:not(:disabled) {
+    background: #edf7fd;
+}
+.equip-action:active:not(:disabled) {
+    transform: scale(0.98);
+}
+.equip-action:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+#feedback {
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    background: #edf7fd;
+    font-size: 13px;
+}
+#feedback[role='alert'] {
+    background: #fff1f0;
+    color: #a32823;
+}
+#badge-collection > .records-empty {
+    grid-column: 1/-1;
+}
+#badge-collection > .records-empty h3 {
+    font-size: 20px;
+    font-weight: 600;
+}
+@media (max-width: 1023px) {
+    #badge-collection {
+        grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 767px) {
+    .page-heading {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+    .page-heading .secondary {
+        font-size: 13px;
+    }
+    .equipped-panel,
+    .badge-card {
+        padding: 18px;
+        background: #f5f5fa;
+    }
+    .equipped-panel h2,
+    .collection-heading h2 {
+        font-size: 18px;
+    }
+    .collection-heading select {
+        font-size: 16px;
+    }
+    .collection-heading {
+        margin-top: 24px;
+    }
+    .badge-overview h3 {
+        font-size: 15px;
+    }
+    .badge-description {
+        font-size: 14px;
+    }
+    .worn-badge {
+        font-size: 12px;
+    }
+    .equipped-list {
+        gap: 12px;
+    }
+    .badge-card .equip-action {
+        margin-top: 4px;
+    }
+    .badge-icon {
+        width: 52px;
+        height: 52px;
+    }
+}
+
+.records-empty {
+    padding: 36px 24px;
+    background: #fff;
+    border-radius: 8px;
+    text-align: center;
+}
+.records-empty h3 {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.6;
+}
+.records-empty p {
+    font-size: 14px;
+    color: #526779;
+    line-height: 1.9;
+    margin-top: 12px;
+}
+.badge-progress progress {
+    appearance: none;
+    border: none;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #e5edf2;
+}
+.badge-progress progress::-webkit-progress-bar {
+    background: #e5edf2;
+}
+.badge-progress progress::-webkit-progress-value {
+    background: #529cc9;
+}
+.badge-progress progress::-moz-progress-bar {
+    background: #529cc9;
+}
+@media (max-width: 767px) {
+    .records-empty {
+        background: #f5f5fa;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .badges-page :deep(*) {
+        transition: none !important;
+        animation: none !important;
+    }
+}

@@ -178,9 +178,9 @@ Phase 1 必须支持“批量上传到相册”。
 |---|---|---|
 | id | bigint pk | 用户 ID |
 | name | varchar | 昵称 |
-| email | varchar nullable unique | 邮箱 |
+| email | varchar unique（当前非空，拟可空） | 邮箱；可空调整尚未迁移 |
 | phone | varchar nullable unique | 手机号 |
-| password | varchar nullable | 密码哈希 |
+| password | varchar（当前非空，拟可空） | 密码哈希；微信新账号允许尚未设置密码的迁移待实施 |
 | avatar_url | varchar nullable | 头像存储键；对外通过 `avatar` 访问器解析公开 URL |
 | role | enum | `admin`、`editor`、`user` |
 | supporter_until | datetime nullable | 运营守护者有效期 |
@@ -190,7 +190,7 @@ Phase 1 必须支持“批量上传到相册”。
 | session_version | unsigned int | 会话版本；管理员撤销全部会话时递增 |
 | created_at / updated_at | timestamps | 时间戳 |
 
-手机号注册规则：`phone` 对新注册用户必填且唯一，接受中国大陆 11 位手机号格式；历史用户的字段允许暂为空，登录方式仍为邮箱加密码，不提供手机号登录或短信验证。
+当前已实现：网站注册要求唯一中国大陆11位手机号，但未验证所有权；登录仍是邮箱密码。2026-10-22确认的目标：小程序微信注册不强制邮箱/密码/号码，网站支持手机号或邮箱加密码，字段可空及验证信息待迁移；不能把本节目标模型当现有数据库能力。短信验证码登录/找回尚未立项。
 
 ### user_login_histories
 
@@ -806,4 +806,37 @@ album_category.category_id 和 photo_category.category_id 均应使用限制删�
 - payment_attempts：订单、create/query/refund、unknown/confirmed、操作人、时间。未知下单和退款不盲重发，不保存请求密钥/签名或原始敏感响应。
 - sponsorship_reminders：user_id/expires_at/days 唯一，7/1 天站内提醒与通知事务提交，续费按新到期日去重。
 
-配置沿用 settings(payment,xunhu)，secret 为加密字符串；表单保存后清空回显。退款、回调核验及待核查事项写 payment_logs，退款撤章写 badge_events。回调失败不打印完整渠道数据。用户原有公开/隐藏选择不覆盖。
+配置沿用 settings(payment,xunhu)，secret 为加密字符串；表单保存后清空回显。当前 gateway、query_gateway、refund_gateway 均保留配置字段，后两项仍默认空、由管理员手填；“根据支付网关自动处理查询/退款地址”尚未实现，本轮文档同步不新增迁移或修改已保存的商户配置。退款、回调核验及待核查事项写 payment_logs，退款撤章写 badge_events。回调失败不打印完整渠道数据。用户原有公开/隐藏选择不覆盖。
+
+## 微信小程序拟定数据增量（2026-10-21，尚无迁移）
+
+2026-10-22统一方案：主键仍为users.id，phone已可空且唯一；新增phone_verified_at及phone_verification_source（如wechat_mini，服务端写入）、email/password增量可空均待迁移。保留现有email_verified_at，不把历史手填号码标为可信，不生成虚构标识/密码。未验证旧号码不用于自动接管；相同号码匹配旧账号仍需原凭据，完成同次可信授权才能补记验证。换号先验证账号及新号码，原验证随号码变化清除；备用凭据核查后才允许解绑唯一微信。
+
+注册/绑定路径不得更新旧账号的name/avatar_url/profile_bio/公开偏好、密码、角色或权益，也不新建支持者/勋章数据。可信手机号核验信息只在号码完全匹配、用户验证原账号并确认绑定后更新；号码不同保留旧值，另走明确换号流程。每次微信登录仅更新必要的关联最近登录及登录历史，不刷新本站公开资料。
+
+主动资料编辑使用服务端updated_at等并发版本作为提交前提，在同事务锁定并比较；过期返回409，页面刷新后重新编辑，避免两端静默覆盖。不为本次默认新增独立资料版本表，具体精度/比较方式在切片中统一；角色、会话版本等敏感更新不可由资料表单覆盖。
+
+迁移前核验所有邮箱必填假设、唯一索引对NULL的行为、通知投递、表单/导出/序列化、无密码的哈希及验证分支。历史邮箱/手机号/密码值原样保留，不自动合并或重新分配主键；账号证明和关联写入事务化。存在无邮箱/密码账号后，不可回滚强制NOT NULL，优先前滚修复或兼容代码回退。
+
+完整开发计划见进度主文档第9节。本节只规定新增约束，不代表已有这些表；不复制users、图库、互动、通知、勋章或赞助数据。
+
+| 承载 | 拟定字段与约束 | 生命周期 |
+|---|---|---|
+| `wechat_mini_bindings` | id、user_id外键、appid、openid、可空unionid、bound_at、last_login_at及时间戳；(appid,openid)与(appid,user_id)分别唯一；身份字符串按大小写敏感语义比较 | 注册/绑定同事务；解绑先撤对应令牌再删除关联并审计，不删除网站账号 |
+| `personal_access_tokens` | Sanctum标准表，加mini_binding_id外键及session_version快照；令牌仅存摘要，设置expires_at | 建议7天；校验账号/绑定/版本；退出撤当前令牌、解绑撤该绑定全部令牌，定时清过期记录 |
+| Redis短挑战 | 凭证摘要、用途、微信身份/候选user_id、验证阶段、有效期和尝试次数 | 默认5分钟；注册/绑定/第二因素/敏感操作用途隔离，原子消费；不存明文密码或恢复码 |
+| 分享表扩展 | share_links允许明确的小程序好友/码海报渠道；share_visits按需加client_type等来源信息 | 不新建第二套有效归因或referrals_count，保留既有90天明细与长期去重 |
+| 小程序游客凭证 | 服务端随机身份摘要、用途及到期信息；续期保持身份摘要，浏览会话回执单独短TTL | 不是业务登录；长效去重摘要与短访问回执分离，允许清除本机数据，不保证匿名跨设备去重 |
+
+openid/unionid不返回公开接口或普通日志；无解密业务时不长期保存session_key。客户端不能提交role、状态、贡献数或权限字段。分享去重仍为全站账号级，不按客户端重复计数，不回填Web历史数据为小程序访问。
+
+注册/绑定按稳定顺序锁定账号及关联，唯一约束兜底，冲突返回409且整体回滚；不能留下半完成注册。令牌签发与解绑并发时不得产生解绑后仍有效的令牌。收藏取消检查本人归属，图片下架仍可取消记录。
+
+登录接入现有user_login_histories；必要时增量增加可空来源字段，不编造历史来源。关联/解绑审计复用现有审计机制，记录最小操作信息，不输出code、密码、2FA恢复码和令牌。管理员全量撤销通过session_version同样使API失效，不能只删Web sessions。
+
+迁移前备份并验证生产MySQL外键/索引；不清库、不跑生产Seeder。注销先核对收藏/评论/分享/赞助/审计关联和必要留存，不直接暴露网站物理删除方法。回退保留已写入数据，不自动down删表。
+
+
+### 站点双 LOGO 配置（2026-10-22）
+
+沿用settings(group=site,key=basic)的value JSON：logo_path仍为白底导航的深色默认LOGO，新增可空logo_light_path用于首页透明导航的浅色版本。旧JSON缺少该键时按null读取，不回填、不迁移，也不改用户已有图片路径。公开响应提供解析后的logo_url/logo_light_url。

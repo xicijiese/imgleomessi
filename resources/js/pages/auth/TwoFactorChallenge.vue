@@ -7,6 +7,7 @@ import {
     InputOTPGroup,
     InputOTPSlot,
 } from '@/components/ui/input-otp';
+import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import { store } from '@/routes/two-factor/login';
 import { Form, Head } from '@inertiajs/vue3';
@@ -52,46 +53,60 @@ const code = ref<string>('');
     >
         <Head title="二次验证" />
 
-        <div class="space-y-6">
+        <div class="auth-fields">
             <template v-if="!showRecoveryInput">
                 <Form
                     v-bind="store.form()"
-                    class="space-y-4"
+                    class="auth-form"
                     reset-on-error
                     @error="code = ''"
                     #default="{ errors, processing, clearErrors }"
                 >
                     <input type="hidden" name="code" :value="code" />
                     <div
-                        class="flex flex-col items-center justify-center space-y-3 text-center"
+                        class="auth-field"
+                        :class="{ 'auth-otp-invalid': errors.code }"
                     >
-                        <div class="flex w-full items-center justify-center">
-                            <InputOTP
-                                id="otp"
-                                v-model="code"
-                                :maxlength="6"
-                                :disabled="processing"
-                                autofocus
-                            >
-                                <InputOTPGroup>
-                                    <InputOTPSlot
-                                        v-for="index in 6"
-                                        :key="index"
-                                        :index="index - 1"
-                                    />
-                                </InputOTPGroup>
-                            </InputOTP>
-                        </div>
-                        <InputError :message="errors.code" />
+                        <Label for="otp">动态验证码</Label>
+                        <InputOTP
+                            id="otp"
+                            class="auth-otp"
+                            aria-label="六位动态验证码"
+                            :aria-invalid="Boolean(errors.code)"
+                            :aria-describedby="
+                                errors.code ? 'code-error' : undefined
+                            "
+                            v-model="code"
+                            :maxlength="6"
+                            :disabled="processing"
+                            autofocus
+                        >
+                            <InputOTPGroup>
+                                <InputOTPSlot
+                                    v-for="index in 6"
+                                    :key="index"
+                                    :index="index - 1"
+                                />
+                            </InputOTPGroup>
+                        </InputOTP>
+                        <InputError
+                            id="code-error"
+                            class="auth-error"
+                            :message="errors.code"
+                            role="alert"
+                        />
                     </div>
-                    <Button type="submit" class="w-full" :disabled="processing"
-                        >继续</Button
+                    <Button
+                        type="submit"
+                        class="auth-submit"
+                        :disabled="processing"
+                        :aria-busy="processing"
+                        >{{ processing ? '正在验证…' : '继续' }}</Button
                     >
-                    <div class="text-center text-sm text-muted-foreground">
-                        <span>或者你可以</span>
+                    <div class="auth-secondary">
                         <button
                             type="button"
-                            class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                            class="auth-secondary-action w-full"
                             @click="() => toggleRecoveryMode(clearErrors)"
                         >
                             {{ authConfigContent.toggleText }}
@@ -103,27 +118,46 @@ const code = ref<string>('');
             <template v-else>
                 <Form
                     v-bind="store.form()"
-                    class="space-y-4"
+                    class="auth-form"
                     reset-on-error
                     #default="{ errors, processing, clearErrors }"
                 >
-                    <Input
-                        name="recovery_code"
-                        type="text"
-                        placeholder="请输入恢复代码"
-                        :autofocus="showRecoveryInput"
-                        required
-                    />
-                    <InputError :message="errors.recovery_code" />
-                    <Button type="submit" class="w-full" :disabled="processing"
-                        >继续</Button
+                    <div class="auth-field">
+                        <Label for="recovery_code">恢复代码</Label>
+                        <Input
+                            id="recovery_code"
+                            class="auth-input"
+                            :aria-invalid="Boolean(errors.recovery_code)"
+                            :aria-describedby="
+                                errors.recovery_code
+                                    ? 'recovery-code-error'
+                                    : undefined
+                            "
+                            name="recovery_code"
+                            type="text"
+                            placeholder="请输入恢复代码"
+                            :autofocus="showRecoveryInput"
+                            required
+                        />
+                        <InputError
+                            id="recovery-code-error"
+                            class="auth-error"
+                            :message="errors.recovery_code"
+                            role="alert"
+                        />
+                    </div>
+                    <Button
+                        type="submit"
+                        class="auth-submit"
+                        :disabled="processing"
+                        :aria-busy="processing"
+                        >{{ processing ? '正在验证…' : '继续' }}</Button
                     >
 
-                    <div class="text-center text-sm text-muted-foreground">
-                        <span>或者你可以</span>
+                    <div class="auth-secondary">
                         <button
                             type="button"
-                            class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                            class="auth-secondary-action w-full"
                             @click="() => toggleRecoveryMode(clearErrors)"
                         >
                             {{ authConfigContent.toggleText }}

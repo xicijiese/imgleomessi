@@ -27,11 +27,7 @@ defineProps<{
     >
         <Head title="登录" />
 
-        <div
-            v-if="status"
-            role="status"
-            class="mb-6 rounded-md bg-[#ecfdf3] px-4 py-3 text-sm text-[#166534]"
-        >
+        <div v-if="status" role="status" class="auth-status">
             {{ status }}
         </div>
 
@@ -39,10 +35,10 @@ defineProps<{
             v-bind="store.form()"
             :reset-on-success="['password']"
             v-slot="{ errors, processing }"
-            class="flex flex-col gap-6"
+            class="auth-form"
         >
-            <div class="grid gap-6">
-                <div class="grid gap-2">
+            <div class="auth-fields">
+                <div class="auth-field">
                     <Label for="email">邮箱地址</Label>
                     <Input
                         class="auth-input"
@@ -56,17 +52,18 @@ defineProps<{
                         required
                         autofocus
                         autocomplete="email"
-                        placeholder="email@example.com"
+                        placeholder="请输入邮箱地址"
                     />
                     <InputError
+                        class="auth-error"
                         id="email-error"
                         :message="errors.email"
                         role="alert"
                     />
                 </div>
 
-                <div class="grid gap-2">
-                    <div class="flex items-center justify-between">
+                <div class="auth-field">
+                    <div class="auth-field-heading">
                         <Label for="password">密码</Label>
                         <TextLink
                             v-if="canResetPassword"
@@ -88,14 +85,15 @@ defineProps<{
                         placeholder="请输入密码"
                     />
                     <InputError
+                        class="auth-error"
                         id="password-error"
                         :message="errors.password"
                         role="alert"
                     />
                 </div>
 
-                <div class="flex items-center justify-between">
-                    <Label for="remember" class="flex items-center space-x-3">
+                <div class="auth-field-heading">
+                    <Label for="remember" class="remember">
                         <Checkbox id="remember" name="remember" />
                         <span>保持登录</span>
                     </Label>
@@ -103,7 +101,7 @@ defineProps<{
 
                 <Button
                     type="submit"
-                    class="auth-submit mt-2 w-full"
+                    class="auth-submit"
                     :disabled="processing"
                     :aria-busy="processing"
                     data-test="login-button"
@@ -113,10 +111,7 @@ defineProps<{
                 </Button>
             </div>
 
-            <div
-                class="rounded-md bg-[#eef6fc] px-4 py-4 text-center text-sm text-[#526b80]"
-                v-if="canRegister"
-            >
+            <div class="auth-foot" v-if="canRegister">
                 还没有账号？
                 <TextLink
                     :href="register()"

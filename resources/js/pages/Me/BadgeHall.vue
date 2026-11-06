@@ -2,6 +2,7 @@
 import BadgeIcon from '@/components/BadgeIcon.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import UserCenterNav from '@/components/UserCenterNav.vue';
+import { useArchiveBrowserMotion } from '@/composables/useArchiveBrowserMotion';
 import { Head, Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
@@ -27,6 +28,8 @@ const props = defineProps<{
         badges: Badge[];
     };
 }>();
+const root = ref<HTMLElement | null>(null);
+useArchiveBrowserMotion(root);
 const search = ref('');
 const badges = computed(() =>
     props.hall.badges.filter((badge) =>
@@ -39,82 +42,83 @@ const badges = computed(() =>
 
 <template>
     <Head title="勋章大厅" />
-    <main class="min-h-screen bg-[#fffffe] text-[#094067]">
-        <PublicHeader :navigation="hall.navigation" :site="hall.site" />
-        <section
-            class="border-b border-[#90b4ce]/30 bg-[#d8eefe] px-4 py-10 sm:px-6 lg:px-8"
-        >
-            <div class="mx-auto max-w-7xl">
-                <h1 class="text-3xl font-semibold sm:text-4xl">勋章大厅</h1>
-                <p class="mt-4 max-w-2xl text-sm leading-7 text-[#5f6c7b]">
-                    记录每一份参与。了解勋章的获得条件，收藏属于自己的纪念。
+    <div ref="root" class="hall-page">
+        <PublicHeader
+            :navigation="hall.navigation"
+            :site="hall.site"
+            theme="afa"
+        />
+        <div class="hall-workspace">
+            <UserCenterNav
+                :user="hall.user"
+                :summary="hall.summary"
+                active="badge-hall"
+                variant="archive"
+            />
+            <main class="hall-work">
+                <div class="page-heading browser-heading">
+                    <div>
+                        <h1>勋章大厅</h1>
+                        <p>了解勋章的获得条件，收藏属于自己的纪念。</p>
+                    </div>
+                    <Link class="secondary" href="/me/badges"
+                        >管理我的勋章</Link
+                    >
+                </div>
+                <div class="hall-tools">
+                    <p>共 {{ hall.badges.length }} 枚勋章 · 获得后永久保留</p>
+                    <div class="hall-search">
+                        <label for="hall-search">查找勋章</label
+                        ><input
+                            id="hall-search"
+                            v-model="search"
+                            type="search"
+                            placeholder="名称或说明"
+                        />
+                    </div>
+                </div>
+                <p id="result-count" role="status">
+                    {{
+                        search.trim()
+                            ? `找到 ${badges.length} 枚勋章`
+                            : `展示全部 ${badges.length} 枚勋章`
+                    }}
                 </p>
-                <Link
-                    href="/me/badges"
-                    class="mt-5 inline-flex min-h-11 items-center rounded-sm bg-[#094067] px-4 text-sm font-semibold text-white"
-                    >管理我的勋章</Link
+                <section
+                    v-if="badges.length"
+                    class="hall-collection"
+                    aria-label="勋章目录"
                 >
-            </div>
-        </section>
-        <section class="px-4 py-8 sm:px-6 lg:px-8">
-            <div
-                class="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[280px_minmax(0,1fr)]"
-            >
-                <UserCenterNav
-                    :user="hall.user"
-                    :summary="hall.summary"
-                    active="badge-hall"
-                />
-                <div class="min-w-0">
-                    <div
-                        class="mb-6 flex flex-wrap items-center justify-between gap-4"
+                    <article
+                        v-for="badge in badges"
+                        :key="badge.id"
+                        class="hall-card"
                     >
-                        <p class="text-sm text-[#5f6c7b]">
-                            共 {{ hall.badges.length }} 枚勋章 · 获得后永久保留
-                        </p>
-                        <label class="flex items-center gap-3 text-sm"
-                            ><span>查找勋章</span
-                            ><input
-                                v-model="search"
-                                type="search"
-                                class="min-h-11 w-48 rounded-sm border border-[#90b4ce] bg-white px-3 text-[#094067] focus:outline-2 focus:outline-[#3da9fc]"
-                                placeholder="名称或说明"
-                        /></label>
-                    </div>
-                    <div
-                        v-if="badges.length"
-                        class="grid gap-x-8 md:grid-cols-2"
-                    >
-                        <article
-                            v-for="badge in badges"
-                            :key="badge.id"
-                            class="flex gap-4 border-b border-[#90b4ce]/30 py-6"
-                        >
+                        <div class="badge-overview">
                             <BadgeIcon :badge="badge" />
-                            <div class="min-w-0">
-                                <h2 class="text-lg font-semibold break-words">
-                                    {{ badge.name }}
-                                </h2>
-                                <p
-                                    class="mt-2 text-sm leading-6 text-[#5f6c7b]"
-                                >
-                                    {{ badge.description ?? badge.rule_label }}
-                                </p>
-                                <p class="mt-3 text-sm leading-6">
-                                    {{ badge.availability }}
-                                </p>
+                            <div>
+                                <h2>{{ badge.name }}</h2>
                             </div>
-                        </article>
-                    </div>
-                    <p v-else class="py-12 text-center text-sm text-[#5f6c7b]">
-                        {{
-                            search
-                                ? '没有找到匹配的勋章，请换个关键词。'
-                                : '勋章正在准备中，开放后将在这里展示。'
-                        }}
+                        </div>
+                        <p class="badge-description">
+                            {{ badge.description ?? badge.rule_label }}
+                        </p>
+                        <dl class="hall-condition">
+                            <dt>获取条件</dt>
+                            <dd>{{ badge.availability }}</dd>
+                        </dl>
+                    </article>
+                </section>
+                <div v-else class="hall-empty">
+                    <h2>
+                        {{ search ? '没有找到匹配的勋章' : '勋章正在准备中' }}
+                    </h2>
+                    <p>
+                        {{ search ? '请换个关键词。' : '开放后将在这里展示。' }}
                     </p>
                 </div>
-            </div>
-        </section>
-    </main>
+            </main>
+        </div>
+    </div>
 </template>
+<style scoped src="./BadgeHall.css"></style>

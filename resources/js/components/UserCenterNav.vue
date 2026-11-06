@@ -2,7 +2,6 @@
 import { Link } from '@inertiajs/vue3';
 import {
     Bell,
-    Share2,
     Flag,
     Heart,
     HeartHandshake,
@@ -11,9 +10,11 @@ import {
     MessageCircle,
     Palette,
     Settings,
+    Share2,
     ShieldCheck,
     UserRound,
 } from 'lucide-vue-next';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 interface SummaryPayload {
     favorites_count: number;
@@ -33,21 +34,43 @@ interface UserPayload {
     ban_reason: string | null;
 }
 
-defineProps<{
-    user: UserPayload;
-    summary: SummaryPayload;
-    active:
-        | 'shares'
-        | 'submissions'
-        | 'overview'
-        | 'favorites'
-        | 'comments'
-        | 'reports'
-        | 'sponsorships'
-        | 'badge-hall'
-        | 'badges'
-        | 'notifications';
-}>();
+const props = withDefaults(
+    defineProps<{
+        user: UserPayload;
+        summary: SummaryPayload;
+        variant?: 'default' | 'archive';
+        active:
+            | 'shares'
+            | 'submissions'
+            | 'overview'
+            | 'favorites'
+            | 'comments'
+            | 'reports'
+            | 'sponsorships'
+            | 'badge-hall'
+            | 'badges'
+            | 'notifications'
+            | '/settings/profile'
+            | '/settings/password'
+            | '/settings/appearance'
+            | '/settings/two-factor';
+    }>(),
+    { variant: 'default' },
+);
+
+const navigationOpen = ref(false);
+const settingsOpen = ref(true);
+let desktop: MediaQueryList | undefined;
+const syncNavigation = () => {
+    navigationOpen.value = desktop?.matches ?? false;
+};
+onMounted(() => {
+    if (props.variant !== 'archive') return;
+    desktop = window.matchMedia('(min-width: 768px)');
+    syncNavigation();
+    desktop.addEventListener('change', syncNavigation);
+});
+onUnmounted(() => desktop?.removeEventListener('change', syncNavigation));
 
 const items = [
     { key: 'overview', label: '个人首页', url: '/me', icon: UserRound },
@@ -96,7 +119,82 @@ const settingsItems = [
 </script>
 
 <template>
-    <aside class="space-y-5">
+    <aside v-if="variant === 'archive'" class="center-sidebar">
+        <div class="identity">
+            <span class="avatar" aria-hidden="true">{{
+                user.name.slice(0, 1).toUpperCase()
+            }}</span>
+            <div>
+                <strong>{{ user.name }}</strong
+                ><span>{{ user.email }}</span>
+            </div>
+        </div>
+        <p
+            v-if="user.is_banned"
+            class="account-status restricted"
+            role="status"
+        >
+            当前账号互动权限受限<span v-if="user.banned_until"
+                >，截至 {{ user.banned_until }}</span
+            ><span v-if="user.ban_reason">。原因：{{ user.ban_reason }}</span>
+        </p>
+        <p v-else class="account-status">账号状态：{{ user.status_label }}</p>
+        <details
+            id="center-menu"
+            :open="navigationOpen"
+            @toggle="
+                navigationOpen = ($event.target as HTMLDetailsElement).open
+            "
+        >
+            <summary>
+                <span>个人中心导航</span><span class="closed">切换页面</span
+                ><span class="opened">收起导航</span>
+            </summary>
+            <nav id="center-nav" aria-label="个人中心导航">
+                <Link
+                    v-for="item in items"
+                    :key="item.key"
+                    :href="item.url"
+                    class="center-link"
+                    :aria-current="active === item.key ? 'page' : undefined"
+                >
+                    <span>{{ item.label }}</span
+                    ><span
+                        v-if="
+                            item.key === 'notifications' &&
+                            summary.unread_notifications_count > 0
+                        "
+                        class="count"
+                        >{{ summary.unread_notifications_count }}</span
+                    >
+                </Link>
+            </nav>
+            <details
+                id="settings-group"
+                :open="settingsOpen"
+                @toggle="
+                    settingsOpen = ($event.target as HTMLDetailsElement).open
+                "
+            >
+                <summary>
+                    <span>账号设置</span
+                    ><span class="settings-closed">展开</span
+                    ><span class="settings-opened">收起</span>
+                </summary>
+                <nav id="settings-nav" aria-label="账号设置">
+                    <Link
+                        v-for="item in settingsItems"
+                        :key="item.url"
+                        :href="item.url"
+                        class="center-link"
+                        :aria-current="active === item.url ? 'page' : undefined"
+                        >{{ item.label }}</Link
+                    >
+                </nav>
+            </details>
+        </details>
+    </aside>
+    <aside v-else class="space-y-5">
         <div
             class="rounded-sm border border-[#90b4ce]/35 bg-[#fffffe] p-5 shadow-sm"
         >
@@ -195,3 +293,5 @@ const settingsItems = [
         </div>
     </aside>
 </template>
+
+<style scoped src="./UserCenterNav.css"></style>

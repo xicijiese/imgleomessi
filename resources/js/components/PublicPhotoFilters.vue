@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { SlidersHorizontal, X } from 'lucide-vue-next';
-import { computed, reactive, ref } from 'vue';
+import { gsap } from 'gsap';
+import { Search, SlidersHorizontal, X } from 'lucide-vue-next';
+import { computed, onUnmounted, reactive, ref, useId } from 'vue';
 
 interface CategoryOption {
     id: number;
@@ -18,14 +19,12 @@ interface CategoryGroup {
 interface TagOption {
     id: number;
     name: string;
-
 }
 
 interface AlbumOption {
     id: number;
     title: string;
 }
-
 
 interface SelectOption {
     value: string;
@@ -74,14 +73,98 @@ const props = defineProps<{
     submitLabel: string;
 }>();
 
+const emit = defineEmits<{ loading: [value: boolean] }>();
 const filtersOpen = ref(false);
+const dialog = ref<HTMLDialogElement | null>(null);
+const panelTitleId = useId();
+const isApplying = ref(false);
+let panelMotion: gsap.core.Tween | undefined;
+const quickGroups = computed(() =>
+    props.filterOptions.category_groups.filter((group) =>
+        ['生涯阶段', '年份'].includes(group.name),
+    ),
+);
+const detailSelects = computed(
+    () =>
+        [
+            {
+                key: 'source_mode',
+                label: '来源状态',
+                options: props.filterOptions.source_modes,
+            },
+            {
+                key: 'copyright_status',
+                label: '版权状态',
+                options: props.filterOptions.copyright_statuses,
+            },
+            {
+                key: 'resolution',
+                label: '清晰度',
+                options: props.filterOptions.resolutions,
+            },
+            {
+                key: 'orientation',
+                label: '横竖图',
+                options: props.filterOptions.orientations,
+            },
+            {
+                key: 'watermark_status',
+                label: '水印状态',
+                options: props.filterOptions.watermark_statuses,
+            },
+        ] as const,
+);
+
+const openFilters = () => {
+    dialog.value?.showModal();
+    filtersOpen.value = true;
+    panelMotion?.revert();
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        panelMotion = gsap.fromTo(
+            dialog.value,
+            { y: 12 },
+            {
+                y: 0,
+                duration: 0.2,
+                ease: 'power2.out',
+                clearProps: 'transform',
+            },
+        );
+    }
+};
+const closeFilters = () => {
+    dialog.value?.close();
+    filtersOpen.value = false;
+};
+const closeBackdrop = (event: MouseEvent) => {
+    if (event.target !== dialog.value || !dialog.value) return;
+    const rect = dialog.value.getBoundingClientRect();
+    if (
+        event.clientX < rect.left ||
+        event.clientX > rect.right ||
+        event.clientY < rect.top ||
+        event.clientY > rect.bottom
+    )
+        closeFilters();
+};
+const beginRequest = () => {
+    isApplying.value = true;
+    emit('loading', true);
+};
+const finishRequest = () => {
+    isApplying.value = false;
+    emit('loading', false);
+};
+onUnmounted(() => panelMotion?.revert());
 
 const form = reactive({
     q: props.filters.q,
     categories: Object.fromEntries(
-        Object.entries(props.filters.categories).map(([slug, id]) => [
-            slug,
-            String(id),
+        props.filterOptions.category_groups.map((group) => [
+            group.slug,
+            props.filters.categories[group.slug]
+                ? String(props.filters.categories[group.slug])
+                : '',
         ]),
     ) as Record<string, string>,
     tags: props.filters.tags.map((id) => String(id)),
@@ -127,10 +210,7 @@ const queryParams = () => {
         tags: form.tags.length > 0 ? form.tags : undefined,
         people_tags: form.people_tags.length > 0 ? form.people_tags : undefined,
         album_id: form.album_id || undefined,
-        source_mode:
-            form.source_mode !== 'all'
-                ? form.source_mode
-                : undefined,
+        source_mode: form.source_mode !== 'all' ? form.source_mode : undefined,
         copyright_status: form.copyright_status || undefined,
         orientation: form.orientation !== 'all' ? form.orientation : undefined,
         resolution: form.resolution !== 'all' ? form.resolution : undefined,
@@ -142,15 +222,19 @@ const queryParams = () => {
 };
 
 const applyFilters = () => {
+    closeFilters();
     router.get(props.submitPath, queryParams(), {
         preserveScroll: false,
         preserveState: false,
         replace: true,
+        onStart: beginRequest,
+        onFinish: finishRequest,
     });
     filtersOpen.value = false;
 };
 
 const resetFilters = () => {
+    closeFilters();
     router.get(
         props.submitPath,
         {},
@@ -158,6 +242,8 @@ const resetFilters = () => {
             preserveScroll: false,
             preserveState: false,
             replace: true,
+            onStart: beginRequest,
+            onFinish: finishRequest,
         },
     );
     filtersOpen.value = false;
@@ -251,7 +337,15 @@ const activeChips = computed<ActiveChip[]>(() => {
         });
     }
 
-
+    if (form.source_mode !== 'all') {
+        chips.push({
+            key: 'source',
+            label: `来源：${optionLabel(props.filterOptions.source_modes, form.source_mode)}`,
+            reset: () => {
+                form.source_mode = 'all';
+            },
+        });
+    }
     if (form.copyright_status) {
         chips.push({
             key: 'copyright',
@@ -332,82 +426,257 @@ const removeChip = (chip: ActiveChip) => {
 </script>
 
 <template>
-    <div
-        class="mb-5 flex flex-wrap items-center justify-between gap-3 lg:hidden"
-    >
-        <button
-            type="button"
-            class="inline-flex h-11 items-center gap-2 rounded-sm border border-[#90b4ce]/60 px-4 text-sm font-semibold text-[#094067]"
-            @click="filtersOpen = !filtersOpen"
-        >
-            <SlidersHorizontal class="h-4 w-4" aria-hidden="true" />
-            筛选
-        </button>
-        <button
-            v-if="hasActiveFilters"
-            type="button"
-            class="h-11 text-sm font-semibold text-[#3da9fc]"
-            @click="resetFilters"
-        >
-            清空全部
-        </button>
-    </div>
-
     <form
-        class="mb-5 rounded-sm border border-[#90b4ce]/35 bg-[#fffffe] p-4 shadow-sm lg:block lg:p-5"
-        :class="filtersOpen ? 'block' : 'hidden'"
+        class="browser-filters"
+        :aria-busy="isApplying"
         @submit.prevent="applyFilters"
     >
-        <div class="grid gap-4 lg:grid-cols-12">
-            <label class="grid gap-2 lg:col-span-3">
-                <span class="text-sm font-semibold">关键词</span>
-                <input
-                    v-model="form.q"
-                    type="search"
-                    class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
-                    placeholder="标题或说明"
-                />
-            </label>
-
-            <label class="grid gap-2 lg:col-span-2">
-                <span class="text-sm font-semibold">相册</span>
-                <select
-                    v-model="form.album_id"
-                    class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
-                >
-                    <option value="">全部相册</option>
-                    <option
-                        v-for="album in filterOptions.albums"
-                        :key="album.id"
-                        :value="String(album.id)"
+        <div class="browser-quick-filters">
+            <label class="browser-keyword"
+                ><span>关键词</span>
+                <div class="browser-search-input">
+                    <Search :size="20" aria-hidden="true" /><input
+                        v-model="form.q"
+                        type="search"
+                        placeholder="搜索标题、赛事、相册或人物"
+                        aria-label="关键词"
+                    /><button
+                        class="browser-search-submit"
+                        type="submit"
+                        :disabled="isApplying"
                     >
-                        {{ album.title }}
-                    </option>
-                </select>
-            </label>
-
-            <label class="grid gap-2 lg:col-span-2">
-                <span class="text-sm font-semibold">来源状态</span>
-                <select
-                    v-model="form.source_mode"
-                    class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
+                        搜索
+                    </button>
+                </div></label
+            >
+            <label
+                v-for="group in quickGroups"
+                :key="group.slug"
+                class="browser-quick-category"
+                ><span>{{ group.name }}</span
+                ><select
+                    v-model="form.categories[group.slug]"
+                    :aria-label="group.name"
                 >
-                    <option
-                        v-for="option in filterOptions.source_modes"
-                        :key="option.value"
-                        :value="option.value"
-                    >
-                        {{ option.label }}
+                    <option value="">
+                        全部{{ group.name === '年份' ? '年份' : '阶段' }}
                     </option>
-                </select>
-            </label>
-
-
-            <label class="grid gap-2 lg:col-span-3">
-                <span class="text-sm font-semibold">排序</span>
-                <select
+                    <option
+                        v-for="child in group.children"
+                        :key="child.id"
+                        :value="String(child.id)"
+                    >
+                        {{ child.name }}
+                    </option>
+                </select></label
+            >
+            <button
+                type="button"
+                class="browser-filter-toggle browser-outline"
+                aria-haspopup="dialog"
+                :aria-expanded="filtersOpen"
+                @click="openFilters"
+            >
+                <SlidersHorizontal :size="18" aria-hidden="true" /><span
+                    class="browser-desktop-filter-label"
+                    >全部筛选</span
+                ><span class="browser-mobile-filter-label">筛选</span>
+            </button>
+            <button
+                type="submit"
+                class="browser-apply-top browser-primary"
+                :disabled="isApplying"
+            >
+                {{ isApplying ? '正在加载…' : submitLabel }}
+            </button>
+        </div>
+        <dialog
+            ref="dialog"
+            class="browser-filter-dialog"
+            :aria-labelledby="panelTitleId"
+            @close="filtersOpen = false"
+            @click="closeBackdrop"
+        >
+            <div class="browser-dialog-heading">
+                <div>
+                    <h2 :id="panelTitleId">筛选图片</h2>
+                    <p>组合时间、赛事和图片资料，缩小查找范围。</p>
+                </div>
+                <button
+                    type="button"
+                    class="browser-close-filter"
+                    aria-label="关闭筛选"
+                    @click="closeFilters"
+                >
+                    <X :size="24" aria-hidden="true" />
+                </button>
+            </div>
+            <div class="browser-filter-scroll">
+                <div class="browser-advanced-fields">
+                    <label
+                        v-for="group in filterOptions.category_groups"
+                        :key="group.slug"
+                        ><span>{{ group.name }}</span
+                        ><select
+                            v-model="form.categories[group.slug]"
+                            :aria-label="group.name"
+                        >
+                            <option value="">全部</option>
+                            <option
+                                v-for="child in group.children"
+                                :key="child.id"
+                                :value="String(child.id)"
+                            >
+                                {{ child.name }}
+                            </option>
+                        </select></label
+                    >
+                    <label
+                        ><span>相册</span
+                        ><select v-model="form.album_id" aria-label="相册">
+                            <option value="">全部相册</option>
+                            <option
+                                v-for="album in filterOptions.albums"
+                                :key="album.id"
+                                :value="String(album.id)"
+                            >
+                                {{ album.title }}
+                            </option>
+                        </select></label
+                    >
+                    <label v-for="field in detailSelects" :key="field.key"
+                        ><span>{{ field.label }}</span
+                        ><select
+                            v-model="form[field.key]"
+                            :aria-label="field.label"
+                        >
+                            <option
+                                v-if="
+                                    [
+                                        'copyright_status',
+                                        'watermark_status',
+                                    ].includes(field.key)
+                                "
+                                value=""
+                            >
+                                全部{{ field.label }}
+                            </option>
+                            <option
+                                v-for="option in field.options"
+                                :key="option.value"
+                                :value="option.value"
+                            >
+                                {{ option.label }}
+                            </option>
+                        </select></label
+                    >
+                    <label
+                        ><span>开始日期</span
+                        ><input v-model="form.date_from" type="date" /></label
+                    ><label
+                        ><span>结束日期</span
+                        ><input v-model="form.date_to" type="date"
+                    /></label>
+                </div>
+                <fieldset
+                    v-if="filterOptions.people_tags.length"
+                    class="browser-filter-tags"
+                >
+                    <legend>人物同框</legend>
+                    <div>
+                        <button
+                            v-for="tag in filterOptions.people_tags"
+                            :key="tag.id"
+                            type="button"
+                            class="browser-tag-choice"
+                            :class="{
+                                'is-selected': isSelected(
+                                    form.people_tags,
+                                    tag.id,
+                                ),
+                            }"
+                            :aria-pressed="isSelected(form.people_tags, tag.id)"
+                            @click="toggleId(form.people_tags, tag.id)"
+                        >
+                            {{ tag.name }}
+                        </button>
+                    </div>
+                </fieldset>
+                <fieldset
+                    v-if="filterOptions.tags.length"
+                    class="browser-filter-tags"
+                >
+                    <legend>标签</legend>
+                    <div>
+                        <button
+                            v-for="tag in filterOptions.tags"
+                            :key="tag.id"
+                            type="button"
+                            class="browser-tag-choice"
+                            :class="{
+                                'is-selected': isSelected(form.tags, tag.id),
+                            }"
+                            :aria-pressed="isSelected(form.tags, tag.id)"
+                            @click="toggleId(form.tags, tag.id)"
+                        >
+                            {{ tag.name }}
+                        </button>
+                    </div>
+                </fieldset>
+            </div>
+            <div class="browser-filter-actions">
+                <button
+                    type="button"
+                    class="browser-text-button"
+                    :disabled="isApplying || !hasActiveFilters"
+                    @click="resetFilters"
+                >
+                    清空全部</button
+                ><button
+                    type="submit"
+                    class="browser-primary"
+                    :disabled="isApplying"
+                >
+                    {{ isApplying ? '正在加载…' : submitLabel }}
+                </button>
+            </div>
+        </dialog>
+        <div
+            v-if="activeChips.length"
+            class="browser-active-chips"
+            aria-label="已选条件"
+        >
+            <button
+                v-for="chip in activeChips"
+                :key="chip.key"
+                type="button"
+                class="browser-chip"
+                :aria-label="`移除${chip.label}`"
+                :disabled="isApplying"
+                @click="removeChip(chip)"
+            >
+                {{ chip.label }}<X :size="13" aria-hidden="true" /></button
+            ><button
+                class="browser-text-button"
+                type="button"
+                :disabled="isApplying"
+                @click="resetFilters"
+            >
+                清空全部
+            </button>
+        </div>
+        <slot />
+        <div class="browser-results-toolbar">
+            <p aria-live="polite">
+                <span v-if="isApplying">正在加载图片…</span
+                ><slot v-else name="count" />
+            </p>
+            <label class="browser-sort-control"
+                >排序<select
                     v-model="form.sort"
-                    class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
+                    aria-label="排序"
+                    :disabled="isApplying"
+                    @change="applyFilters"
                 >
                     <option
                         v-for="sort in filterOptions.sorts"
@@ -416,194 +685,8 @@ const removeChip = (chip: ActiveChip) => {
                     >
                         {{ sort.label }}
                     </option>
-                </select>
-            </label>
-        </div>
-
-        <div class="mt-4 grid gap-4 lg:grid-cols-12">
-            <label class="grid gap-2 lg:col-span-2">
-                <span class="text-sm font-semibold">版权状态</span>
-                <select
-                    v-model="form.copyright_status"
-                    class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
-                >
-                    <option value="">全部版权状态</option>
-                    <option
-                        v-for="option in filterOptions.copyright_statuses"
-                        :key="option.value"
-                        :value="option.value"
-                    >
-                        {{ option.label }}
-                    </option>
-                </select>
-            </label>
-
-            <label class="grid gap-2 lg:col-span-2">
-                <span class="text-sm font-semibold">清晰度</span>
-                <select
-                    v-model="form.resolution"
-                    class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
-                >
-                    <option
-                        v-for="option in filterOptions.resolutions"
-                        :key="option.value"
-                        :value="option.value"
-                    >
-                        {{ option.label }}
-                    </option>
-                </select>
-            </label>
-
-            <label class="grid gap-2 lg:col-span-2">
-                <span class="text-sm font-semibold">横竖图</span>
-                <select
-                    v-model="form.orientation"
-                    class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
-                >
-                    <option
-                        v-for="option in filterOptions.orientations"
-                        :key="option.value"
-                        :value="option.value"
-                    >
-                        {{ option.label }}
-                    </option>
-                </select>
-            </label>
-
-            <label class="grid gap-2 lg:col-span-2">
-                <span class="text-sm font-semibold">水印状态</span>
-                <select
-                    v-model="form.watermark_status"
-                    class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
-                >
-                    <option value="">全部水印状态</option>
-                    <option
-                        v-for="option in filterOptions.watermark_statuses"
-                        :key="option.value"
-                        :value="option.value"
-                    >
-                        {{ option.label }}
-                    </option>
-                </select>
-            </label>
-
-            <label class="grid gap-2 lg:col-span-2">
-                <span class="text-sm font-semibold">开始日期</span>
-                <input
-                    v-model="form.date_from"
-                    type="date"
-                    class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
-                />
-            </label>
-
-            <label class="grid gap-2 lg:col-span-2">
-                <span class="text-sm font-semibold">结束日期</span>
-                <input
-                    v-model="form.date_to"
-                    type="date"
-                    class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
-                />
-            </label>
-        </div>
-
-        <div
-            v-if="filterOptions.category_groups.length"
-            class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4"
-        >
-            <label
-                v-for="group in filterOptions.category_groups"
-                :key="group.slug"
-                class="grid gap-2"
+                </select></label
             >
-                <span class="text-sm font-semibold">{{ group.name }}</span>
-                <select
-                    v-model="form.categories[group.slug]"
-                    class="h-11 rounded-sm border border-[#90b4ce]/55 px-3 text-sm outline-none focus:border-[#3da9fc]"
-                >
-                    <option value="">全部</option>
-                    <option
-                        v-for="child in group.children"
-                        :key="child.id"
-                        :value="String(child.id)"
-                    >
-                        {{ child.name }}
-                    </option>
-                </select>
-            </label>
-        </div>
-
-        <div v-if="filterOptions.people_tags.length" class="mt-5">
-            <p class="mb-3 text-sm font-semibold">人物同框</p>
-            <div class="flex flex-wrap gap-2">
-                <button
-                    v-for="tag in filterOptions.people_tags"
-                    :key="tag.id"
-                    type="button"
-                    class="min-h-11 rounded-full border px-4 py-2 text-sm transition"
-                    :class="
-                        isSelected(form.people_tags, tag.id)
-                            ? 'border-[#094067] bg-[#094067] text-[#fffffe]'
-                            : 'border-[#90b4ce]/55 bg-[#fffffe] text-[#094067] hover:border-[#3da9fc] hover:text-[#3da9fc]'
-                    "
-                    @click="toggleId(form.people_tags, tag.id)"
-                >
-                    {{ tag.name }}
-                </button>
-            </div>
-        </div>
-
-        <div v-if="filterOptions.tags.length" class="mt-5">
-            <p class="mb-3 text-sm font-semibold">标签</p>
-            <div class="flex flex-wrap gap-2">
-                <button
-                    v-for="tag in filterOptions.tags"
-                    :key="tag.id"
-                    type="button"
-                    class="min-h-11 rounded-full border px-4 py-2 text-sm transition"
-                    :class="
-                        isSelected(form.tags, tag.id)
-                            ? 'border-[#094067] bg-[#094067] text-[#fffffe]'
-                            : 'border-[#90b4ce]/55 bg-[#fffffe] text-[#094067] hover:border-[#3da9fc] hover:text-[#3da9fc]'
-                    "
-                    @click="toggleId(form.tags, tag.id)"
-                >
-                    {{ tag.name }}
-                </button>
-            </div>
-        </div>
-
-        <div class="mt-6 flex flex-wrap items-center gap-3">
-            <button
-                type="submit"
-                class="h-11 rounded-sm bg-[#3da9fc] px-5 text-sm font-semibold text-[#fffffe] transition hover:bg-[#1e94e6]"
-            >
-                {{ submitLabel }}
-            </button>
-            <button
-                v-if="hasActiveFilters"
-                type="button"
-                class="h-11 rounded-sm border border-[#90b4ce]/60 px-5 text-sm font-semibold"
-                @click="resetFilters"
-            >
-                清空全部
-            </button>
         </div>
     </form>
-
-    <div
-        v-if="activeChips.length"
-        class="mb-8 flex flex-wrap items-center gap-2 border-b border-[#90b4ce]/25 pb-5"
-    >
-        <span class="text-sm font-semibold text-[#5f6c7b]">已选条件</span>
-        <button
-            v-for="chip in activeChips"
-            :key="chip.key"
-            type="button"
-            class="inline-flex min-h-9 items-center gap-2 rounded-full bg-[#d8eefe] px-3 py-1 text-sm font-medium text-[#094067] transition hover:bg-[#90b4ce]/40"
-            @click="removeChip(chip)"
-        >
-            {{ chip.label }}
-            <X class="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
-    </div>
 </template>

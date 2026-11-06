@@ -1,0 +1,311 @@
+.shares-page {
+    display: flow-root;
+    min-height: 100vh;
+    background: #f5f5fa;
+    color: #042240;
+}
+.shares-page :deep(header[data-theme='afa']) {
+    background: #98cef0;
+    color: #042240;
+}
+.shares-page :deep(header[data-theme='afa'] form) {
+    background: transparent;
+    border-color: #04224055;
+    color: #042240;
+}
+.shares-page :deep(header[data-theme='afa'] input::placeholder) {
+    color: currentColor;
+    opacity: 0.8;
+}
+.shares-workspace {
+    display: grid;
+    grid-template-columns: 216px minmax(0, 1fr);
+    gap: 32px;
+    max-width: 1360px;
+    margin: 24px auto 40px;
+    padding: 0 32px;
+}
+/* finesse: product / 继承首页蓝白金与个人中心框架 / 分享入口与真实进度 */
+.share-work {
+    min-width: 0;
+}
+.page-heading {
+    margin-bottom: 24px;
+}
+.page-heading h1 {
+    font-weight: 700;
+    font-size: 28px;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+}
+.page-heading p {
+    margin-top: 8px;
+    color: #526779;
+    font-size: 14px;
+    line-height: 1.7;
+}
+.share-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    border: 1px solid #dbdbea;
+    border-radius: 8px;
+    background: white;
+}
+.share-intro,
+.progress-panel {
+    padding: 28px;
+    min-width: 0;
+}
+.share-intro h2 {
+    font-weight: 600;
+    font-size: 22px;
+    line-height: 1.5;
+    max-width: 18em;
+}
+.share-intro > p {
+    font-size: 15px;
+    color: #526779;
+    line-height: 1.9;
+    margin-top: 14px;
+}
+.primary,
+.secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    min-height: 44px;
+    padding: 11px 18px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid #ba9f6c;
+    transition:
+        background 0.16s,
+        transform 0.16s,
+        border-color 0.16s;
+}
+.primary {
+    background: #ba9f6c;
+    color: #042240;
+    margin-top: 24px;
+}
+.primary:hover {
+    background: #c9b387;
+}
+.primary:active,
+.secondary:active,
+.channel:active {
+    transform: translateY(1px);
+}
+.primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+.secondary {
+    background: white;
+    border-color: #bac8d5;
+}
+.secondary:hover {
+    background: #edf6fc;
+    border-color: #526779;
+}
+.helper,
+.share-intro > .helper {
+    font-size: 13px;
+    line-height: 1.8;
+    color: #526779;
+}
+.progress-panel {
+    border-left: 1px solid #dbdbea;
+    background: #f1f8fd;
+    border-radius: 0 8px 8px 0;
+}
+.progress-panel h2 {
+    font-size: 15px;
+    font-weight: 600;
+}
+.figure {
+    margin: 14px 0 18px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-variant-numeric: tabular-nums;
+}
+.figure strong {
+    font-size: 48px;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.04em;
+}
+.figure span {
+    font-size: 15px;
+    color: #526779;
+}
+progress {
+    display: block;
+    appearance: none;
+    width: 100%;
+    height: 7px;
+    border: 0;
+    background: #dbe6ee;
+    border-radius: 4px;
+    overflow: hidden;
+}
+progress::-webkit-progress-bar {
+    background: #dbe6ee;
+}
+progress::-webkit-progress-value {
+    background: #ba9f6c;
+}
+progress::-moz-progress-bar {
+    background: #ba9f6c;
+}
+#remaining {
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 14px;
+    line-height: 1.7;
+}
+.progress-panel > .helper {
+    margin-top: 8px;
+}
+.badge-link {
+    margin-top: 22px;
+}
+.rules {
+    margin-top: 28px;
+    background: white;
+    padding: 26px 28px;
+    border: 1px solid #dbdbea;
+    border-radius: 8px;
+}
+.rules h2 {
+    font-weight: 600;
+    font-size: 20px;
+    margin-bottom: 8px;
+}
+.rule-row {
+    display: grid;
+    grid-template-columns: 190px minmax(0, 1fr);
+    gap: 24px;
+    padding: 18px 0;
+    border-bottom: 1px solid #e3e8ed;
+}
+.rule-row:last-child {
+    border: 0;
+    padding-bottom: 0;
+}
+.rule-row h3 {
+    font-size: 14px;
+    line-height: 1.85;
+    margin: 0;
+    font-weight: 600;
+}
+.rule-row p {
+    font-size: 14px;
+    color: #526779;
+    line-height: 1.85;
+    overflow-wrap: anywhere;
+}
+#restriction {
+    padding: 10px 12px;
+    border-left: 3px solid #ba9f6c;
+    background: #f7f2e8;
+    color: #042240;
+}
+@media (max-width: 1023px) {
+    .share-main {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .progress-panel {
+        border-left: 0;
+        border-top: 1px solid #dbdbea;
+        border-radius: 0 0 8px 8px;
+    }
+    .rule-row {
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 16px;
+    }
+}
+@media (max-width: 767px) {
+    .page-heading h1 {
+        font-weight: 700;
+        font-size: 24px;
+    }
+    .share-intro,
+    .progress-panel,
+    .rules {
+        padding: 20px;
+    }
+    .share-intro h2 {
+        font-weight: 600;
+        font-size: 20px;
+    }
+    .share-intro > p {
+        font-size: 14px;
+    }
+    .page-heading {
+        margin-bottom: 20px;
+    }
+    .share-intro .primary {
+        width: 100%;
+        margin-top: 20px;
+    }
+    .rules {
+        margin-top: 20px;
+    }
+    .rules h2 {
+        font-weight: 600;
+        font-size: 18px;
+    }
+    .rule-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+        padding: 16px 0;
+    }
+    .figure strong {
+        font-size: 42px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition: none !important;
+        scroll-behavior: auto !important;
+    }
+}
+.share-intro .primary {
+    width: auto;
+}
+.share-main h2 {
+    overflow-wrap: anywhere;
+}
+@media (max-width: 767px) {
+    .share-intro .primary {
+        width: 100%;
+    }
+}
+
+.shares-page :is(a, button, summary):focus-visible {
+    outline: 2px solid #042240;
+    outline-offset: 3px;
+}
+@media (max-width: 1279px) {
+    .shares-workspace {
+        grid-template-columns: 190px minmax(0, 1fr);
+        gap: 24px;
+    }
+}
+@media (max-width: 767px) {
+    .shares-page {
+        background: #fff;
+    }
+    .shares-workspace {
+        display: block;
+        padding: 0 20px;
+        margin-top: 20px;
+    }
+}

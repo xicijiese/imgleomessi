@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import PublicHeader from '@/components/PublicHeader.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { CheckCircle2, Clock3, HeartHandshake } from 'lucide-vue-next';
+
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 interface NavigationItem {
@@ -49,6 +49,12 @@ const props = defineProps<{
 }>();
 
 const processing = ref(false);
+const refundLabels: Record<string, string> = {
+    completed: '已退款',
+    processing: '渠道处理中',
+    unknown: '待确认，请勿重复申请',
+    failed: '退款失败，请联系管理员',
+};
 
 const wechat = ref(false);
 const mobile = ref(false);
@@ -95,173 +101,126 @@ onMounted(() => {
 onUnmounted(() => {
     if (timer) clearInterval(timer);
 });
-</script>
 
+import { useArchiveBrowserMotion } from '@/composables/useArchiveBrowserMotion';
+import '../../../css/archive-browser.css';
+const pageRoot = ref<HTMLElement | null>(null);
+useArchiveBrowserMotion(pageRoot);
+</script>
 <template>
     <Head title="赞助结果" />
-
-    <main class="min-h-screen bg-[#fffffe] text-[#094067]">
+    <main ref="pageRoot" class="archive-browser archive-support">
         <PublicHeader
-            :navigation="supportResult.navigation"
             :site="supportResult.site"
+            :navigation="supportResult.navigation"
+            theme="afa"
         />
-
-        <section class="px-4 py-12 sm:px-6 lg:px-8">
-            <div
-                class="mx-auto max-w-3xl rounded-sm border border-[#90b4ce]/35 bg-[#fffffe] p-6 shadow-sm sm:p-8"
-            >
-                <div class="flex items-center gap-3">
-                    <HeartHandshake
-                        class="h-8 w-8 text-[#3da9fc]"
-                        aria-hidden="true"
-                    />
-                    <div>
-                        <p class="text-sm font-semibold text-[#3da9fc]">
-                            Support Result
+        <div class="support-main">
+            <div class="result">
+                <section class="intro browser-heading">
+                    <h1>赞助订单</h1>
+                </section>
+                <template v-if="supportResult.order"
+                    ><section class="state-heading" role="status">
+                        <h2>{{ supportResult.order.status_label }}</h2>
+                        <p>
+                            {{
+                                supportResult.order.status === 'paid'
+                                    ? '感谢你的支持，订单已入账。一次性支持仅保留历史记录。'
+                                    : '支付结果以渠道核对为准，返回本页不代表已经支付。'
+                            }}
                         </p>
-                        <h1 class="text-3xl font-semibold">赞助订单</h1>
-                    </div>
-                </div>
-
-                <div v-if="supportResult.order" class="mt-8 space-y-5">
-                    <div class="rounded-sm bg-[#d8eefe] p-5">
-                        <div class="flex items-start gap-3">
-                            <CheckCircle2
-                                v-if="supportResult.order.status === 'paid'"
-                                class="h-6 w-6 shrink-0 text-[#3da9fc]"
-                                aria-hidden="true"
-                            />
-                            <Clock3
-                                v-else
-                                class="h-6 w-6 shrink-0 text-[#094067]"
-                                aria-hidden="true"
-                            />
-                            <div>
-                                <p class="font-semibold">
-                                    {{ supportResult.order.status_label }}
-                                </p>
-                                <p class="mt-1 text-sm text-[#5f6c7b]">
-                                    {{
-                                        supportResult.order.status === 'paid'
-                                            ? '感谢你的支持，订单已入账。一次性支持仅保留历史记录。'
-                                            : '支付结果以渠道核对为准，返回本页不代表已经支付。'
-                                    }}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
+                    </section>
                     <p
                         v-if="supportResult.order.payment_issue"
+                        class="notice"
                         role="status"
-                        class="text-sm leading-6 text-[#5f6c7b]"
                     >
                         {{ supportResult.order.payment_issue }}
                     </p>
-                    <p v-if="supportResult.order.refund_state" class="text-sm">
+                    <p v-if="supportResult.order.refund_state">
                         退款进度：{{
-                            {
-                                completed: '已退款',
-                                processing: '渠道处理中',
-                                unknown: '待确认，请勿重复申请',
-                                failed: '退款失败，请联系管理员',
-                            }[supportResult.order.refund_state] ?? '待核查'
+                            refundLabels[supportResult.order.refund_state] ??
+                            '待核查'
                         }}
                     </p>
-                    <div
-                        v-if="supportResult.order.status === 'pending'"
-                        class="space-y-4"
-                    >
-                        <p v-if="wechat" class="rounded-sm bg-[#d8eefe] p-4">
-                            请点击微信右上角菜单，在系统浏览器打开本页完成支付。
-                        </p>
-                        <p v-else-if="expired" class="text-sm text-[#5f6c7b]">
-                            支付入口已过期。已支付请查询结果，未支付请返回方案页重新发起；旧订单仍接收支付通知。
-                        </p>
-                        <template v-else>
-                            <a
-                                v-if="mobile && supportResult.order.payment_url"
-                                :href="supportResult.order.payment_url"
-                                rel="noreferrer"
-                                class="inline-flex rounded-sm bg-[#094067] px-5 py-3 font-semibold text-white"
-                                >前往微信支付</a
+                    <div class="result-layout">
+                        <div v-if="supportResult.order.status === 'pending'">
+                            <p v-if="wechat" class="notice">
+                                请点击微信右上角菜单，在系统浏览器打开本页完成支付。
+                            </p>
+                            <p v-else-if="expired" class="notice">
+                                支付入口已过期。已支付请查询结果，未支付请返回方案页重新发起；旧订单仍接收支付通知。
+                            </p>
+                            <template v-else
+                                ><a
+                                    v-if="
+                                        mobile &&
+                                        supportResult.order.payment_url
+                                    "
+                                    :href="supportResult.order.payment_url"
+                                    rel="noreferrer"
+                                    class="action gold"
+                                    >前往微信支付</a
+                                >
+                                <div v-else-if="supportResult.order.qr_url">
+                                    <img
+                                        :src="supportResult.order.qr_url"
+                                        alt="微信支付二维码"
+                                        referrerpolicy="no-referrer"
+                                        class="payment-qr"
+                                    />
+                                    <p class="payment-copy">
+                                        请使用微信扫一扫；二维码约5分钟有效。请勿重复付款。
+                                    </p>
+                                </div></template
                             >
-                            <div
-                                v-else-if="supportResult.order.qr_url"
-                                class="space-y-2"
-                            >
-                                <img
-                                    :src="supportResult.order.qr_url"
-                                    alt="微信支付二维码"
-                                    referrerpolicy="no-referrer"
-                                    class="h-56 w-56 object-contain"
-                                />
-                                <p class="text-sm text-[#5f6c7b]">
-                                    请使用微信扫一扫；二维码约 5
-                                    分钟有效。请勿重复付款。
-                                </p>
+                        </div>
+                        <dl class="details">
+                            <div>
+                                <dt>订单号</dt>
+                                <dd>{{ supportResult.order.order_no }}</dd>
                             </div>
-                        </template>
+                            <div>
+                                <dt>方案</dt>
+                                <dd>{{ supportResult.order.plan_name }}</dd>
+                            </div>
+                            <div>
+                                <dt>金额</dt>
+                                <dd>{{ supportResult.order.amount_label }}</dd>
+                            </div>
+                            <div>
+                                <dt>支付方式</dt>
+                                <dd>{{ supportResult.order.channel_label }}</dd>
+                            </div>
+                        </dl>
                     </div>
-                    <dl class="grid gap-3 text-sm sm:grid-cols-2">
-                        <div class="rounded-sm border border-[#90b4ce]/30 p-4">
-                            <dt class="text-[#5f6c7b]">订单号</dt>
-                            <dd class="mt-1 font-semibold">
-                                {{ supportResult.order.order_no }}
-                            </dd>
-                        </div>
-                        <div class="rounded-sm border border-[#90b4ce]/30 p-4">
-                            <dt class="text-[#5f6c7b]">方案</dt>
-                            <dd class="mt-1 font-semibold">
-                                {{ supportResult.order.plan_name }}
-                            </dd>
-                        </div>
-                        <div class="rounded-sm border border-[#90b4ce]/30 p-4">
-                            <dt class="text-[#5f6c7b]">金额</dt>
-                            <dd class="mt-1 font-semibold">
-                                {{ supportResult.order.amount_label }}
-                            </dd>
-                        </div>
-                        <div class="rounded-sm border border-[#90b4ce]/30 p-4">
-                            <dt class="text-[#5f6c7b]">支付方式</dt>
-                            <dd class="mt-1 font-semibold">
-                                {{ supportResult.order.channel_label }}
-                            </dd>
-                        </div>
-                    </dl>
-
-                    <div class="flex flex-wrap gap-3">
+                    <div class="result-actions">
                         <button
                             v-if="
                                 supportResult.order.status === 'pending' &&
                                 supportResult.order.channel === 'xunhu'
                             "
                             type="button"
-                            class="inline-flex h-11 items-center justify-center rounded-sm bg-[#094067] px-5 text-sm font-semibold text-[#fffffe] transition hover:bg-[#3da9fc] disabled:cursor-wait disabled:opacity-70"
+                            class="action gold"
                             :disabled="processing"
                             @click="checkPayment"
                         >
-                            {{ processing ? '正在核对' : '我已支付，查询结果' }}
-                        </button>
-                        <Link
-                            href="/me/sponsorships"
-                            class="inline-flex h-11 items-center justify-center rounded-sm border border-[#90b4ce]/60 px-5 text-sm font-semibold text-[#094067] transition hover:border-[#3da9fc] hover:text-[#3da9fc]"
+                            {{
+                                processing ? '正在核对' : '我已支付，查询结果'
+                            }}</button
+                        ><Link class="action" href="/me/sponsorships"
+                            >查看我的赞助</Link
                         >
-                            查看我的赞助
-                        </Link>
-                    </div>
-                </div>
-
-                <div
-                    v-else
-                    class="mt-8 rounded-sm bg-[#f7fbff] p-5 text-sm leading-6 text-[#5f6c7b]"
+                    </div></template
                 >
-                    暂未找到赞助订单。
-                    <Link href="/support" class="font-semibold text-[#3da9fc]"
+                <section v-else class="empty">
+                    暂未找到赞助订单。<Link class="quiet-link" href="/support"
                         >返回支持本站</Link
                     >
-                </div>
+                </section>
             </div>
-        </section>
+        </div>
     </main>
 </template>
+<style scoped src="../../../css/support-pages.css"></style>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Services\PublicHomepage;
+use App\Services\UserCenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\Password;
@@ -15,10 +16,11 @@ class PasswordController extends Controller
     /**
      * Show the user's password settings page.
      */
-    public function edit(PublicHomepage $homepage): Response
+    public function edit(Request $request, PublicHomepage $homepage, UserCenter $center): Response
     {
         return Inertia::render('settings/Password', [
             'settingsShell' => $homepage->shell(),
+            'settingsCenter' => $center->shell($request->user()),
         ]);
     }
 

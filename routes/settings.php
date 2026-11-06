@@ -5,6 +5,8 @@ use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\TwoFactorAuthenticationController;
 use App\Http\Middleware\EnsureFreshUserSession;
 use App\Services\PublicHomepage;
+use App\Services\UserCenter;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -21,9 +23,10 @@ Route::middleware(['auth', EnsureFreshUserSession::class])->group(function () {
         ->middleware('throttle:6,1')
         ->name('user-password.update');
 
-    Route::get('settings/appearance', function (PublicHomepage $homepage) {
+    Route::get('settings/appearance', function (Request $request, PublicHomepage $homepage, UserCenter $center) {
         return Inertia::render('settings/Appearance', [
             'settingsShell' => $homepage->shell(),
+            'settingsCenter' => $center->shell($request->user()),
         ]);
     })->name('appearance.edit');
 

@@ -18,28 +18,31 @@ defineProps<{
 
         <div
             v-if="status === 'verification-link-sent'"
-            class="mb-4 text-center text-sm font-medium text-green-600"
+            class="auth-status"
+            role="status"
         >
             新的验证链接已经发送到你注册时填写的邮箱。
         </div>
 
-        <Form
-            v-bind="send.form()"
-            class="space-y-6 text-center"
-            v-slot="{ processing }"
-        >
-            <Button :disabled="processing" variant="secondary">
+        <Form v-bind="send.form()" class="auth-form" v-slot="{ processing }">
+            <Button
+                class="auth-submit"
+                :disabled="processing"
+                :aria-busy="processing"
+            >
                 <Spinner v-if="processing" />
                 重新发送验证邮件
             </Button>
 
-            <TextLink
-                :href="logout()"
-                as="button"
-                class="mx-auto block text-sm"
-            >
-                退出登录
-            </TextLink>
+            <div class="auth-secondary">
+                <TextLink
+                    :href="logout()"
+                    as="button"
+                    class="auth-secondary-action"
+                >
+                    退出登录
+                </TextLink>
+            </div>
         </Form>
     </AuthLayout>
 </template>

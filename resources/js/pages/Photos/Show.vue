@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import SharePanel from '@/components/SharePanel.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
+import SharePanel from '@/components/SharePanel.vue';
 import SimilarPhotoGrid from '@/components/SimilarPhotoGrid.vue';
 import type { SeoPayload } from '@/types';
 import { Link, router } from '@inertiajs/vue3';
 import {
     ArrowLeft,
-    CalendarDays,
+    ChevronDown,
     ChevronLeft,
     ChevronRight,
     ExternalLink,
@@ -16,15 +16,15 @@ import {
     Heart,
     ImageOff,
     Images,
-    Info,
     MessageCircle,
     PencilLine,
     Send,
-    Tag,
     ThumbsUp,
 } from 'lucide-vue-next';
 
-import { computed, ref, watch } from 'vue';
+import { gsap } from 'gsap';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import './Show.css';
 
 interface NavigationItem {
     label: string;
@@ -156,12 +156,10 @@ const props = defineProps<{
 type ComposerMode = 'discussion' | 'correction' | null;
 type ReportReason = 'spam' | 'abuse' | 'copyright' | 'misleading' | 'other';
 
-
 const imageFailed = ref(false);
 const relatedImageFailures = ref<Record<number, boolean>>({});
 const favoritePending = ref(false);
 const likePending = ref(false);
-
 
 const shareStatus = ref<string | null>(null);
 
@@ -555,253 +553,275 @@ const submitCorrection = async () => {
         clearCommentStatus();
     }
 };
-</script>
 
+// 手机资料默认折叠；桌面始终展开，跨断点保留本次手动选择。
+const detailRoot = ref<HTMLElement | null>(null);
+const metadataContent = ref<HTMLElement | null>(null);
+const isMobile = ref(false);
+const metadataExpanded = ref(false);
+const metadataVisible = computed(
+    () => !isMobile.value || metadataExpanded.value,
+);
+let mobileQuery: MediaQueryList | undefined;
+let detailMotion: gsap.MatchMedia | undefined;
+let metadataTween: gsap.core.Tween | undefined;
+const syncMobile = () => {
+    isMobile.value = mobileQuery?.matches ?? false;
+};
+const toggleMetadata = async () => {
+    metadataExpanded.value = !metadataExpanded.value;
+    metadataTween?.revert();
+    await nextTick();
+    if (
+        metadataExpanded.value &&
+        metadataContent.value &&
+        !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+        metadataTween = gsap.fromTo(
+            metadataContent.value,
+            { opacity: 0, y: 4 },
+            {
+                opacity: 1,
+                y: 0,
+                duration: 0.16,
+                clearProps: 'opacity,transform',
+            },
+        );
+    }
+};
+onMounted(() => {
+    mobileQuery = window.matchMedia('(max-width: 767px)');
+    syncMobile();
+    mobileQuery.addEventListener('change', syncMobile);
+    detailMotion = gsap.matchMedia();
+    detailMotion.add(
+        '(prefers-reduced-motion: no-preference)',
+        () => {
+            gsap.from('.detail-title, .detail-actions', {
+                y: 6,
+                duration: 0.24,
+                stagger: 0.04,
+                clearProps: 'transform',
+            });
+        },
+        detailRoot.value ?? undefined,
+    );
+});
+onUnmounted(() => {
+    mobileQuery?.removeEventListener('change', syncMobile);
+    detailMotion?.revert();
+    metadataTween?.revert();
+});
+watch(
+    () => props.photoDetail.photo.uuid,
+    () => {
+        metadataTween?.revert();
+        metadataExpanded.value = false;
+        imageFailed.value = false;
+        relatedImageFailures.value = {};
+    },
+);
+</script>
 <template>
     <SeoHead :seo="photoDetail.seo" />
-
-    <main class="min-h-screen bg-[#fffffe] text-[#094067]">
+    <main ref="detailRoot" class="archive-detail">
         <PublicHeader
             :navigation="photoDetail.navigation"
             :site="photoDetail.site"
+            theme="afa"
         />
-
-        <section class="px-4 py-6 sm:px-6 lg:px-8">
-            <div class="mx-auto max-w-7xl">
-                <div
-                    class="mb-5 flex flex-wrap items-center justify-between gap-3"
-                >
-                    <Link
-                        :href="photoDetail.context.return_url"
-                        class="inline-flex h-11 items-center gap-2 rounded-sm border border-[#90b4ce]/60 px-4 text-sm font-semibold hover:border-[#3da9fc] hover:text-[#3da9fc]"
-                    >
-                        <ArrowLeft class="h-4 w-4" aria-hidden="true" />
-                        {{ contextLabel }}
-                    </Link>
-
-                    <div class="flex flex-wrap items-center gap-2">
+        <section class="detail-container">
+            <div class="detail-context">
+                <Link :href="photoDetail.context.return_url"
+                    ><ArrowLeft aria-hidden="true" />{{ contextLabel }}</Link
+                ><span>图片档案</span>
+            </div>
+            <div class="detail-layout">
+                <div class="detail-viewer-column">
+                    <figure class="detail-viewer">
+                        <img
+                            v-if="photoDetail.photo.image_url && !imageFailed"
+                            :src="photoDetail.photo.image_url"
+                            :alt="photoDetail.photo.alt"
+                            @error="imageFailed = true"
+                        />
+                        <div
+                            v-else
+                            class="detail-image-error"
+                            role="img"
+                            :aria-label="
+                                photoDetail.photo.alt + '，预览暂不可用'
+                            "
+                        >
+                            <ImageOff aria-hidden="true" />
+                            <p>图片暂时无法显示</p>
+                            <small>档案资料与其他浏览入口仍可使用。</small>
+                        </div>
+                    </figure>
+                    <div class="detail-actions">
                         <button
                             type="button"
-                            class="inline-flex h-11 min-w-24 items-center justify-center gap-2 rounded-sm border px-4 text-sm font-semibold transition"
-                            :class="
-                                interactions.is_favorited
-                                    ? 'border-[#ef4565] bg-[#ef4565] text-[#fffffe] hover:bg-[#d9375d]'
-                                    : 'border-[#90b4ce]/60 text-[#094067] hover:border-[#ef4565] hover:text-[#ef4565]'
-                            "
                             :aria-pressed="interactions.is_favorited"
                             :aria-busy="favoritePending"
+                            :disabled="favoritePending"
                             @click="toggleFavorite"
                         >
                             <Heart
-                                class="h-4 w-4"
-                                :class="
-                                    interactions.is_favorited
-                                        ? 'fill-current'
-                                        : ''
-                                "
+                                :class="{
+                                    'fill-current': interactions.is_favorited,
+                                }"
                                 aria-hidden="true"
-                            />
-                            {{ interactions.is_favorited ? '已收藏' : '收藏' }}
+                            />{{
+                                interactions.is_favorited ? '已收藏' : '收藏'
+                            }}
                         </button>
-
                         <button
                             type="button"
-                            class="inline-flex h-11 min-w-28 items-center justify-center gap-2 rounded-sm border px-4 text-sm font-semibold transition"
-                            :class="
-                                interactions.is_liked
-                                    ? 'border-[#3da9fc] bg-[#3da9fc] text-[#fffffe] hover:bg-[#238fdf]'
-                                    : 'border-[#90b4ce]/60 text-[#094067] hover:border-[#3da9fc] hover:text-[#3da9fc]'
-                            "
+                            :aria-label="`点赞，${interactions.likes_count} 次`"
                             :aria-pressed="interactions.is_liked"
                             :aria-busy="likePending"
+                            :disabled="likePending"
                             @click="toggleLike"
                         >
                             <ThumbsUp
-                                class="h-4 w-4"
-                                :class="
-                                    interactions.is_liked ? 'fill-current' : ''
-                                "
+                                :class="{
+                                    'fill-current': interactions.is_liked,
+                                }"
                                 aria-hidden="true"
-                            />
-                            <span>{{ interactions.likes_count }}</span>
+                            /><span>{{ interactions.likes_count }}</span>
                         </button>
-
-                        <SharePanel type="photo" :target-key="photoDetail.photo.uuid" :title="photoDetail.photo.title" :blocked-reason="interactions.blocked_reason" />
-                        <p v-if="shareStatus" role="status" class="text-sm">{{ shareStatus }}</p>
+                        <SharePanel
+                            theme="archive"
+                            type="photo"
+                            :target-key="photoDetail.photo.uuid"
+                            :title="photoDetail.photo.title"
+                            :blocked-reason="interactions.blocked_reason"
+                        />
+                        <span
+                            v-if="
+                                photoDetail.photo.width &&
+                                photoDetail.photo.height
+                            "
+                            class="detail-display-spec"
+                            >{{ photoDetail.photo.width }} ×
+                            {{ photoDetail.photo.height }}</span
+                        >
                     </div>
+                    <p v-if="shareStatus" role="status" class="detail-notice">
+                        {{ shareStatus }}
+                    </p>
+                    <nav
+                        v-if="
+                            photoDetail.adjacent.previous ||
+                            photoDetail.adjacent.next
+                        "
+                        class="detail-adjacent"
+                        aria-label="上下张图片"
+                    >
+                        <Link
+                            v-if="photoDetail.adjacent.previous"
+                            :href="photoDetail.adjacent.previous.url"
+                            ><ChevronLeft aria-hidden="true" /><span
+                                ><small>上一张</small
+                                >{{ photoDetail.adjacent.previous.title }}</span
+                            ></Link
+                        >
+                        <Link
+                            v-if="photoDetail.adjacent.next"
+                            :href="photoDetail.adjacent.next.url"
+                            class="detail-next"
+                            ><span
+                                ><small>下一张</small
+                                >{{ photoDetail.adjacent.next.title }}</span
+                            ><ChevronRight aria-hidden="true"
+                        /></Link>
+                    </nav>
                 </div>
-
-                <div
-                    class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]"
-                >
-                    <figure class="min-w-0">
-                        <div
-                            class="flex max-h-[76vh] min-h-[320px] items-center justify-center overflow-hidden rounded-sm bg-[#d8eefe]"
-                        >
-                            <img
-                                v-if="
-                                    photoDetail.photo.image_url && !imageFailed
-                                "
-                                :src="photoDetail.photo.image_url"
-                                :alt="photoDetail.photo.alt"
-                                class="max-h-[76vh] w-full object-contain"
-                                @error="imageFailed = true"
-                            />
-                            <div
-                                v-else
-                                class="flex min-h-[360px] w-full items-center justify-center bg-[linear-gradient(135deg,#d8eefe,#90b4ce)] text-[#094067]"
-                            >
-                                <ImageOff
-                                    class="h-12 w-12"
-                                    aria-hidden="true"
-                                />
-                            </div>
-                        </div>
-                    </figure>
-
-                    <aside class="grid content-start gap-6">
-                        <section class="border-b border-[#90b4ce]/30 pb-6">
-                            <p
-                                class="mb-3 text-sm font-semibold text-[#3da9fc]"
-                            >
-                                Photo Archive
-                            </p>
-                            <h1
-                                class="text-3xl leading-tight font-semibold sm:text-4xl lg:text-3xl xl:text-4xl"
-                            >
-                                {{ photoDetail.photo.title }}
-                            </h1>
-                            <p
-                                v-if="photoDetail.photo.description"
-                                class="mt-4 text-sm leading-7 text-[#5f6c7b]"
-                            >
-                                {{ photoDetail.photo.description }}
-                            </p>
+                <aside class="detail-metadata">
+                    <div class="detail-title">
+                        <h1>{{ photoDetail.photo.title }}</h1>
+                        <p v-if="photoDetail.photo.description">
+                            {{ photoDetail.photo.description }}
+                        </p>
+                    </div>
+                    <button
+                        id="photo-metadata-toggle"
+                        type="button"
+                        class="detail-metadata-toggle"
+                        :aria-expanded="metadataVisible"
+                        aria-controls="photo-metadata-content"
+                        @click="toggleMetadata"
+                    >
+                        <strong>图片资料</strong
+                        ><span>{{ metadataVisible ? '收起' : '展开' }}</span
+                        ><ChevronDown aria-hidden="true" />
+                    </button>
+                    <div
+                        id="photo-metadata-content"
+                        ref="metadataContent"
+                        v-show="metadataVisible"
+                    >
+                        <section aria-labelledby="photo-dates-heading">
+                            <h2 id="photo-dates-heading">日期</h2>
+                            <dl>
+                                <dt>事件日期</dt>
+                                <dd>
+                                    {{
+                                        formatDate(photoDetail.photo.event_date)
+                                    }}
+                                </dd>
+                                <dt>拍摄时间</dt>
+                                <dd>
+                                    {{ formatDate(photoDetail.photo.taken_at) }}
+                                </dd>
+                                <dt>发布时间</dt>
+                                <dd>
+                                    {{
+                                        formatDate(
+                                            photoDetail.photo.published_at,
+                                        )
+                                    }}
+                                </dd>
+                            </dl>
                         </section>
-
-                        <section
-                            class="grid gap-4 border-b border-[#90b4ce]/30 pb-6"
-                            aria-labelledby="photo-dates-heading"
-                        >
-                            <h2
-                                id="photo-dates-heading"
-                                class="text-base font-semibold"
-                            >
-                                日期
-                            </h2>
-                            <div class="grid gap-3 text-sm text-[#5f6c7b]">
-                                <div class="flex items-center gap-2">
-                                    <CalendarDays
-                                        class="h-4 w-4 text-[#3da9fc]"
-                                        aria-hidden="true"
-                                    />
-                                    <span
-                                        >事件日期：{{
-                                            formatDate(
-                                                photoDetail.photo.event_date,
-                                            )
-                                        }}</span
-                                    >
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <CalendarDays
-                                        class="h-4 w-4 text-[#3da9fc]"
-                                        aria-hidden="true"
-                                    />
-                                    <span
-                                        >拍摄时间：{{
-                                            formatDate(
-                                                photoDetail.photo.taken_at,
-                                            )
-                                        }}</span
-                                    >
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <CalendarDays
-                                        class="h-4 w-4 text-[#3da9fc]"
-                                        aria-hidden="true"
-                                    />
-                                    <span
-                                        >发布时间：{{
-                                            formatDate(
-                                                photoDetail.photo.published_at,
-                                            )
-                                        }}</span
-                                    >
-                                </div>
-                            </div>
-                        </section>
-
                         <section
                             v-if="hasTaxonomy"
-                            class="grid gap-4 border-b border-[#90b4ce]/30 pb-6"
                             aria-labelledby="photo-taxonomy-heading"
                         >
-                            <h2
-                                id="photo-taxonomy-heading"
-                                class="text-base font-semibold"
-                            >
-                                分类与标签
-                            </h2>
+                            <h2 id="photo-taxonomy-heading">分类与标签</h2>
                             <div
-                                v-if="photoDetail.photo.categories.length"
-                                class="flex flex-wrap gap-2"
+                                v-for="category in photoDetail.photo.categories"
+                                :key="category.id"
+                                class="detail-taxonomy"
                             >
-                                <Link
-                                    v-for="category in photoDetail.photo
-                                        .categories"
-                                    :key="category.id"
-                                    :href="category.url"
-                                    class="inline-flex min-h-9 items-center rounded-full bg-[#d8eefe] px-3 text-xs font-semibold text-[#094067] hover:bg-[#3da9fc] hover:text-[#fffffe]"
-                                >
-                                    {{ category.root_name }} /
-                                    {{ category.name }}
-                                </Link>
+                                <span>{{ category.root_name }}</span
+                                ><Link :href="category.url">{{
+                                    category.name
+                                }}</Link>
                             </div>
                             <div
                                 v-if="photoDetail.photo.tags.length"
-                                class="flex flex-wrap gap-2"
+                                class="detail-tags"
                             >
                                 <Link
                                     v-for="tag in photoDetail.photo.tags"
                                     :key="tag.id"
                                     :href="tag.url"
-                                    class="inline-flex min-h-9 items-center gap-1 rounded-full border border-[#90b4ce]/60 px-3 text-xs font-semibold text-[#094067] hover:border-[#3da9fc] hover:text-[#3da9fc]"
+                                    >{{ tag.name }}</Link
                                 >
-                                    <Tag
-                                        class="h-3.5 w-3.5"
-                                        aria-hidden="true"
-                                    />
-                                    {{ tag.name }}
-                                </Link>
                             </div>
                         </section>
-
-                        <section
-                            class="grid gap-4 border-b border-[#90b4ce]/30 pb-6"
-                            aria-labelledby="photo-source-heading"
-                        >
-                            <h2
-                                id="photo-source-heading"
-                                class="text-base font-semibold"
-                            >
-                                来源与版权
-                            </h2>
-                            <div class="grid gap-3 text-sm text-[#5f6c7b]">
-                                <div class="flex items-start gap-2">
-                                    <Info
-                                        class="mt-0.5 h-4 w-4 text-[#3da9fc]"
-                                        aria-hidden="true"
-                                    />
-                                    <span
-                                        >版权状态：{{
-                                            photoDetail.photo.copyright_status
-                                                .label
-                                        }}</span
-                                    >
-                                </div>
-                                <template v-if="photoDetail.photo.submission">
-                                    <dt>投稿来源说明</dt>
+                        <section aria-labelledby="photo-source-heading">
+                            <h2 id="photo-source-heading">来源与版权</h2>
+                            <dl>
+                                <dt>版权状态</dt>
+                                <dd>
+                                    {{
+                                        photoDetail.photo.copyright_status.label
+                                    }}
+                                </dd>
+                                <template v-if="photoDetail.photo.submission"
+                                    ><dt>投稿来源说明</dt>
                                     <dd>
                                         {{
                                             photoDetail.photo.submission
@@ -819,7 +839,6 @@ const submitCorrection = async () => {
                                                 photoDetail.photo.submission
                                                     .credit.url
                                             "
-                                            class="underline"
                                             >{{
                                                 photoDetail.photo.submission
                                                     .credit.name
@@ -828,547 +847,414 @@ const submitCorrection = async () => {
                                             photoDetail.photo.submission.credit
                                                 ?.name ?? '匿名投稿'
                                         }}</span>
-                                    </dd>
-                                </template>
-                                <template v-if="photoDetail.photo.source">
+                                    </dd></template
+                                >
+                                <dt>图片来源</dt>
+                                <dd>
                                     <a
+                                        v-if="photoDetail.photo.source"
                                         :href="
                                             photoDetail.photo.source.source_url
                                         "
                                         target="_blank"
                                         rel="noreferrer noopener"
-                                        class="inline-flex items-center gap-2 break-all text-[#094067] hover:text-[#3da9fc]"
-                                    >
-                                        <ExternalLink
-                                            class="h-4 w-4 shrink-0"
-                                            aria-hidden="true"
-                                        />
-                                        来源链接
-                                    </a>
-                                </template>
-                                <p v-else>来源待补充</p>
-                            </div>
+                                        >来源链接
+                                        <ExternalLink aria-hidden="true" /></a
+                                    ><span v-else>待补充</span>
+                                </dd>
+                            </dl>
                         </section>
-
                         <section
                             v-if="hasMeta"
-                            class="grid gap-4 border-b border-[#90b4ce]/30 pb-6"
                             aria-labelledby="photo-file-heading"
                         >
-                            <h2
-                                id="photo-file-heading"
-                                class="text-base font-semibold"
-                            >
-                                图片信息
-                            </h2>
-                            <div
-                                class="grid grid-cols-2 gap-3 text-sm text-[#5f6c7b]"
-                            >
-                                <span
+                            <h2 id="photo-file-heading">图片信息</h2>
+                            <dl>
+                                <template
                                     v-if="
                                         photoDetail.photo.width &&
                                         photoDetail.photo.height
                                     "
-                                    >尺寸：{{ photoDetail.photo.width }} x
-                                    {{ photoDetail.photo.height }}</span
+                                    ><dt>尺寸</dt>
+                                    <dd>
+                                        {{ photoDetail.photo.width }} ×
+                                        {{ photoDetail.photo.height }}
+                                    </dd></template
+                                ><template v-if="photoDetail.photo.mime_type"
+                                    ><dt>格式</dt>
+                                    <dd>
+                                        {{ photoDetail.photo.mime_type }}
+                                    </dd></template
+                                ><template
+                                    v-if="photoDetail.photo.file_size_label"
+                                    ><dt>文件大小</dt>
+                                    <dd>
+                                        {{ photoDetail.photo.file_size_label }}
+                                    </dd></template
                                 >
-                                <span v-if="photoDetail.photo.mime_type"
-                                    >格式：{{
-                                        photoDetail.photo.mime_type
-                                    }}</span
-                                >
-                                <span v-if="photoDetail.photo.file_size_label"
-                                    >文件大小：{{
-                                        photoDetail.photo.file_size_label
-                                    }}</span
-                                >
-                            </div>
+                            </dl>
                         </section>
-
                         <section
                             v-if="photoDetail.photo.albums.length"
-                            class="grid gap-4"
                             aria-labelledby="photo-albums-heading"
                         >
-                            <h2
-                                id="photo-albums-heading"
-                                class="text-base font-semibold"
+                            <h2 id="photo-albums-heading">所属相册</h2>
+                            <Link
+                                v-for="album in photoDetail.photo.albums"
+                                :key="album.id"
+                                :href="album.url"
+                                class="detail-album"
+                                ><Images aria-hidden="true" />{{
+                                    album.title
+                                }}</Link
                             >
-                                所属相册
-                            </h2>
-                            <div class="flex flex-wrap gap-2">
-                                <Link
-                                    v-for="album in photoDetail.photo.albums"
-                                    :key="album.id"
-                                    :href="album.url"
-                                    class="inline-flex min-h-10 items-center gap-2 rounded-sm bg-[#d8eefe] px-3 text-sm font-semibold hover:bg-[#3da9fc] hover:text-[#fffffe]"
-                                >
-                                    <Images
-                                        class="h-4 w-4"
-                                        aria-hidden="true"
-                                    />
-                                    {{ album.title }}
-                                </Link>
-                            </div>
                         </section>
-                    </aside>
-                </div>
-
-                <nav
-                    v-if="
-                        photoDetail.adjacent.previous ||
-                        photoDetail.adjacent.next
-                    "
-                    class="mt-8 grid gap-3 sm:grid-cols-2"
-                    aria-label="上下张图片"
-                >
-                    <Link
-                        v-if="photoDetail.adjacent.previous"
-                        :href="photoDetail.adjacent.previous.url"
-                        class="flex min-h-20 items-center gap-3 rounded-sm border border-[#90b4ce]/35 px-4 py-3 hover:border-[#3da9fc] hover:text-[#3da9fc]"
-                    >
-                        <ChevronLeft
-                            class="h-5 w-5 shrink-0"
-                            aria-hidden="true"
-                        />
-                        <span class="min-w-0">
-                            <span class="block text-xs text-[#5f6c7b]"
-                                >上一张</span
-                            >
-                            <span class="line-clamp-2 text-sm font-semibold">{{
-                                photoDetail.adjacent.previous.title
-                            }}</span>
-                        </span>
-                    </Link>
-                    <span v-else class="hidden sm:block"></span>
-                    <Link
-                        v-if="photoDetail.adjacent.next"
-                        :href="photoDetail.adjacent.next.url"
-                        class="flex min-h-20 items-center justify-end gap-3 rounded-sm border border-[#90b4ce]/35 px-4 py-3 text-right hover:border-[#3da9fc] hover:text-[#3da9fc]"
-                    >
-                        <span class="min-w-0">
-                            <span class="block text-xs text-[#5f6c7b]"
-                                >下一张</span
-                            >
-                            <span class="line-clamp-2 text-sm font-semibold">{{
-                                photoDetail.adjacent.next.title
-                            }}</span>
-                        </span>
-                        <ChevronRight
-                            class="h-5 w-5 shrink-0"
-                            aria-hidden="true"
-                        />
-                    </Link>
-                </nav>
-
-                <section
-                    class="mt-12 border-t border-[#90b4ce]/30 pt-10"
-                    aria-labelledby="photo-comments-heading"
-                >
-                    <div
-                        class="mb-5 flex flex-wrap items-end justify-between gap-4"
-                    >
-                        <div>
-                            <p
-                                class="mb-2 text-sm font-semibold text-[#3da9fc]"
-                            >
-                                Discussion
-                            </p>
-                            <h2
-                                id="photo-comments-heading"
-                                class="text-2xl font-semibold"
-                            >
-                                评论与补充
-                            </h2>
-                            <p class="mt-2 text-sm text-[#5f6c7b]">
-                                已公开 {{ photoDetail.comments.total }} 条评论
-                            </p>
-                        </div>
-                        <div class="flex flex-wrap gap-2">
-                            <button
-                                type="button"
-                                class="inline-flex h-10 items-center gap-2 rounded-sm border border-[#90b4ce]/60 px-3 text-sm font-semibold transition hover:border-[#3da9fc] hover:text-[#3da9fc]"
-                                :class="
-                                    activeComposer === 'discussion'
-                                        ? 'border-[#3da9fc] bg-[#3da9fc] text-[#fffffe]'
-                                        : ''
-                                "
-                                @click="openComposer('discussion')"
-                            >
-                                <MessageCircle
-                                    class="h-4 w-4"
-                                    aria-hidden="true"
-                                />
-                                评论
-                            </button>
-                            <button
-                                type="button"
-                                class="inline-flex h-10 items-center gap-2 rounded-sm border border-[#90b4ce]/60 px-3 text-sm font-semibold transition hover:border-[#ef4565] hover:text-[#ef4565]"
-                                :class="
-                                    activeComposer === 'correction'
-                                        ? 'border-[#ef4565] bg-[#ef4565] text-[#fffffe]'
-                                        : ''
-                                "
-                                @click="openComposer('correction')"
-                            >
-                                <PencilLine
-                                    class="h-4 w-4"
-                                    aria-hidden="true"
-                                />
-                                补充 / 纠错
-                            </button>
-                        </div>
                     </div>
-
-                    <p
-                        v-if="!photoDetail.comments.can_submit"
-                        class="mb-4 rounded-sm bg-[#d8eefe]/70 px-4 py-3 text-sm text-[#5f6c7b]"
-                    >
-                        登录后可以发表评论或提交图片信息补充 / 纠错。
-                    </p>
-
-                    <p
-                        v-if="commentStatus"
-                        class="mb-4 rounded-sm border border-[#3da9fc]/30 bg-[#d8eefe]/55 px-4 py-3 text-sm font-semibold text-[#094067]"
-                    >
-                        {{ commentStatus }}
-                    </p>
-                    <p
-                        v-if="reportStatus"
-                        class="mb-4 rounded-sm border border-[#ef4565]/30 bg-[#fff0f4] px-4 py-3 text-sm font-semibold text-[#094067]"
-                    >
-                        {{ reportStatus }}
-                    </p>
-                    <p
-                        v-if="correctionStatus"
-                        class="mb-4 rounded-sm border border-[#ef4565]/30 bg-[#fff0f4] px-4 py-3 text-sm font-semibold text-[#094067]"
-                    >
-                        {{ correctionStatus }}
-                    </p>
-
-                    <form
-                        v-if="activeComposer === 'discussion'"
-                        class="mb-6 grid gap-3 rounded-sm border border-[#90b4ce]/35 bg-[#fffffe] p-4"
-                        @submit.prevent="submitDiscussion"
-                    >
-                        <label
-                            class="text-sm font-semibold"
-                            for="photo-comment-content"
+                </aside>
+            </div>
+            <section
+                class="detail-comments detail-section"
+                aria-labelledby="photo-comments-heading"
+            >
+                <div
+                    class="mb-5 flex flex-wrap items-end justify-between gap-4"
+                >
+                    <div>
+                        <h2
+                            id="photo-comments-heading"
+                            class="text-2xl font-semibold"
                         >
-                            发表评论
-                        </label>
-                        <textarea
-                            id="photo-comment-content"
-                            v-model="commentContent"
-                            rows="4"
-                            maxlength="1000"
-                            class="w-full rounded-sm border border-[#90b4ce]/50 bg-[#fffffe] px-3 py-2 text-sm text-[#094067] transition outline-none focus:border-[#3da9fc] focus:ring-2 focus:ring-[#3da9fc]/20"
-                            placeholder="写下与这张图片相关的讨论、背景或记忆"
-                        ></textarea>
-                        <div class="flex justify-end gap-2">
-                            <button
-                                type="button"
-                                class="h-10 rounded-sm border border-[#90b4ce]/60 px-3 text-sm font-semibold"
-                                @click="activeComposer = null"
-                            >
-                                取消
-                            </button>
-                            <button
-                                type="submit"
-                                class="inline-flex h-10 items-center gap-2 rounded-sm bg-[#3da9fc] px-4 text-sm font-semibold text-[#fffffe] transition hover:bg-[#238fdf] disabled:opacity-70"
-                                :disabled="commentPending"
-                            >
-                                <Send class="h-4 w-4" aria-hidden="true" />
-                                {{ commentPending ? '提交中' : '提交评论' }}
-                            </button>
-                        </div>
-                    </form>
-
-                    <form
-                        v-if="activeComposer === 'correction'"
-                        class="mb-6 grid gap-4 rounded-sm border border-[#90b4ce]/35 bg-[#fffffe] p-4"
-                        @submit.prevent="submitCorrection"
-                    >
-                        <div class="grid gap-4 md:grid-cols-2">
-                            <label class="grid gap-2 text-sm font-semibold">
-                                建议修正字段
-                                <select
-                                    v-model="correctionField"
-                                    class="h-10 rounded-sm border border-[#90b4ce]/50 bg-[#fffffe] px-3 text-sm text-[#094067] transition outline-none focus:border-[#3da9fc] focus:ring-2 focus:ring-[#3da9fc]/20"
-                                >
-                                    <option
-                                        v-for="field in correctionFields"
-                                        :key="field.value"
-                                        :value="field.value"
-                                    >
-                                        {{ field.label }}
-                                    </option>
-                                </select>
-                            </label>
-                            <label class="grid gap-2 text-sm font-semibold">
-                                建议内容
-                                <input
-                                    v-model="correctionSuggestedValue"
-                                    class="h-10 rounded-sm border border-[#90b4ce]/50 bg-[#fffffe] px-3 text-sm text-[#094067] transition outline-none focus:border-[#3da9fc] focus:ring-2 focus:ring-[#3da9fc]/20"
-                                    maxlength="1000"
-                                    placeholder="例如：2022 世界杯决赛"
-                                />
-                            </label>
-                        </div>
-                        <label class="grid gap-2 text-sm font-semibold">
-                            证据链接
-                            <input
-                                v-model="correctionEvidenceUrl"
-                                class="h-10 rounded-sm border border-[#90b4ce]/50 bg-[#fffffe] px-3 text-sm text-[#094067] transition outline-none focus:border-[#3da9fc] focus:ring-2 focus:ring-[#3da9fc]/20"
-                                placeholder="可选，粘贴来源链接"
-                            />
-                        </label>
-                        <label
-                            class="grid gap-2 text-sm font-semibold"
-                            for="photo-correction-content"
-                        >
-                            补充说明
-                            <textarea
-                                id="photo-correction-content"
-                                v-model="correctionContent"
-                                rows="4"
-                                maxlength="1000"
-                                class="w-full rounded-sm border border-[#90b4ce]/50 bg-[#fffffe] px-3 py-2 text-sm text-[#094067] transition outline-none focus:border-[#3da9fc] focus:ring-2 focus:ring-[#3da9fc]/20"
-                                placeholder="说明为什么需要补充或修正"
-                            ></textarea>
-                        </label>
-                        <div class="flex justify-end gap-2">
-                            <button
-                                type="button"
-                                class="h-10 rounded-sm border border-[#90b4ce]/60 px-3 text-sm font-semibold"
-                                @click="activeComposer = null"
-                            >
-                                取消
-                            </button>
-                            <button
-                                type="submit"
-                                class="inline-flex h-10 items-center gap-2 rounded-sm bg-[#ef4565] px-4 text-sm font-semibold text-[#fffffe] transition hover:bg-[#d9375d] disabled:opacity-70"
-                                :disabled="correctionPending"
-                            >
-                                <Send class="h-4 w-4" aria-hidden="true" />
-                                {{
-                                    correctionPending
-                                        ? '提交中'
-                                        : '提交补充 / 纠错'
-                                }}
-                            </button>
-                        </div>
-                    </form>
-
-                    <div
-                        v-if="photoDetail.comments.data.length"
-                        class="grid gap-3"
-                    >
-                        <article
-                            v-for="comment in photoDetail.comments.data"
-                            :key="comment.id"
-                            class="rounded-sm border border-[#90b4ce]/25 bg-[#fffffe] p-4"
-                        >
-                            <div
-                                class="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm"
-                            >
-                                <strong>{{ comment.user_name }}</strong>
-                                <span
-                                    class="inline-flex items-center gap-3 text-xs text-[#5f6c7b]"
-                                >
-                                    <time>{{ comment.created_at }}</time>
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center gap-1 font-semibold text-[#5f6c7b] transition hover:text-[#ef4565]"
-                                        @click="openReport(comment.id)"
-                                    >
-                                        <Flag
-                                            class="h-3.5 w-3.5"
-                                            aria-hidden="true"
-                                        />
-                                        举报
-                                    </button>
-                                </span>
-                            </div>
-                            <p
-                                class="text-sm leading-7 whitespace-pre-line text-[#5f6c7b]"
-                            >
-                                {{ comment.content }}
-                            </p>
-                            <form
-                                v-if="activeReportId === comment.id"
-                                class="mt-4 grid gap-3 rounded-sm border border-[#ef4565]/25 bg-[#fff0f4] p-4"
-                                @submit.prevent="submitReport(comment.id)"
-                            >
-                                <div class="grid gap-3 md:grid-cols-2">
-                                    <label
-                                        class="grid gap-2 text-sm font-semibold"
-                                    >
-                                        举报原因
-                                        <select
-                                            v-model="reportReason"
-                                            class="h-10 rounded-sm border border-[#90b4ce]/50 bg-[#fffffe] px-3 text-sm text-[#094067] transition outline-none focus:border-[#ef4565] focus:ring-2 focus:ring-[#ef4565]/20"
-                                        >
-                                            <option
-                                                v-for="reason in reportReasons"
-                                                :key="reason.value"
-                                                :value="reason.value"
-                                            >
-                                                {{ reason.label }}
-                                            </option>
-                                        </select>
-                                    </label>
-                                </div>
-                                <label class="grid gap-2 text-sm font-semibold">
-                                    补充说明
-                                    <textarea
-                                        v-model="reportDetails"
-                                        rows="3"
-                                        maxlength="1000"
-                                        class="w-full rounded-sm border border-[#90b4ce]/50 bg-[#fffffe] px-3 py-2 text-sm text-[#094067] transition outline-none focus:border-[#ef4565] focus:ring-2 focus:ring-[#ef4565]/20"
-                                        placeholder="说明这条评论的问题，可为空"
-                                    ></textarea>
-                                </label>
-                                <div class="flex justify-end gap-2">
-                                    <button
-                                        type="button"
-                                        class="h-10 rounded-sm border border-[#90b4ce]/60 px-3 text-sm font-semibold"
-                                        @click="activeReportId = null"
-                                    >
-                                        取消
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        class="inline-flex h-10 items-center gap-2 rounded-sm bg-[#ef4565] px-4 text-sm font-semibold text-[#fffffe] transition hover:bg-[#d9375d] disabled:opacity-70"
-                                        :disabled="reportPending"
-                                    >
-                                        <Send
-                                            class="h-4 w-4"
-                                            aria-hidden="true"
-                                        />
-                                        {{
-                                            reportPending
-                                                ? '提交中'
-                                                : '提交举报'
-                                        }}
-                                    </button>
-                                </div>
-                            </form>
-                        </article>
-                    </div>
-
-                    <div
-                        v-else
-                        class="rounded-sm border border-dashed border-[#90b4ce]/60 bg-[#d8eefe]/55 px-6 py-8 text-center"
-                    >
-                        <MessageCircle
-                            class="mx-auto h-8 w-8 text-[#3da9fc]"
-                            aria-hidden="true"
-                        />
-                        <p class="mt-3 text-sm text-[#5f6c7b]">
-                            还没有公开评论
+                            评论与补充
+                        </h2>
+                        <p class="mt-2 text-sm text-[#526779]">
+                            已公开 {{ photoDetail.comments.total }} 条评论
                         </p>
                     </div>
-                </section>
-                <section class="mt-12" aria-labelledby="similar-photos-heading">
-                    <h2
-                        id="similar-photos-heading"
-                        class="mb-3 text-2xl font-semibold"
-                    >
-                        相似图片
-                    </h2>
-                    <p class="mb-5 text-sm text-[#5f6c7b]">
-                        按画面相似程度推荐，可帮助查找同一瞬间的其他版本。
-                    </p>
-                    <SimilarPhotoGrid
-                        v-if="photoDetail.similar.data.length"
-                        :photos="photoDetail.similar.data"
-                    />
-                    <p v-else class="text-sm text-[#5f6c7b]">
-                        暂无相似图片，仍可浏览下方相关推荐。
-                    </p>
-                </section>
-                <section
-                    v-if="hasRelated"
-                    class="mt-12"
-                    aria-labelledby="related-photos-heading"
-                >
-                    <div class="mb-5 flex items-end justify-between gap-4">
-                        <div>
-                            <h2
-                                id="related-photos-heading"
-                                class="text-2xl font-semibold"
-                            >
-                                相关推荐
-                            </h2>
-                            <p class="mt-2 text-sm text-[#5f6c7b]">
-                                {{ photoDetail.context.title }}
-                            </p>
-                        </div>
-                        <Share2
-                            class="hidden h-5 w-5 text-[#3da9fc] sm:block"
-                            aria-hidden="true"
-                        />
-                    </div>
-
-                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        <Link
-                            v-for="photo in photoDetail.related.data"
-                            :key="photo.uuid"
-                            :href="photo.url"
-                            class="group overflow-hidden rounded-sm border border-[#90b4ce]/25 bg-[#fffffe] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#3da9fc]"
-                            :aria-label="`查看图片：${photo.title}`"
+                    <div class="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            class="inline-flex h-10 items-center gap-2 rounded-sm border border-[#cbd8e2]/60 px-3 text-sm font-semibold transition hover:border-[#042240] hover:text-[#042240]"
+                            :class="
+                                activeComposer === 'discussion'
+                                    ? 'border-[#ba9f6c] bg-[#ba9f6c] text-[#042240]'
+                                    : ''
+                            "
+                            @click="openComposer('discussion')"
                         >
-                            <div
-                                class="aspect-[4/3] overflow-hidden bg-[#d8eefe]"
+                            <MessageCircle class="h-4 w-4" aria-hidden="true" />
+                            评论
+                        </button>
+                        <button
+                            type="button"
+                            class="inline-flex h-10 items-center gap-2 rounded-sm border border-[#cbd8e2]/60 px-3 text-sm font-semibold transition hover:border-[#ba9f6c] hover:text-[#042240]"
+                            :class="
+                                activeComposer === 'correction'
+                                    ? 'border-[#ba9f6c] bg-[#ba9f6c] text-[#042240]'
+                                    : ''
+                            "
+                            @click="openComposer('correction')"
+                        >
+                            <PencilLine class="h-4 w-4" aria-hidden="true" />
+                            补充 / 纠错
+                        </button>
+                    </div>
+                </div>
+
+                <p
+                    v-if="!photoDetail.comments.can_submit"
+                    class="detail-notice mb-4"
+                >
+                    登录后可以发表评论或提交图片信息补充 / 纠错。
+                </p>
+
+                <p
+                    v-if="commentStatus"
+                    class="mb-4 rounded-sm border border-[#042240]/30 bg-[#98cef0]/55 px-4 py-3 text-sm font-semibold text-[#042240]"
+                >
+                    {{ commentStatus }}
+                </p>
+                <p
+                    v-if="reportStatus"
+                    class="mb-4 rounded-sm border border-[#ef4565]/30 bg-[#fff0f4] px-4 py-3 text-sm font-semibold text-[#042240]"
+                >
+                    {{ reportStatus }}
+                </p>
+                <p
+                    v-if="correctionStatus"
+                    class="mb-4 rounded-sm border border-[#ef4565]/30 bg-[#fff0f4] px-4 py-3 text-sm font-semibold text-[#042240]"
+                >
+                    {{ correctionStatus }}
+                </p>
+
+                <form
+                    v-if="activeComposer === 'discussion'"
+                    class="mb-6 grid gap-3 rounded-sm border border-[#cbd8e2]/35 bg-[#ffffff] p-4"
+                    @submit.prevent="submitDiscussion"
+                >
+                    <label
+                        class="text-sm font-semibold"
+                        for="photo-comment-content"
+                    >
+                        发表评论
+                    </label>
+                    <textarea
+                        id="photo-comment-content"
+                        v-model="commentContent"
+                        rows="4"
+                        maxlength="1000"
+                        class="w-full rounded-sm border border-[#cbd8e2]/50 bg-[#ffffff] px-3 py-2 text-sm text-[#042240] transition outline-none focus:border-[#042240] focus:ring-2 focus:ring-[#042240]/20"
+                        placeholder="写下与这张图片相关的讨论、背景或记忆"
+                    ></textarea>
+                    <div class="flex justify-end gap-2">
+                        <button
+                            type="button"
+                            class="h-10 rounded-sm border border-[#cbd8e2]/60 px-3 text-sm font-semibold"
+                            @click="activeComposer = null"
+                        >
+                            取消
+                        </button>
+                        <button
+                            type="submit"
+                            class="inline-flex h-10 items-center gap-2 rounded-sm bg-[#042240] px-4 text-sm font-semibold text-[#ffffff] transition hover:bg-[#238fdf] disabled:opacity-70"
+                            :disabled="commentPending"
+                        >
+                            <Send class="h-4 w-4" aria-hidden="true" />
+                            {{ commentPending ? '提交中' : '提交评论' }}
+                        </button>
+                    </div>
+                </form>
+
+                <form
+                    v-if="activeComposer === 'correction'"
+                    class="mb-6 grid gap-4 rounded-sm border border-[#cbd8e2]/35 bg-[#ffffff] p-4"
+                    @submit.prevent="submitCorrection"
+                >
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <label class="grid gap-2 text-sm font-semibold">
+                            建议修正字段
+                            <select
+                                v-model="correctionField"
+                                class="h-10 rounded-sm border border-[#cbd8e2]/50 bg-[#ffffff] px-3 text-sm text-[#042240] transition outline-none focus:border-[#042240] focus:ring-2 focus:ring-[#042240]/20"
                             >
-                                <img
-                                    v-if="
-                                        photo.image_url &&
-                                        !relatedImageFailures[photo.id]
-                                    "
-                                    :src="photo.image_url"
-                                    :alt="photo.alt"
-                                    loading="lazy"
-                                    class="h-full w-full object-cover transition duration-500 group-hover:scale-105 group-hover:brightness-95"
-                                    @error="
-                                        relatedImageFailures[photo.id] = true
-                                    "
-                                />
-                                <div
-                                    v-else
-                                    class="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#d8eefe,#90b4ce)] text-[#094067]"
+                                <option
+                                    v-for="field in correctionFields"
+                                    :key="field.value"
+                                    :value="field.value"
                                 >
-                                    <ImageOff
-                                        class="h-8 w-8"
+                                    {{ field.label }}
+                                </option>
+                            </select>
+                        </label>
+                        <label class="grid gap-2 text-sm font-semibold">
+                            建议内容
+                            <input
+                                v-model="correctionSuggestedValue"
+                                class="h-10 rounded-sm border border-[#cbd8e2]/50 bg-[#ffffff] px-3 text-sm text-[#042240] transition outline-none focus:border-[#042240] focus:ring-2 focus:ring-[#042240]/20"
+                                maxlength="1000"
+                                placeholder="例如：2022 世界杯决赛"
+                            />
+                        </label>
+                    </div>
+                    <label class="grid gap-2 text-sm font-semibold">
+                        证据链接
+                        <input
+                            v-model="correctionEvidenceUrl"
+                            class="h-10 rounded-sm border border-[#cbd8e2]/50 bg-[#ffffff] px-3 text-sm text-[#042240] transition outline-none focus:border-[#042240] focus:ring-2 focus:ring-[#042240]/20"
+                            placeholder="可选，粘贴来源链接"
+                        />
+                    </label>
+                    <label
+                        class="grid gap-2 text-sm font-semibold"
+                        for="photo-correction-content"
+                    >
+                        补充说明
+                        <textarea
+                            id="photo-correction-content"
+                            v-model="correctionContent"
+                            rows="4"
+                            maxlength="1000"
+                            class="w-full rounded-sm border border-[#cbd8e2]/50 bg-[#ffffff] px-3 py-2 text-sm text-[#042240] transition outline-none focus:border-[#042240] focus:ring-2 focus:ring-[#042240]/20"
+                            placeholder="说明为什么需要补充或修正"
+                        ></textarea>
+                    </label>
+                    <div class="flex justify-end gap-2">
+                        <button
+                            type="button"
+                            class="h-10 rounded-sm border border-[#cbd8e2]/60 px-3 text-sm font-semibold"
+                            @click="activeComposer = null"
+                        >
+                            取消
+                        </button>
+                        <button
+                            type="submit"
+                            class="inline-flex h-10 items-center gap-2 rounded-sm bg-[#ba9f6c] px-4 text-sm font-semibold text-[#042240] transition hover:bg-[#ba9f6c]/90 disabled:opacity-70"
+                            :disabled="correctionPending"
+                        >
+                            <Send class="h-4 w-4" aria-hidden="true" />
+                            {{
+                                correctionPending ? '提交中' : '提交补充 / 纠错'
+                            }}
+                        </button>
+                    </div>
+                </form>
+
+                <div v-if="photoDetail.comments.data.length" class="grid gap-3">
+                    <article
+                        v-for="comment in photoDetail.comments.data"
+                        :key="comment.id"
+                        class="rounded-sm border border-[#cbd8e2]/25 bg-[#ffffff] p-4"
+                    >
+                        <div
+                            class="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm"
+                        >
+                            <strong>{{ comment.user_name }}</strong>
+                            <span
+                                class="inline-flex items-center gap-3 text-xs text-[#526779]"
+                            >
+                                <time>{{ comment.created_at }}</time>
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-1 font-semibold text-[#526779] transition hover:text-[#ef4565]"
+                                    @click="openReport(comment.id)"
+                                >
+                                    <Flag
+                                        class="h-3.5 w-3.5"
                                         aria-hidden="true"
                                     />
-                                </div>
+                                    举报
+                                </button>
+                            </span>
+                        </div>
+                        <p
+                            class="text-sm leading-7 whitespace-pre-line text-[#526779]"
+                        >
+                            {{ comment.content }}
+                        </p>
+                        <form
+                            v-if="activeReportId === comment.id"
+                            class="mt-4 grid gap-3 rounded-sm border border-[#ef4565]/25 bg-[#fff0f4] p-4"
+                            @submit.prevent="submitReport(comment.id)"
+                        >
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <label class="grid gap-2 text-sm font-semibold">
+                                    举报原因
+                                    <select
+                                        v-model="reportReason"
+                                        class="h-10 rounded-sm border border-[#cbd8e2]/50 bg-[#ffffff] px-3 text-sm text-[#042240] transition outline-none focus:border-[#ef4565] focus:ring-2 focus:ring-[#ef4565]/20"
+                                    >
+                                        <option
+                                            v-for="reason in reportReasons"
+                                            :key="reason.value"
+                                            :value="reason.value"
+                                        >
+                                            {{ reason.label }}
+                                        </option>
+                                    </select>
+                                </label>
                             </div>
-                            <div class="grid min-h-28 gap-2 p-3">
-                                <h3
-                                    class="line-clamp-2 text-sm leading-6 font-semibold"
+                            <label class="grid gap-2 text-sm font-semibold">
+                                补充说明
+                                <textarea
+                                    v-model="reportDetails"
+                                    rows="3"
+                                    maxlength="1000"
+                                    class="w-full rounded-sm border border-[#cbd8e2]/50 bg-[#ffffff] px-3 py-2 text-sm text-[#042240] transition outline-none focus:border-[#ef4565] focus:ring-2 focus:ring-[#ef4565]/20"
+                                    placeholder="说明这条评论的问题，可为空"
+                                ></textarea>
+                            </label>
+                            <div class="flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    class="h-10 rounded-sm border border-[#cbd8e2]/60 px-3 text-sm font-semibold"
+                                    @click="activeReportId = null"
                                 >
-                                    {{ photo.title }}
-                                </h3>
-                                <p class="text-xs text-[#5f6c7b]">
-                                    {{ formatDate(photo.event_date) }}
-                                </p>
+                                    取消
+                                </button>
+                                <button
+                                    type="submit"
+                                    class="inline-flex h-10 items-center gap-2 rounded-sm bg-[#ba9f6c] px-4 text-sm font-semibold text-[#042240] transition hover:bg-[#ba9f6c]/90 disabled:opacity-70"
+                                    :disabled="reportPending"
+                                >
+                                    <Send class="h-4 w-4" aria-hidden="true" />
+                                    {{ reportPending ? '提交中' : '提交举报' }}
+                                </button>
                             </div>
-                        </Link>
-                    </div>
-                </section>
+                        </form>
+                    </article>
+                </div>
 
                 <div
-                    v-if="!hasRelated"
-                    class="mt-12 rounded-sm border border-dashed border-[#90b4ce]/60 bg-[#d8eefe]/55 px-6 py-10 text-center"
+                    v-else
+                    class="rounded-sm border border-dashed border-[#cbd8e2]/60 bg-[#98cef0]/55 px-6 py-8 text-center"
                 >
-                    <FileText
-                        class="mx-auto h-9 w-9 text-[#3da9fc]"
+                    <MessageCircle
+                        class="mx-auto h-8 w-8 text-[#042240]"
                         aria-hidden="true"
                     />
-                    <p class="mt-3 text-sm text-[#5f6c7b]">暂无相关推荐</p>
+                    <p class="mt-3 text-sm text-[#526779]">还没有公开评论</p>
                 </div>
+            </section>
+
+            <section
+                class="detail-section detail-similar"
+                aria-labelledby="similar-photos-heading"
+            >
+                <h2 id="similar-photos-heading">相似图片</h2>
+                <p>按画面相似程度推荐，可帮助查找同一瞬间的其他版本。</p>
+                <SimilarPhotoGrid
+                    v-if="photoDetail.similar.data.length"
+                    :photos="photoDetail.similar.data"
+                />
+                <p v-else class="detail-notice">
+                    暂无相似图片，仍可浏览下方相关推荐。
+                </p>
+            </section>
+            <section
+                v-if="hasRelated"
+                class="detail-section"
+                aria-labelledby="related-photos-heading"
+            >
+                <div class="detail-section-heading">
+                    <h2 id="related-photos-heading">相关推荐</h2>
+                    <span>{{ photoDetail.context.title }}</span>
+                </div>
+                <div class="detail-related">
+                    <Link
+                        v-for="photo in photoDetail.related.data"
+                        :key="photo.uuid"
+                        :href="photo.url"
+                        :aria-label="`查看图片：${photo.title}`"
+                        ><div class="detail-thumbnail">
+                            <img
+                                v-if="
+                                    photo.image_url &&
+                                    !relatedImageFailures[photo.id]
+                                "
+                                :src="photo.image_url"
+                                :alt="photo.alt"
+                                loading="lazy"
+                                @error="relatedImageFailures[photo.id] = true"
+                            />
+                            <div
+                                v-else
+                                class="detail-image-error"
+                                role="img"
+                                :aria-label="photo.title + '，预览暂不可用'"
+                            >
+                                <ImageOff aria-hidden="true" />
+                            </div>
+                            <span class="detail-entry-arrow" aria-hidden="true"
+                                >↗</span
+                            >
+                        </div>
+                        <h3>{{ photo.title }}</h3>
+                        <p>{{ formatDate(photo.event_date) }}</p></Link
+                    >
+                </div>
+            </section>
+            <div v-else class="detail-section detail-notice">
+                <FileText aria-hidden="true" />
+                <p>暂无相关推荐</p>
             </div>
         </section>
     </main>

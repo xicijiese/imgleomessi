@@ -193,6 +193,33 @@ class PublicAlbumIndexTest extends TestCase
             );
     }
 
+    public function test_album_pagination_preserves_keyword_category_and_sort(): void
+    {
+        $this->seed(GalleryTaxonomySeeder::class);
+        $category = Category::query()->children()->where('name', '阿根廷国家队')->firstOrFail();
+        $photo = $this->publicPhoto('分页图片');
+        for ($i = 0; $i < 13; $i++) {
+            $album = $this->publishedAlbum('分页检索 '.$i, ['published_at' => now()->subDays(14 - $i)]);
+            $album->photos()->sync([$photo->id]);
+            $album->categories()->sync([$category->id]);
+        }
+        $query = ['q' => '分页检索', 'categories' => ['career-stage' => $category->id], 'sort' => 'published_asc'];
+        $this->get('/albums?'.http_build_query($query))->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('albumIndex.albums.data', 12)
+            ->where('albumIndex.albums.meta.total', 13)
+            ->where('albumIndex.albums.links.next', function ($url) use ($category) {
+                parse_str(parse_url($url, PHP_URL_QUERY), $params);
+
+                return $params['q'] === '分页检索' && (int) $params['categories']['career-stage'] === $category->id
+                    && $params['sort'] === 'published_asc' && $params['page'] === '2';
+            }));
+        $this->get('/albums?'.http_build_query([...$query, 'page' => 2]))->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('albumIndex.albums.data', 1)
+            ->where('albumIndex.albums.meta.current_page', 2)
+            ->where('albumIndex.albums.data.0.title', '分页检索 12')
+            ->where('albumIndex.albums.links.next', null));
+    }
+
     /**
      * @param  array<string, mixed>  $attributes
      */

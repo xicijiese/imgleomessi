@@ -189,6 +189,29 @@ class PublicAlbumDetailTest extends TestCase
             );
     }
 
+    public function test_photo_pagination_keeps_sort_and_album_context(): void
+    {
+        $album = $this->publishedAlbum('分页相册', ['slug' => 'paginated-album']);
+        $ids = [];
+        for ($i = 1; $i <= 25; $i++) {
+            $ids[] = $this->publicPhoto('分页照片 '.$i, ['event_date' => sprintf('2022-01-%02d', $i)])->id;
+        }
+        $album->photos()->sync($ids);
+        $this->get('/albums/paginated-album?sort=event_asc')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('albumDetail.photos.data', 24)
+            ->where('albumDetail.photos.links.next', function ($url) {
+                parse_str(parse_url($url, PHP_URL_QUERY), $params);
+
+                return $params['sort'] === 'event_asc' && $params['page'] === '2';
+            }));
+        $this->get('/albums/paginated-album?sort=event_asc&page=2')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('albumDetail.photos.data', 1)
+            ->where('albumDetail.photos.meta.current_page', 2)
+            ->where('albumDetail.photos.data.0.title', '分页照片 25')
+            ->where('albumDetail.photos.data.0.url', fn ($url) => str_contains($url, 'album=paginated-album'))
+            ->where('albumDetail.photos.links.next', null));
+    }
+
     /**
      * @param  array<string, mixed>  $attributes
      */

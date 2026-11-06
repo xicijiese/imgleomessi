@@ -50,6 +50,18 @@ class AppearanceSettingsTest extends TestCase
         }
     }
 
+    public function test_appearance_page_receives_its_own_account_navigation(): void
+    {
+        $user = User::factory()->withoutTwoFactor()->create();
+        $this->actingAs($user)->get(route('appearance.edit'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('settings/Appearance')
+                ->where('settingsCenter.user.id', $user->id)
+                ->where('settingsCenter.summary.unread_notifications_count', 0)
+            );
+    }
+
     private function assertHasPublicShell(Assert $page): Assert
     {
         return $page

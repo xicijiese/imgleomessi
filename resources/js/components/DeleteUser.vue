@@ -20,29 +20,52 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+withDefaults(defineProps<{ variant?: 'default' | 'archive' }>(), {
+    variant: 'default',
+});
+
 const passwordInput = useTemplateRef('passwordInput');
 </script>
 
 <template>
-    <div class="space-y-6">
+    <div :class="variant === 'archive' ? 'profile-danger' : 'space-y-6'">
         <HeadingSmall
+            v-if="variant !== 'archive'"
             title="删除账号"
             description="删除你的账号和相关账号数据"
         />
         <div
-            class="space-y-4 rounded-lg border border-red-100 bg-red-50 p-4 dark:border-red-200/10 dark:bg-red-700/10"
+            :class="
+                variant === 'archive'
+                    ? 'danger-row'
+                    : 'space-y-4 rounded-lg border border-red-100 bg-red-50 p-4 dark:border-red-200/10 dark:bg-red-700/10'
+            "
         >
-            <div class="relative space-y-0.5 text-red-600 dark:text-red-100">
+            <div v-if="variant === 'archive'" class="danger-copy">
+                <h2>删除账号</h2>
+                <p>删除账号及相关账号数据。该操作不可撤销，请谨慎处理。</p>
+            </div>
+            <div
+                v-else
+                class="relative space-y-0.5 text-red-600 dark:text-red-100"
+            >
                 <p class="font-medium">危险操作</p>
                 <p class="text-sm">该操作不可撤销，请谨慎处理。</p>
             </div>
             <Dialog>
                 <DialogTrigger as-child>
-                    <Button variant="destructive" data-test="delete-user-button"
+                    <Button
+                        variant="destructive"
+                        :class="{
+                            'archive-delete-trigger': variant === 'archive',
+                        }"
+                        data-test="delete-user-button"
                         >删除账号</Button
                     >
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent
+                    :class="{ 'archive-delete-dialog': variant === 'archive' }"
+                >
                     <Form
                         v-bind="ProfileController.destroy.form()"
                         reset-on-success
@@ -104,3 +127,77 @@ const passwordInput = useTemplateRef('passwordInput');
         </div>
     </div>
 </template>
+
+<style scoped>
+.profile-danger {
+    border-top: 1px solid #dbdbea;
+    margin-top: 28px;
+    padding-top: 24px;
+    color: #042240;
+}
+.danger-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+}
+.danger-copy h2 {
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+.danger-copy p {
+    font-size: 13px;
+    color: #526779;
+    line-height: 1.8;
+    margin-top: 8px;
+}
+.archive-delete-trigger {
+    flex-shrink: 0;
+    min-height: 44px;
+    border: 1px solid #ce9191;
+    background: #fff;
+    color: #a33434;
+    box-shadow: none;
+}
+.archive-delete-trigger:hover {
+    background: #fff1f1;
+}
+.archive-delete-dialog {
+    width: calc(100% - 32px);
+    max-width: 520px;
+    max-height: 90dvh;
+    overflow: auto;
+    background: #fff;
+    color: #042240;
+    border-color: #dbdbea;
+}
+.archive-delete-dialog :deep(input) {
+    min-height: 44px;
+    font-size: 16px;
+    background: #fff;
+    color: #042240;
+    border-color: #a8bfd0;
+}
+.archive-delete-dialog :deep(button) {
+    min-height: 44px;
+}
+.archive-delete-dialog :deep([data-slot='dialog-description']) {
+    color: #526779;
+}
+.archive-delete-dialog :deep([data-test='confirm-delete-user-button']) {
+    background: #a33434;
+    color: #fff;
+}
+.profile-danger :deep(button:focus-visible) {
+    outline: 2px solid #042240;
+    outline-offset: 3px;
+}
+@media (max-width: 767px) {
+    .danger-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+}
+</style>

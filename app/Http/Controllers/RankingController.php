@@ -12,7 +12,7 @@ class RankingController extends Controller
     public function __invoke(Request $request, PhotoInteractionRankings $rankings): Response
     {
         return Inertia::render('Rankings/Index', [
-            'rankings' => $rankings->publicPayload($request->only(['type', 'window'])),
+            'rankings' => $rankings->publicPayload($request->only(['type', 'window', 'page'])),
         ]);
     }
 }

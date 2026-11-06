@@ -4,21 +4,21 @@ import InputError from '@/components/InputError.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { Form, Head } from '@inertiajs/vue3';
 
-import HeadingSmall from '@/components/HeadingSmall.vue';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 </script>
 
 <template>
     <Head title="修改密码" />
 
-    <SettingsLayout>
-        <div class="space-y-6">
-            <HeadingSmall
-                title="修改密码"
-                description="建议使用足够长且不重复的密码保护账号"
-            />
+    <SettingsLayout variant="archive">
+        <div class="password-content">
+            <div class="password-heading browser-heading">
+                <div>
+                    <h1>修改密码</h1>
+                    <p>建议使用足够长且不重复的密码保护账号。</p>
+                </div>
+            </div>
 
             <Form
                 v-bind="PasswordController.update.form()"
@@ -31,54 +31,70 @@ import { Label } from '@/components/ui/label';
                     'password_confirmation',
                     'current_password',
                 ]"
-                class="space-y-6"
+                class="password-panel"
                 v-slot="{ errors, processing, recentlySuccessful }"
             >
-                <div class="grid gap-2">
+                <div class="password-field">
                     <Label for="current_password">当前密码</Label>
-                    <Input
+                    <input
                         id="current_password"
+                        :aria-invalid="!!errors.current_password"
+                        aria-describedby="current_password-error"
                         name="current_password"
                         type="password"
-                        class="mt-1 block w-full border-[#90b4ce]/60 bg-[#fffffe] text-[#094067] shadow-none placeholder:text-[#5f6c7b]/60 focus-visible:border-[#3da9fc] focus-visible:ring-[#3da9fc]/30 dark:border-[#90b4ce]/60 dark:bg-[#fffffe] dark:text-[#094067] dark:placeholder:text-[#5f6c7b]/60"
+                        class="password-input"
                         autocomplete="current-password"
                         placeholder="请输入当前密码"
                     />
-                    <InputError :message="errors.current_password" />
-                </div>
-
-                <div class="grid gap-2">
-                    <Label for="password">新密码</Label>
-                    <Input
-                        id="password"
-                        name="password"
-                        type="password"
-                        class="mt-1 block w-full border-[#90b4ce]/60 bg-[#fffffe] text-[#094067] shadow-none placeholder:text-[#5f6c7b]/60 focus-visible:border-[#3da9fc] focus-visible:ring-[#3da9fc]/30 dark:border-[#90b4ce]/60 dark:bg-[#fffffe] dark:text-[#094067] dark:placeholder:text-[#5f6c7b]/60"
-                        autocomplete="new-password"
-                        placeholder="请输入新密码"
+                    <InputError
+                        id="current_password-error"
+                        :message="errors.current_password"
                     />
-                    <InputError :message="errors.password" />
                 </div>
 
-                <div class="grid gap-2">
-                    <Label for="password_confirmation">确认新密码</Label>
-                    <Input
-                        id="password_confirmation"
-                        name="password_confirmation"
-                        type="password"
-                        class="mt-1 block w-full border-[#90b4ce]/60 bg-[#fffffe] text-[#094067] shadow-none placeholder:text-[#5f6c7b]/60 focus-visible:border-[#3da9fc] focus-visible:ring-[#3da9fc]/30 dark:border-[#90b4ce]/60 dark:bg-[#fffffe] dark:text-[#094067] dark:placeholder:text-[#5f6c7b]/60"
-                        autocomplete="new-password"
-                        placeholder="请再次输入新密码"
-                    />
-                    <InputError :message="errors.password_confirmation" />
-                </div>
+                <div class="new-password-fields">
+                    <div class="password-field">
+                        <Label for="password">新密码</Label>
+                        <input
+                            id="password"
+                            :aria-invalid="!!errors.password"
+                            aria-describedby="password-error"
+                            name="password"
+                            type="password"
+                            class="password-input"
+                            autocomplete="new-password"
+                            placeholder="请输入新密码"
+                        />
+                        <InputError
+                            id="password-error"
+                            :message="errors.password"
+                        />
+                    </div>
 
-                <div class="flex items-center gap-4">
+                    <div class="password-field">
+                        <Label for="password_confirmation">确认新密码</Label>
+                        <input
+                            id="password_confirmation"
+                            :aria-invalid="!!errors.password_confirmation"
+                            aria-describedby="password_confirmation-error"
+                            name="password_confirmation"
+                            type="password"
+                            class="password-input"
+                            autocomplete="new-password"
+                            placeholder="请再次输入新密码"
+                        />
+                        <InputError
+                            id="password_confirmation-error"
+                            :message="errors.password_confirmation"
+                        />
+                    </div>
+                </div>
+                <div class="password-save-row">
                     <Button
-                        class="bg-[#3da9fc] text-[#fffffe] hover:bg-[#094067] focus-visible:ring-[#3da9fc]/40"
+                        class="password-save"
                         :disabled="processing"
                         data-test="update-password-button"
-                        >保存密码</Button
+                        >{{ processing ? '保存中…' : '保存密码' }}</Button
                     >
 
                     <Transition
@@ -89,7 +105,9 @@ import { Label } from '@/components/ui/label';
                     >
                         <p
                             v-show="recentlySuccessful"
-                            class="text-sm text-neutral-600"
+                            role="status"
+                            aria-live="polite"
+                            class="password-feedback"
                         >
                             已保存。
                         </p>
@@ -99,3 +117,5 @@ import { Label } from '@/components/ui/label';
         </div>
     </SettingsLayout>
 </template>
+
+<style scoped src="./Password.css"></style>

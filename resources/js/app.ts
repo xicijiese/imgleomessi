@@ -1,11 +1,11 @@
 import '../css/app.css';
 
-import ShareVisitTracker from '@/components/ShareVisitTracker.vue';
 import PublicFooter from '@/components/PublicFooter.vue';
+import ShareVisitTracker from '@/components/ShareVisitTracker.vue';
 import { createInertiaApp, router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { DefineComponent } from 'vue';
-import { computed, createApp, defineComponent, h, onUnmounted, ref } from 'vue';
+import { createApp, defineComponent, h, onUnmounted, ref } from 'vue';
 import { initializeTheme } from './composables/useAppearance';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -13,6 +13,7 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 interface PublicShellPayload {
     site: {
         name: string;
+        logo_url?: string | null;
     };
     footer: {
         copyright_text: string;
@@ -37,37 +38,90 @@ createInertiaApp({
                     required: true,
                 },
             },
-            setup(componentProps: { initialPage: { props?: Record<string, unknown> } }) {
+            setup(componentProps: {
+                initialPage: { props?: Record<string, unknown> };
+            }) {
                 const currentPath = ref(window.location.pathname);
-                const publicShell = componentProps.initialPage.props?.publicShell as
-                    | PublicShellPayload
-                    | undefined;
-                const removeNavigateListener = router.on('navigate', (event) => {
-                    currentPath.value = new URL(event.detail.page.url, window.location.origin).pathname;
-                });
-                const showFooter = computed(() => {
-                    const path = currentPath.value.replace(/\/+$/, '') || '/';
-
-                    return path !== '/me' && !path.startsWith('/me/');
-                });
-
+                const currentPageUrl = ref(
+                    window.location.pathname + window.location.search,
+                );
+                const publicShell = componentProps.initialPage.props
+                    ?.publicShell as PublicShellPayload | undefined;
+                const removeNavigateListener = router.on(
+                    'navigate',
+                    (event) => {
+                        currentPath.value = new URL(
+                            event.detail.page.url,
+                            window.location.origin,
+                        ).pathname;
+                        currentPageUrl.value = event.detail.page.url;
+                    },
+                );
                 onUnmounted(() => removeNavigateListener());
 
                 return () =>
                     h('div', [
                         h(App, props),
                         h(ShareVisitTracker),
-                        showFooter.value && publicShell
+                        publicShell
                             ? h(PublicFooter, {
                                   footer: publicShell.footer,
-                                  site: { name: publicShell.site.name },
+                                  site: publicShell.site,
+                                  pageUrl: currentPageUrl.value,
+                                  theme:
+                                      [
+                                          '/',
+                                          '/photos',
+                                          '/search',
+                                          '/search/image',
+                                          '/albums',
+                                          '/topics',
+                                          '/teams',
+                                          '/seasons',
+                                          '/timeline',
+                                          '/rankings',
+                                          '/support',
+                                          '/supporters',
+                                          '/support/result',
+                                          '/about',
+                                          '/copyright',
+                                          '/takedown',
+                                          '/privacy',
+                                          '/terms',
+                                          '/login',
+                                          '/register',
+                                          '/forgot-password',
+                                          '/email/verify',
+                                          '/user/confirm-password',
+                                          '/two-factor-challenge',
+                                          '/settings/profile',
+                                          '/settings/password',
+                                          '/settings/appearance',
+                                      ].includes(currentPath.value) ||
+                                      /^\/me(?:\/|$)/.test(currentPath.value) ||
+                                      /^\/(photos|albums|topics|teams|seasons|users)\/[^/]+$/.test(
+                                          currentPath.value,
+                                      ) ||
+                                      /^\/timeline\/\d{4}(?:\/\d{2})?$/.test(
+                                          currentPath.value,
+                                      ) ||
+                                      /^\/search\/image\/[^/]+$/.test(
+                                          currentPath.value,
+                                      ) ||
+                                      /^\/reset-password\/[^/]+$/.test(
+                                          currentPath.value,
+                                      )
+                                          ? 'archive'
+                                          : 'default',
                               })
                             : null,
                     ]);
             },
         });
 
-        createApp(PublicApp, { initialPage: props.initialPage }).use(plugin).mount(el);
+        createApp(PublicApp, { initialPage: props.initialPage })
+            .use(plugin)
+            .mount(el);
     },
     progress: {
         color: '#4B5563',

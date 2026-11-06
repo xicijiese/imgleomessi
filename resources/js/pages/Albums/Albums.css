@@ -1,0 +1,340 @@
+/* 相册列表与详情复用图库基础，本文件仅补充相册布局。 */
+.archive-albums
+    header[data-theme='afa']
+    nav[aria-label='主导航']
+    a[href='/albums'] {
+    text-decoration: underline;
+    text-decoration-color: var(--browser-gold);
+    text-decoration-thickness: 3px;
+    text-underline-offset: 10px;
+}
+.archive-albums .album-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 30px 24px;
+}
+.archive-albums .album-card {
+    display: block;
+    min-width: 0;
+}
+.archive-albums .album-cover {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 4/3;
+    overflow: hidden;
+    border-radius: 6px;
+    background: var(--browser-surface);
+}
+.archive-albums .album-cover img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 240ms;
+}
+.archive-albums .album-count {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    background: #fff;
+    font-size: 12px;
+}
+.archive-albums .album-card-copy {
+    padding-top: 14px;
+}
+.archive-albums .album-card h2 {
+    font-size: 19px;
+    font-weight: 600;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+.archive-albums .album-card time {
+    display: block;
+    margin-top: 6px;
+    color: var(--browser-muted);
+    font-size: 12px;
+}
+.archive-albums .album-category {
+    margin-top: 8px;
+    color: var(--browser-muted);
+    font-size: 12px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+.archive-albums .album-description {
+    margin-top: 8px;
+    color: var(--browser-muted);
+    font-size: 14px;
+    line-height: 1.8;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+.archive-albums .album-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    margin: 16px 0 12px;
+    font-size: 14px;
+}
+.archive-albums .album-intro {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--browser-line);
+}
+.archive-albums .album-intro-copy {
+    min-width: 0;
+}
+.archive-albums .album-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+}
+.archive-albums .album-title-row h1 {
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+.archive-albums .album-title-row > button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-shrink: 0;
+    min-height: 44px;
+    padding: 0 16px;
+    color: var(--browser-ink);
+    border: 1px solid var(--browser-line);
+    border-radius: 6px;
+    background: #fff;
+    font-size: 14px;
+}
+.archive-albums .album-summary {
+    margin-top: 10px;
+    color: var(--browser-muted);
+    font-size: 13px;
+    line-height: 1.8;
+}
+.archive-albums .album-intro .album-description {
+    margin-top: 12px;
+}
+.archive-albums .album-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+.archive-albums .album-categories span {
+    padding: 4px 9px;
+    border-radius: 4px;
+    background: #98cef026;
+    font-size: 12px;
+    line-height: 1.7;
+}
+.archive-albums .album-info-toggle {
+    display: none;
+}
+.archive-albums .album-photo-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 24px 0 20px;
+}
+.archive-albums .album-photo-toolbar h2 {
+    font-size: 23px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+.archive-albums .album-photo-toolbar p {
+    margin-top: 4px;
+    color: var(--browser-muted);
+    font-size: 13px;
+}
+.archive-albums .browser-card-copy h3 {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+.archive-albums .album-info-toggle svg {
+    flex-shrink: 0;
+    transition: transform 160ms;
+}
+.archive-albums .album-title-row > button:active,
+.archive-albums .album-info-toggle:active {
+    transform: scale(0.97);
+}
+@media (hover: hover) {
+    .archive-albums .album-card:hover .album-cover {
+        outline: 1px solid var(--browser-gold);
+        outline-offset: 3px;
+    }
+    .archive-albums .album-card:hover img {
+        transform: scale(1.025);
+    }
+    .archive-albums .album-card:hover h2 {
+        text-decoration: underline;
+        text-decoration-color: var(--browser-gold);
+        text-underline-offset: 5px;
+    }
+    .archive-albums .album-title-row > button:hover {
+        border-color: var(--browser-gold);
+    }
+}
+@media (max-width: 1023px) {
+    .archive-albums .album-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .archive-albums .album-intro {
+        grid-template-columns: 220px minmax(0, 1fr);
+        gap: 24px;
+    }
+    .archive-albums .album-title-row h1 {
+        font-size: 26px;
+    }
+}
+@media (max-width: 767px) {
+    .archive-albums .album-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+    .archive-albums .album-card {
+        display: grid;
+        grid-template-columns: 112px minmax(0, 1fr);
+        gap: 10px 16px;
+        align-items: start;
+    }
+    .archive-albums .album-card-copy {
+        padding-top: 0;
+    }
+    .archive-albums .album-card h2 {
+        font-size: 16px;
+    }
+    .archive-albums .album-card .album-description {
+        grid-column: 1/-1;
+        margin-top: 8px;
+        font-size: 13px;
+    }
+    .archive-albums .album-count {
+        right: 5px;
+        bottom: 5px;
+        padding: 3px 6px;
+        font-size: 11px;
+    }
+    .archive-albums .browser-filter-toggle::after {
+        display: none;
+    }
+    .archive-albums .album-back {
+        margin: 8px 0;
+    }
+    .archive-albums .album-intro {
+        grid-template-columns: 88px minmax(0, 1fr);
+        gap: 16px;
+        padding-bottom: 20px;
+    }
+    .archive-albums .album-intro-copy {
+        display: contents;
+    }
+    .archive-albums .album-intro > .album-cover {
+        grid-column: 1;
+        grid-row: 1;
+        margin-top: 4px;
+    }
+    .archive-albums .album-title-row {
+        display: block;
+        grid-column: 2;
+        grid-row: 1;
+    }
+    .archive-albums .album-title-row h1 {
+        font-size: 22px;
+        line-height: 1.5;
+    }
+    .archive-albums .album-title-row > button {
+        margin-top: 10px;
+        padding: 0 12px;
+        font-size: 13px;
+    }
+    .archive-albums .album-summary {
+        grid-column: 1/-1;
+        font-size: 12px;
+    }
+    .archive-albums #album-info {
+        grid-column: 1/-1;
+    }
+    .archive-albums #album-info .album-description {
+        margin-top: 0;
+        font-size: 13px;
+    }
+    .archive-albums .album-info-toggle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        grid-column: 1/-1;
+        min-height: 52px;
+        padding: 0 14px;
+        color: var(--browser-ink);
+        border: 1px solid var(--browser-line);
+        border-radius: 6px;
+        background: #98cef026;
+        text-align: left;
+        font-size: 14px;
+    }
+    .archive-albums .album-info-toggle strong {
+        font-weight: 600;
+    }
+    .archive-albums .album-info-toggle > span {
+        margin-left: auto;
+        color: var(--browser-muted);
+        font-size: 13px;
+    }
+    .archive-albums .album-info-toggle[aria-expanded='true'] {
+        border-color: var(--browser-gold);
+    }
+    .archive-albums .album-info-toggle[aria-expanded='true'] svg {
+        transform: rotate(180deg);
+    }
+    .archive-albums .album-photo-toolbar {
+        margin: 20px 0 16px;
+        gap: 10px;
+    }
+    .archive-albums .album-photo-toolbar h2 {
+        font-size: 21px;
+    }
+    .archive-albums .album-photo-toolbar p {
+        font-size: 12px;
+    }
+    .archive-albums .album-photo-toolbar select {
+        max-width: 145px;
+        font-size: 12px;
+    }
+    .archive-albums .browser-card-copy h3 {
+        font-size: 13px;
+    }
+    .archive-albums .album-categories {
+        gap: 6px;
+    }
+    .archive-albums .album-categories span {
+        font-size: 11px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .archive-albums .album-cover img,
+    .archive-albums .album-info-toggle svg {
+        transition: none;
+    }
+    .archive-albums .album-card:hover img,
+    .archive-albums .album-title-row > button:active,
+    .archive-albums .album-info-toggle:active {
+        transform: none;
+    }
+}

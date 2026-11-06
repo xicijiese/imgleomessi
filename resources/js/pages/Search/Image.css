@@ -1,0 +1,292 @@
+/* 以图搜图仅调整呈现，上传、轮询与会话沿用原逻辑。 */
+.archive-browser.archive-image-search {
+    min-height: 0;
+}
+.archive-image-search .image-search-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    margin-top: 16px;
+    font-size: 14px;
+}
+.archive-image-search .image-search-heading {
+    margin: 12px 0 24px;
+}
+.archive-image-search .image-search-heading h1 {
+    font-size: 32px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+.archive-image-search .image-search-heading p {
+    margin-top: 8px;
+    color: var(--browser-muted);
+    font-size: 14px;
+    line-height: 1.8;
+}
+.archive-image-search .image-query-panel {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 24px;
+    padding: 24px;
+    border: 1px solid var(--browser-line);
+    border-radius: 8px;
+}
+.archive-image-search .image-query-preview {
+    display: grid;
+    place-items: center;
+    width: 180px;
+    height: 135px;
+    overflow: hidden;
+    border-radius: 6px;
+    background: var(--browser-surface);
+}
+.archive-image-search .image-query-preview > img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.archive-image-search .image-preview-placeholder {
+    display: grid;
+    place-items: center;
+    gap: 10px;
+    color: var(--browser-muted);
+    font-size: 12px;
+}
+.archive-image-search .image-query-controls {
+    min-width: 0;
+}
+.archive-image-search .image-query-controls label {
+    display: block;
+    margin-bottom: 12px;
+    font-size: 16px;
+    font-weight: 600;
+}
+.archive-image-search .image-query-controls input {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-height: 44px;
+    color: var(--browser-ink);
+    font-size: 0;
+}
+.archive-image-search .image-query-controls input::file-selector-button {
+    min-height: 44px;
+    margin-right: 12px;
+    padding: 0 14px;
+    border: 1px solid var(--browser-line);
+    border-radius: 6px;
+    background: #98cef026;
+    color: var(--browser-ink);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+.archive-image-search .image-query-filename {
+    display: block;
+    margin-top: 4px;
+    color: var(--browser-muted);
+    font-size: 12px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+.archive-image-search .image-query-controls > p {
+    margin-top: 8px;
+    color: var(--browser-muted);
+    font-size: 13px;
+    line-height: 1.7;
+}
+.archive-image-search #privacy-help {
+    margin-top: 4px;
+}
+.archive-image-search #image-error {
+    color: #a52b35;
+    font-size: 14px;
+}
+.archive-image-search #image-error:empty {
+    display: none;
+}
+.archive-image-search .browser-primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.archive-image-search .image-search-limitation {
+    margin-top: 14px;
+    color: var(--browser-muted);
+    font-size: 13px;
+    line-height: 1.8;
+}
+.archive-image-search .image-search-status {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-top: 28px;
+    padding: 24px;
+    border: 1px solid var(--browser-line);
+    border-radius: 8px;
+    background: #98cef026;
+}
+.archive-image-search .image-search-status > svg {
+    flex-shrink: 0;
+}
+.archive-image-search .image-search-status h2,
+.archive-image-search .image-search-error h2 {
+    font-size: 19px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+.archive-image-search .image-search-status p,
+.archive-image-search .image-search-error p {
+    margin-top: 6px;
+    color: var(--browser-muted);
+    font-size: 14px;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+}
+.archive-image-search .image-search-status button {
+    margin-top: 14px;
+    font-size: 13px;
+}
+.archive-image-search .image-search-error {
+    margin-top: 28px;
+    padding: 22px 24px;
+    border: 1px solid #a52b3540;
+    border-radius: 8px;
+    background: #a52b3508;
+}
+.archive-image-search .image-search-error h2,
+.archive-image-search .image-search-error p {
+    color: #922c36;
+}
+.archive-image-search .image-search-results {
+    margin-top: 28px;
+}
+.archive-image-search .image-results-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+.archive-image-search .image-results-heading h2 {
+    font-size: 23px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+.archive-image-search .image-results-heading > span {
+    color: var(--browser-muted);
+    font-size: 13px;
+}
+.archive-image-search .browser-card-copy h3 {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+.archive-image-search .browser-empty-state {
+    min-height: 260px;
+}
+.archive-image-search .browser-empty-state h3 {
+    font-size: 21px;
+    font-weight: 600;
+}
+@media (max-width: 1023px) {
+    .archive-image-search .image-query-panel {
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 18px;
+    }
+    .archive-image-search .image-query-preview {
+        grid-row: 1/3;
+        width: 150px;
+        height: 112px;
+    }
+    .archive-image-search .image-query-panel > button {
+        grid-column: 2;
+        justify-self: start;
+    }
+}
+@media (max-width: 767px) {
+    .archive-image-search .image-search-back {
+        margin-top: 8px;
+    }
+    .archive-image-search .image-search-heading {
+        margin: 12px 0 20px;
+    }
+    .archive-image-search .image-search-heading h1 {
+        font-size: 26px;
+    }
+    .archive-image-search .image-search-heading p {
+        font-size: 13px;
+    }
+    .archive-image-search .image-query-panel {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+        padding: 18px;
+    }
+    .archive-image-search .image-query-preview {
+        width: 100%;
+        height: 150px;
+    }
+    .archive-image-search
+        .image-query-panel:not(.has-preview)
+        .image-query-preview {
+        display: none;
+    }
+    .archive-image-search .image-query-controls label {
+        margin-bottom: 10px;
+        font-size: 15px;
+    }
+    .archive-image-search .image-query-controls input::file-selector-button {
+        margin-right: 8px;
+        padding: 0 12px;
+    }
+    .archive-image-search .image-query-controls > p {
+        font-size: 12px;
+    }
+    .archive-image-search .image-query-panel > button {
+        width: 100%;
+        font-size: 14px;
+    }
+    .archive-image-search .image-search-limitation {
+        font-size: 12px;
+    }
+    .archive-image-search .image-search-status {
+        gap: 12px;
+        margin-top: 24px;
+        padding: 18px;
+    }
+    .archive-image-search .image-search-status h2,
+    .archive-image-search .image-search-error h2 {
+        font-size: 17px;
+    }
+    .archive-image-search .image-search-status p,
+    .archive-image-search .image-search-error p {
+        font-size: 13px;
+    }
+    .archive-image-search .image-search-error {
+        margin-top: 24px;
+        padding: 18px;
+    }
+    .archive-image-search .image-search-results {
+        margin-top: 24px;
+    }
+    .archive-image-search .image-results-heading h2 {
+        font-size: 21px;
+    }
+    .archive-image-search .image-results-heading > span {
+        font-size: 12px;
+    }
+    .archive-image-search .browser-card-copy h3 {
+        font-size: 13px;
+    }
+    .archive-image-search .browser-empty-state {
+        padding: 28px 20px;
+    }
+    .archive-image-search .browser-empty-state h3 {
+        font-size: 19px;
+    }
+}

@@ -3,7 +3,7 @@ import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import type { SeoPayload } from '@/types';
 import { Link, router } from '@inertiajs/vue3';
-import { ChevronRight, ImageOff, RotateCcw, Search } from 'lucide-vue-next';
+
 import { computed, reactive, ref } from 'vue';
 
 interface NavigationItem {
@@ -75,114 +75,108 @@ const applyFilters = () => {
 
 const resetFilters = () => {
     form.q = '';
-    router.get(props.archive.dimension.path, {}, { preserveScroll: true, replace: true });
+    router.get(
+        props.archive.dimension.path,
+        {},
+        { preserveScroll: true, replace: true },
+    );
 };
-</script>
 
+import { useArchiveBrowserMotion } from '@/composables/useArchiveBrowserMotion';
+import '../../../css/archive-browser.css';
+const pageRoot = ref<HTMLElement | null>(null);
+useArchiveBrowserMotion(pageRoot);
+</script>
 <template>
     <SeoHead :seo="archive.seo" />
-
-    <main class="min-h-screen bg-[#fffffe] text-[#094067]">
-        <PublicHeader :navigation="archive.navigation" :site="archive.site" />
-
-        <section class="border-b border-[#90b4ce]/30 bg-[#d8eefe] px-4 py-10 sm:px-6 lg:px-8">
-            <div class="mx-auto flex max-w-7xl flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                    <p class="mb-3 text-sm font-semibold text-[#3da9fc]">
-                        {{ archive.dimension.eyebrow }}
-                    </p>
-                    <h1 class="text-4xl font-semibold sm:text-5xl">
-                        {{ archive.dimension.title }}
-                    </h1>
-                    <p class="mt-4 max-w-2xl text-sm leading-7 text-[#5f6c7b] sm:text-base">
-                        {{ archive.dimension.subtitle }}
-                    </p>
+    <main ref="pageRoot" class="archive-browser archive-dimensions">
+        <PublicHeader
+            :site="archive.site"
+            :navigation="archive.navigation"
+            theme="afa"
+        />
+        <div class="dimension-main">
+            <section class="intro browser-heading">
+                <h1>{{ archive.dimension.title }}</h1>
+                <p>{{ archive.dimension.subtitle }}</p>
+                <div class="summary">
+                    <span
+                        ><strong>{{ archive.summary.dimensions_count }}</strong>
+                        个{{ archive.dimension.label }}</span
+                    ><span
+                        ><strong>{{ archive.summary.photos_count }}</strong>
+                        张公开图片</span
+                    ><span
+                        ><strong>{{ archive.summary.albums_count }}</strong>
+                        个相册</span
+                    >
                 </div>
-
-                <div class="grid gap-2 rounded-sm bg-[#fffffe] px-4 py-3 text-sm text-[#5f6c7b] shadow-sm sm:grid-cols-3 sm:gap-5">
-                    <span><strong class="text-[#094067]">{{ archive.summary.dimensions_count }}</strong> 个维度</span>
-                    <span><strong class="text-[#094067]">{{ archive.summary.photos_count }}</strong> 张图片</span>
-                    <span><strong class="text-[#094067]">{{ archive.summary.albums_count }}</strong> 个相册</span>
-                </div>
-            </div>
-        </section>
-
-        <section class="px-4 py-8 sm:px-6 lg:px-8">
-            <div class="mx-auto max-w-7xl">
-                <form class="mb-8 grid gap-3 rounded-sm border border-[#90b4ce]/30 bg-[#fffffe] p-4 shadow-sm sm:grid-cols-[minmax(0,1fr)_auto_auto]" @submit.prevent="applyFilters">
-                    <label class="block">
-                        <span class="sr-only">关键词</span>
-                        <span class="flex h-11 items-center rounded-sm border border-[#90b4ce]/60 px-3">
-                            <Search class="mr-2 h-4 w-4 shrink-0 text-[#5f6c7b]" aria-hidden="true" />
-                            <input
-                                v-model="form.q"
-                                type="search"
-                                class="w-full bg-transparent text-sm outline-none placeholder:text-[#5f6c7b]"
-                                placeholder="搜索维度名称或说明"
-                            />
-                        </span>
-                    </label>
-                    <button type="submit" class="inline-flex h-11 items-center justify-center gap-2 rounded-sm bg-[#3da9fc] px-4 text-sm font-semibold text-[#fffffe] hover:bg-[#094067]">
-                        <Search class="h-4 w-4" aria-hidden="true" />
-                        筛选
-                    </button>
-                    <button type="button" class="inline-flex h-11 items-center justify-center gap-2 rounded-sm border border-[#90b4ce]/60 px-4 text-sm font-semibold text-[#094067] hover:border-[#3da9fc] hover:text-[#3da9fc]" @click="resetFilters">
-                        <RotateCcw class="h-4 w-4" aria-hidden="true" />
-                        重置
-                    </button>
-                </form>
-
-                <div v-if="hasDimensions" class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                    <article v-for="item in archive.dimensions" :key="item.id" class="overflow-hidden rounded-sm border border-[#90b4ce]/25 bg-[#fffffe] shadow-sm">
-                        <Link :href="item.url" class="group block aspect-[4/3] overflow-hidden bg-[#d8eefe]" :aria-label="`浏览${item.name}`">
-                            <img
-                                v-if="item.cover_image_url && !imageFailures[item.id]"
-                                :src="item.cover_image_url"
-                                :alt="item.cover_alt"
-                                loading="lazy"
-                                class="h-full w-full object-cover transition duration-500 group-hover:scale-105 group-hover:brightness-95"
-                                @error="imageFailures[item.id] = true"
-                            />
-                            <div v-else class="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#d8eefe,#90b4ce)] text-[#094067]">
-                                <ImageOff class="h-8 w-8" aria-hidden="true" />
-                            </div>
-                        </Link>
-                        <div class="grid gap-4 p-5">
-                            <div>
-                                <h2 class="text-xl font-semibold text-[#094067]">
-                                    {{ item.name }}
-                                </h2>
-                                <p v-if="item.description" class="mt-2 line-clamp-2 text-sm leading-6 text-[#5f6c7b]">
-                                    {{ item.description }}
-                                </p>
-                            </div>
-                            <div class="flex flex-wrap gap-2 text-xs font-semibold text-[#094067]">
-                                <span class="rounded-full bg-[#d8eefe] px-3 py-1.5">{{ item.public_photos_count }} 张图片</span>
-                                <span class="rounded-full bg-[#d8eefe] px-3 py-1.5">{{ item.public_albums_count }} 个相册</span>
-                                <span class="rounded-full bg-[#d8eefe] px-3 py-1.5">{{ formatDate(item.latest_event_date) }}</span>
-                            </div>
-                            <div class="flex flex-wrap gap-3">
-                                <Link :href="item.url" class="inline-flex h-10 items-center gap-1 rounded-sm bg-[#3da9fc] px-3 text-sm font-semibold text-[#fffffe] hover:bg-[#094067]">
-                                    进入
-                                    <ChevronRight class="h-4 w-4" aria-hidden="true" />
-                                </Link>
-                                <Link :href="item.gallery_url" class="inline-flex h-10 items-center rounded-sm border border-[#90b4ce]/60 px-3 text-sm font-semibold text-[#094067] hover:border-[#3da9fc] hover:text-[#3da9fc]">
-                                    返回图库
-                                </Link>
-                            </div>
+            </section>
+            <form
+                class="controls browser-quick-filters"
+                @submit.prevent="applyFilters"
+            >
+                <label class="keyword"
+                    >关键词<input
+                        v-model="form.q"
+                        type="search"
+                        placeholder="标题、说明或 URL 标识" /></label
+                ><button class="primary" type="submit">搜索</button
+                ><button class="outline" type="button" @click="resetFilters">
+                    重置
+                </button>
+            </form>
+            <p class="result-line">
+                共 {{ archive.dimensions.length }} 个{{
+                    archive.dimension.label
+                }}
+            </p>
+            <div v-if="hasDimensions" class="dimension-grid">
+                <article
+                    v-for="item in archive.dimensions"
+                    :key="item.id"
+                    class="dimension-card"
+                >
+                    <Link
+                        :href="item.url"
+                        class="cover"
+                        :aria-label="`进入${item.name}`"
+                        ><img
+                            v-if="
+                                item.cover_image_url && !imageFailures[item.id]
+                            "
+                            :src="item.cover_image_url"
+                            :alt="item.cover_alt"
+                            loading="lazy"
+                            @error="imageFailures[item.id] = true"
+                        /><span v-else class="failed"
+                            >图片暂时无法显示</span
+                        ></Link
+                    >
+                    <div class="card-copy">
+                        <h2>
+                            <Link :href="item.url">{{ item.name }}</Link>
+                        </h2>
+                        <p v-if="item.description">{{ item.description }}</p>
+                        <p>
+                            {{ item.public_photos_count }} 张公开图片 ·
+                            {{ item.public_albums_count }} 个相册
+                        </p>
+                        <p>
+                            最近事件：{{ formatDate(item.latest_event_date) }}
+                        </p>
+                        <div class="card-actions">
+                            <Link :href="item.url">进入档案</Link
+                            ><Link :href="item.gallery_url">返回图库</Link>
                         </div>
-                    </article>
-                </div>
-
-                <div v-else class="rounded-sm bg-[#d8eefe] px-6 py-14 text-center">
-                    <h2 class="text-2xl font-semibold text-[#094067]">
-                        {{ archive.dimension.empty_title }}
-                    </h2>
-                    <p class="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#5f6c7b]">
-                        {{ archive.dimension.empty_description }}
-                    </p>
-                </div>
+                    </div>
+                </article>
             </div>
-        </section>
+            <section v-else class="empty">
+                <h2>{{ archive.dimension.empty_title }}</h2>
+                <p>{{ archive.dimension.empty_description }}</p>
+            </section>
+        </div>
     </main>
 </template>
+<style scoped src="./Dimensions.css"></style>
