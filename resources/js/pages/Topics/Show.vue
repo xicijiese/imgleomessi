@@ -2,6 +2,7 @@
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import SharePanel from '@/components/SharePanel.vue';
+import { useGalleryScrollReveal } from '@/composables/useGalleryScrollReveal';
 import type { SeoPayload } from '@/types';
 import { Link } from '@inertiajs/vue3';
 import { gsap } from 'gsap';
@@ -98,6 +99,11 @@ const formatDate = (date: string | null) => date ?? '日期待补充';
 
 // 复用相册的紧凑布局；专题只折叠介绍，原内容及顺序保持。
 const root = ref<HTMLElement | null>(null);
+useGalleryScrollReveal(
+    root,
+    () => [props.topicDetail.albums.data, props.topicDetail.photos.data],
+    '.topic-section-heading, .album-grid > .album-card, .browser-photo-grid > *',
+);
 const isMobile = ref(false);
 const infoExpanded = ref(false);
 const infoVisible = computed(() => !isMobile.value || infoExpanded.value);

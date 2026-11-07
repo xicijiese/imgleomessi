@@ -21,6 +21,7 @@ class PublicAlbumIndexTest extends TestCase
 
         $photo = $this->publicPhoto('相册封面', [
             'display_key' => 'photos/display/album-cover.webp',
+            'thumbnail_key' => 'photos/thumbnail/album-cover.webp',
         ]);
         $album = $this->publishedAlbum('2022 世界杯决赛', [
             'slug' => '2022-world-cup-final',
@@ -40,7 +41,7 @@ class PublicAlbumIndexTest extends TestCase
                 ->where('albumIndex.albums.data.0.title', '2022 世界杯决赛')
                 ->where('albumIndex.albums.data.0.url', '/albums/2022-world-cup-final')
                 ->where('albumIndex.albums.data.0.public_photos_count', 1)
-                ->where('albumIndex.albums.data.0.cover_image_url', '/storage/photos/display/album-cover.webp')
+                ->where('albumIndex.albums.data.0.cover_image_url', '/storage/photos/thumbnail/album-cover.webp')
             );
     }
 
@@ -118,10 +119,12 @@ class PublicAlbumIndexTest extends TestCase
     {
         $manualCover = $this->publicPhoto('手动封面', [
             'display_key' => 'photos/display/manual-cover.webp',
+            'thumbnail_key' => 'photos/thumbnail/manual-cover.webp',
             'published_at' => now()->subDay(),
         ]);
         $otherPhoto = $this->publicPhoto('普通公开图', [
             'display_key' => 'photos/display/other-cover.webp',
+            'thumbnail_key' => 'photos/thumbnail/other-cover.webp',
             'published_at' => now(),
         ]);
         $manualAlbum = $this->publishedAlbum('manual cover album', [
@@ -134,15 +137,17 @@ class PublicAlbumIndexTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Albums/Index')
                 ->has('albumIndex.albums.data', 1)
-                ->where('albumIndex.albums.data.0.cover_image_url', '/storage/photos/display/manual-cover.webp')
+                ->where('albumIndex.albums.data.0.cover_image_url', '/storage/photos/thumbnail/manual-cover.webp')
             );
 
         $restrictedCover = $this->publicPhoto('不可公开封面', [
             'copyright_status' => 'restricted',
             'display_key' => 'photos/display/restricted-cover.webp',
+            'thumbnail_key' => 'photos/thumbnail/restricted-cover.webp',
         ]);
         $fallbackCover = $this->publicPhoto('兜底封面', [
             'display_key' => 'photos/display/fallback-cover.webp',
+            'thumbnail_key' => 'photos/thumbnail/fallback-cover.webp',
         ]);
         $fallbackAlbum = $this->publishedAlbum('fallback cover album', [
             'cover_photo_id' => $restrictedCover->id,
@@ -154,7 +159,7 @@ class PublicAlbumIndexTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Albums/Index')
                 ->has('albumIndex.albums.data', 1)
-                ->where('albumIndex.albums.data.0.cover_image_url', '/storage/photos/display/fallback-cover.webp')
+                ->where('albumIndex.albums.data.0.cover_image_url', '/storage/photos/thumbnail/fallback-cover.webp')
             );
     }
 

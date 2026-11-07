@@ -447,6 +447,8 @@ P1-11 已落库。当前真实写入基础文件信息、SHA-256 精确哈希、
 | created_at / updated_at | timestamps | 时间戳 |
 
 `settings` 是 Phase 1 P0 首页配置的数据基础，用于保存站点基础信息、导航、头图轮播、分类模块、最新照片模块、专题模块、页脚配置，以及项目后台的图片存储配置。P0 不做拖拽式 CMS，不在数据库中为首页每个小模块拆独立表；首页固定结构通过结构化 JSON 配置驱动，前台读取时必须过滤草稿、隐藏、归档、版权受限或请求下架内容。存储配置使用 group=storage、key=config 保存，腾讯云 SecretKey 必须加密后写入 JSON，表单不得回显明文。
+
+2026-11-06头图焦点：home/hero_slides的每项增加desktop_focus、mobile_focus对象，均为{x:50,y:50}形式，数值范围0–100，允许小数（存储时保留两位）。未配置时默认居中，保存时校验坐标形状及范围，读取异常历史值时回退或限幅。不改表结构、图片路径或源文件，无需迁移。
 ## 6. 轻社交
 
 ### comments
@@ -840,3 +842,10 @@ openid/unionid不返回公开接口或普通日志；无解密业务时不长期
 ### 站点双 LOGO 配置（2026-10-22）
 
 沿用settings(group=site,key=basic)的value JSON：logo_path仍为白底导航的深色默认LOGO，新增可空logo_light_path用于首页透明导航的浅色版本。旧JSON缺少该键时按null读取，不回填、不迁移，也不改用户已有图片路径。公开响应提供解析后的logo_url/logo_light_url。
+
+## 备案信息链接（2026-11-07，本地）
+
+系统设置→站点基础新增可选备案信息链接（site.icp_url），仅接受HTTP/HTTPS完整地址，最长2048字符；保存时去除首尾空白，空值归一为null，并同步兼容footer JSON。旧配置不设置默认跳转网址，读取时再过滤异常历史URL，无需迁移。前台两种页脚主题：有备案文字且链接有效时显示下划线超链接，新标签打开并带noopener noreferrer；未设链接显示普通文字，无备案文字不显示空链接。20项PHP测试/194断言、类型/ESLint/Pint/构建通过，浏览器1440/390px临时响应样例验证href、target、rel和留空回退通过，未改真实配置，未部署。
+### settings.image_variants派生资源记录（2026-11-07）
+
+沿用settings表，不新增迁移。group=image_variants、key=规范化站点图片源Key的SHA256，value={display_key,thumbnail_key}；只有两者均有值、互不相同且不等于源Key才视为就绪。公开响应只输出按用途解析后的URL，不输出原源路径或整份元数据。Photo沿用原有display_key/thumbnail_key，补生成只更新这两列及updated_at，不动original_key或发布状态。

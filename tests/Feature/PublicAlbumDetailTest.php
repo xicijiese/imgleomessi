@@ -26,6 +26,7 @@ class PublicAlbumDetailTest extends TestCase
         ]);
         $photo = $this->publicPhoto('世界杯决赛捧杯', [
             'display_key' => 'photos/display/world-cup-final.webp',
+            'thumbnail_key' => 'photos/thumbnail/world-cup-final.webp',
             'event_date' => '2022-12-18',
         ]);
         $photo->categories()->sync($this->pendingCategoryIds());
@@ -49,12 +50,12 @@ class PublicAlbumDetailTest extends TestCase
                 ->where('albumDetail.album.slug', '2022-world-cup-final')
                 ->where('albumDetail.album.description', '阿根廷夺冠夜相册')
                 ->where('albumDetail.album.public_photos_count', 1)
-                ->where('albumDetail.album.cover_image_url', '/storage/photos/display/world-cup-final.webp')
+                ->where('albumDetail.album.cover_image_url', '/storage/photos/thumbnail/world-cup-final.webp')
                 ->has('albumDetail.album.categories', 8)
                 ->has('albumDetail.photos.data', 1)
                 ->where('albumDetail.photos.data.0.title', '世界杯决赛捧杯')
                 ->where('albumDetail.photos.data.0.url', '/photos/'.$photo->uuid.'?album=2022-world-cup-final')
-                ->where('albumDetail.photos.data.0.image_url', '/storage/photos/display/world-cup-final.webp')
+                ->where('albumDetail.photos.data.0.image_url', '/storage/photos/thumbnail/world-cup-final.webp')
                 ->where('albumDetail.photos.data.0.event_date', '2022-12-18')
                 ->where('albumDetail.photos.data.0.tags.0.name', '捧杯')
             );
@@ -115,10 +116,12 @@ class PublicAlbumDetailTest extends TestCase
     {
         $manualCover = $this->publicPhoto('手动封面', [
             'display_key' => 'photos/display/manual-detail-cover.webp',
+            'thumbnail_key' => 'photos/thumbnail/manual-detail-cover.webp',
             'published_at' => now()->subDay(),
         ]);
         $otherPhoto = $this->publicPhoto('普通公开图', [
             'display_key' => 'photos/display/other-detail-cover.webp',
+            'thumbnail_key' => 'photos/thumbnail/other-detail-cover.webp',
             'published_at' => now(),
         ]);
         $manualAlbum = $this->publishedAlbum('手动封面相册', [
@@ -131,15 +134,17 @@ class PublicAlbumDetailTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Albums/Show')
-                ->where('albumDetail.album.cover_image_url', '/storage/photos/display/manual-detail-cover.webp')
+                ->where('albumDetail.album.cover_image_url', '/storage/photos/thumbnail/manual-detail-cover.webp')
             );
 
         $restrictedCover = $this->publicPhoto('不可公开封面', [
             'copyright_status' => 'restricted',
             'display_key' => 'photos/display/restricted-detail-cover.webp',
+            'thumbnail_key' => 'photos/thumbnail/restricted-detail-cover.webp',
         ]);
         $fallbackCover = $this->publicPhoto('兜底封面', [
             'display_key' => 'photos/display/fallback-detail-cover.webp',
+            'thumbnail_key' => 'photos/thumbnail/fallback-detail-cover.webp',
             'published_at' => now(),
         ]);
         $fallbackAlbum = $this->publishedAlbum('兜底封面相册', [
@@ -152,7 +157,7 @@ class PublicAlbumDetailTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Albums/Show')
-                ->where('albumDetail.album.cover_image_url', '/storage/photos/display/fallback-detail-cover.webp')
+                ->where('albumDetail.album.cover_image_url', '/storage/photos/thumbnail/fallback-detail-cover.webp')
             );
     }
 

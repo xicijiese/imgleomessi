@@ -17,6 +17,7 @@ use App\Models\Tag;
 use App\Models\User;
 use App\Services\BadgeService;
 use App\Services\HomepageSettings;
+use App\Services\LocalPhotoDerivativeService;
 use App\Services\PhotoProcessingService;
 use App\Services\SponsorshipService;
 use Illuminate\Database\Seeder;
@@ -248,11 +249,10 @@ class LocalGalleryDemoSeeder extends Seeder
             'mime_type' => File::mimeType($path),
             'file_size' => File::size($path),
             'original_key' => $storagePath,
-            'display_key' => $storagePath,
-            'thumbnail_key' => $storagePath,
             'published_at' => $publishedAt,
         ]);
         $photo->save();
+        $photo->update(app(LocalPhotoDerivativeService::class)->generate($photo));
 
         $photo->categories()->sync($this->categorySet($categories, $index));
         $photo->tags()->sync(collect($tags)->shuffle()->take(3)->pluck('id')->all());

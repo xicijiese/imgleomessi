@@ -5,6 +5,7 @@ import PublicHeader from '@/components/PublicHeader.vue';
 import PublicPhotoFilters from '@/components/PublicPhotoFilters.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import { useArchiveBrowserMotion } from '@/composables/useArchiveBrowserMotion';
+import { useGalleryScrollReveal } from '@/composables/useGalleryScrollReveal';
 import type { SeoPayload } from '@/types';
 import { Link } from '@inertiajs/vue3';
 import { ArrowUpRight, Image, Search } from 'lucide-vue-next';
@@ -119,6 +120,7 @@ const props = defineProps<{
 const browserRoot = ref<HTMLElement | null>(null);
 const isLoading = ref(false);
 useArchiveBrowserMotion(browserRoot);
+useGalleryScrollReveal(browserRoot, () => props.gallery.photos.data);
 const hasPhotos = computed(() => props.gallery.photos.data.length > 0);
 </script>
 

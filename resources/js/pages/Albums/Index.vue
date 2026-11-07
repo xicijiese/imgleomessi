@@ -3,6 +3,7 @@ import ArchivePagination from '@/components/ArchivePagination.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import { useArchiveBrowserMotion } from '@/composables/useArchiveBrowserMotion';
+import { useGalleryScrollReveal } from '@/composables/useGalleryScrollReveal';
 import type { SeoPayload } from '@/types';
 import { Link, router } from '@inertiajs/vue3';
 import { gsap } from 'gsap';
@@ -92,6 +93,11 @@ const props = defineProps<{
 
 const filtersOpen = ref(false);
 const root = ref<HTMLElement | null>(null);
+useGalleryScrollReveal(
+    root,
+    () => props.albumIndex.albums.data,
+    '.album-grid > .album-card',
+);
 const filterDialog = ref<HTMLDialogElement | null>(null);
 const loading = ref(false);
 let dialogTween: gsap.core.Tween | undefined;

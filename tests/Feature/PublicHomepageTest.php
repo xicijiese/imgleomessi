@@ -54,6 +54,25 @@ class PublicHomepageTest extends TestCase
             ->where('home.site.logo_light_url', null));
     }
 
+    public function test_hero_focus_is_returned_with_center_defaults_for_existing_slides(): void
+    {
+        Setting::setValue('home', 'hero_slides', [
+            ['title' => '旧头图', 'desktop_image_path' => 'settings/hero/old.webp'],
+            ['title' => '自定义焦点', 'desktop_focus' => ['x' => 0, 'y' => 100], 'mobile_focus' => ['x' => 75, 'y' => 15]],
+            ['title' => '异常旧配置', 'desktop_focus' => ['x' => 'bad', 'y' => 120]],
+        ]);
+
+        $this->get('/')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('home.hero_slides.0.desktop_focus.x', 50)
+            ->where('home.hero_slides.0.mobile_focus.y', 50)
+            ->where('home.hero_slides.1.desktop_focus.x', 0)
+            ->where('home.hero_slides.1.desktop_focus.y', 100)
+            ->where('home.hero_slides.1.mobile_focus.x', 75)
+            ->where('home.hero_slides.1.mobile_focus.y', 15)
+            ->where('home.hero_slides.2.desktop_focus.x', 50)
+            ->where('home.hero_slides.2.desktop_focus.y', 100));
+    }
+
     public function test_homepage_latest_photos_only_exposes_public_photos_with_pinned_first(): void
     {
         $pinned = Photo::query()->create([

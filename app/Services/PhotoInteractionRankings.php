@@ -201,7 +201,7 @@ class PhotoInteractionRankings
             'title' => $photo->title,
             'url' => '/photos/'.$photo->uuid,
             'admin_url' => '/admin/photos',
-            'image_url' => PublicMediaUrl::fromPublicDisk($photo->display_key ?: $photo->thumbnail_key),
+            'image_url' => PublicMediaUrl::thumbnail($photo),
             'alt' => $photo->title,
             'event_date' => $photo->event_date?->toDateString(),
             'published_at' => $photo->published_at?->toDateTimeString(),

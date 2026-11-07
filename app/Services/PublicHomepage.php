@@ -99,8 +99,10 @@ class PublicHomepage
                 'subtitle' => $slide['subtitle'] ?? '按时间、赛事、相册和标签整理梅西图片资料',
                 'button_label' => $slide['button_label'] ?? null,
                 'button_url' => $slide['button_url'] ?? null,
-                'desktop_image_url' => $this->mediaUrl($slide['desktop_image_path'] ?? null),
-                'mobile_image_url' => $this->mediaUrl($slide['mobile_image_path'] ?? null),
+                'desktop_image_url' => PublicMediaUrl::settingImage($slide['desktop_image_path'] ?? null, 'display_key'),
+                'mobile_image_url' => PublicMediaUrl::settingImage($slide['mobile_image_path'] ?? null, 'display_key'),
+                'desktop_focus' => HomepageSettings::heroFocus($slide['desktop_focus'] ?? null),
+                'mobile_focus' => HomepageSettings::heroFocus($slide['mobile_focus'] ?? null),
             ])
             ->values()
             ->all();
@@ -116,6 +118,8 @@ class PublicHomepage
             'button_url' => '/photos',
             'desktop_image_url' => null,
             'mobile_image_url' => null,
+            'desktop_focus' => HomepageSettings::heroFocus(null),
+            'mobile_focus' => HomepageSettings::heroFocus(null),
         ]];
     }
 
@@ -284,7 +288,7 @@ class PublicHomepage
             ->map(fn (array $item): array => [
                 'title' => (string) ($item['title'] ?? ''),
                 'url' => (string) ($item['url'] ?? '#'),
-                'cover_image_url' => $this->mediaUrl($item['cover_image_path'] ?? null),
+                'cover_image_url' => PublicMediaUrl::settingImage($item['cover_image_path'] ?? null),
             ])
             ->filter(fn (array $item): bool => filled($item['title']))
             ->values()
@@ -304,10 +308,15 @@ class PublicHomepage
     private function footer(array $settings): array
     {
         $footer = Arr::get($settings, 'footer', []);
+        $icpUrl = $footer['icp_url'] ?? null;
+        $icpUrl = is_string($icpUrl) && filter_var($icpUrl, FILTER_VALIDATE_URL)
+            && in_array(strtolower((string) parse_url($icpUrl, PHP_URL_SCHEME)), ['http', 'https'], true)
+            ? $icpUrl : null;
 
         return [
             'copyright_text' => $footer['copyright_text'] ?? '梅西影像档案库',
             'icp_text' => $footer['icp_text'] ?? null,
+            'icp_url' => $icpUrl,
             'links' => $this->withStaticPageLinks($this->enabledLinks($footer['links'] ?? [])),
             'social_links' => $this->enabledLinks($footer['social_links'] ?? []),
         ];
@@ -377,7 +386,7 @@ class PublicHomepage
             'type' => 'photo',
             'title' => $photo->title,
             'url' => '/photos/'.$photo->uuid,
-            'image_url' => $this->mediaUrl($photo->thumbnail_key ?: $photo->display_key),
+            'image_url' => PublicMediaUrl::thumbnail($photo),
             'alt' => $photo->title,
         ];
     }
@@ -394,7 +403,7 @@ class PublicHomepage
             'type' => 'album',
             'title' => $album->title,
             'url' => '/albums/'.$album->slug,
-            'image_url' => $coverPhoto instanceof Photo ? $this->mediaUrl($coverPhoto->thumbnail_key ?: $coverPhoto->display_key) : null,
+            'image_url' => $coverPhoto instanceof Photo ? PublicMediaUrl::thumbnail($coverPhoto) : null,
             'alt' => $album->title,
         ];
     }

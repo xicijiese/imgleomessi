@@ -2,6 +2,7 @@
 import ArchivePagination from '@/components/ArchivePagination.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
+import { useGalleryScrollReveal } from '@/composables/useGalleryScrollReveal';
 import type { SeoPayload } from '@/types';
 import { Link, router } from '@inertiajs/vue3';
 
@@ -201,6 +202,11 @@ const resetFilters = () => {
 import { useArchiveBrowserMotion } from '@/composables/useArchiveBrowserMotion';
 import '../../../css/archive-browser.css';
 const pageRoot = ref<HTMLElement | null>(null);
+useGalleryScrollReveal(
+    pageRoot,
+    () => props.timeline,
+    '.photo-grid > *, .related > h2, .related-grid > *',
+);
 useArchiveBrowserMotion(pageRoot);
 const filterDialog = ref<HTMLDialogElement | null>(null);
 const filterTrigger = ref<HTMLButtonElement | null>(null);

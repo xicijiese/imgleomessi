@@ -24,6 +24,7 @@ class PublicSearchTest extends TestCase
             'status' => 'published',
             'published_at' => now(),
             'display_key' => 'photos/display/public.webp',
+            'thumbnail_key' => 'photos/thumbnail/public.webp',
         ]);
 
         $this->get('/search')
@@ -35,7 +36,7 @@ class PublicSearchTest extends TestCase
                 ->has('search.filter_options.category_groups', 8)
                 ->has('search.photos.data', 1)
                 ->where('search.photos.data.0.title', '公开图库图片')
-                ->where('search.photos.data.0.image_url', '/storage/photos/display/public.webp')
+                ->where('search.photos.data.0.image_url', '/storage/photos/thumbnail/public.webp')
             );
     }
 

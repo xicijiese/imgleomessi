@@ -232,7 +232,7 @@ class PublicAlbumIndex
             'slug' => $album->slug,
             'description' => Str::limit((string) $album->description, 120),
             'url' => '/albums/'.$album->slug,
-            'cover_image_url' => $coverPhoto instanceof Photo ? $this->mediaUrl($coverPhoto->display_key ?: $coverPhoto->thumbnail_key) : null,
+            'cover_image_url' => $coverPhoto instanceof Photo ? PublicMediaUrl::thumbnail($coverPhoto) : null,
             'cover_alt' => $album->title,
             'published_at' => $album->published_at?->toDateString(),
             'public_photos_count' => (int) ($album->public_photos_count ?? 0),

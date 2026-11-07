@@ -2216,3 +2216,151 @@ cd /www/wwwroot/img.leomessi.cn && /www/server/php/83/bin/php artisan schedule:r
 内容下架后阻断新读取/保存/分享落地并清除可控缓存；设备已保存图片和外部分发的海报无法远程撤回。账号注销涉及两端同一账号及相关记录，先核对删除/保留/审计规则，不在上线脚本中批量清理账号或图片。
 
 平台待核验资料入口与本次访问局限见第三方服务文档“新微信小程序接入计划”；本轮未连接平台、服务器或执行迁移。
+
+## Inertia依赖升级发布补充（2026-11-07，待发布）
+
+本地Inertia Vue/core已升级到2.3.29（2.x），锁文件已更新，尚未启用页面转场。发布时需一并更新package.json及package-lock.json，在项目目录执行npm ci，再执行npm run build；只拉代码或只运行build无法保证安装到锁定的新依赖。本轮无需Composer升级或数据库迁移。依照现有发布步骤备份及更新，构建成功后再验证导航、分页、表单错误与浏览器返回；勿在构建清理资源清单时并发做页面渲染测试。
+2026-11-07转场推广发布补充：本轮新增page-transitions.css作为Vite入口，须同步vite.config.ts、前台与Filament共享Blade片段及AdminPanelProvider；执行npm run build生成新CSS条目后再验证页面，缺少新manifest条目会导致模板渲染失败。按既有步骤清理并重建Laravel视图/应用缓存；无需迁移或修改权限，未部署。
+## 缩略图分级整改增量发布（2026-11-07，生产尚未执行）
+
+1. 备份数据库和存储引用；先审核源Key及存储模式。本轮本地只处理31张图库+7个站点资源，不表示生产数量相同，禁止在生产重跑LocalGalleryDemoSeeder。
+2. 同步新Job/服务/命令及页面资源选择代码，执行composer install --no-dev --optimize-autoloader（或既有发布中的自动加载更新步骤），无需数据库迁移。按既有流程刷新Laravel缓存，必要的前端构建沿用项目发布步骤。
+3. Supervisor队列Worker必须包含 --queue=image-variants,default，或新增只监听image-variants的Worker（使用现有队列连接）；保持原有其他队列配置，更新代码后重启Worker。否则新封面只能看到占位。本地composer dev/dev:ssr已加入监听，本轮只启动了隐藏的本地专用Worker，未修改生产Supervisor。
+4. 先运行PHP对应路径的 artisan media:repair-variants（无--apply，仅报告），评估数量、源文件可用性和COS/数据万象费用。确认范围并备份后再运行 artisan media:repair-variants --apply。--local-only仅用于只处理public磁盘已有源文件的场景；不要在COS生产站点误用后以为全站已修完。
+5. 等待image-variants队列完成，检查失败任务（artisan queue:failed）与日志；失败资源显示占位，不能退回原图掩盖问题。再次盘点应归零，并抽检文件实际存在、600/2048尺寸、前台网络URL及详情主图。当前盘点主要检查缺失/混用Key与站点元数据，若人工删除了已记录的派生文件，还需单独核查存储，不能仅凭Key盘点认定文件完整。
+6. 维护期间原图不删除、发布状态不变。生成派生文件会占用空间与可能产生COS费用；不在部署脚本中自动触发批处理。旧外链配置不自动抓取，需管理员改为受管理上传资源。生产未部署，相关检查待实际发布完成。
+## 2026-11-07累计修改生产更新教程（待执行）
+
+本节对应首页及前台整改、滚动入场、Inertia 2.3.29、页面转场、页脚及备案链接、头图焦点/按钮、注册必填提示和图片缩略图分级。暂不增加专用封面版本。以下依据既有生产目录/www/wwwroot/img.leomessi.cn、PHP8.3和Redis Worker示例；现有Worker的其他队列、运行用户与进程数量应保留。本轮无新增migration，无需运行migrate或任何Seeder。
+
+### A. 本地先提交并推送
+
+当前main有未提交修改，尚未自动推送。检查git status --short及git diff --stat。按审核结果提交本次代码，必须包含新Job、服务、命令、Blade片段、样式和锁文件。不要git add .；本地.scratch/artifacts、.taste-skill、.finesse、数据库、图片、.env、vendor/node_modules/public/build不上传。
+
+```powershell
+git add app resources tests docs composer.json package.json package-lock.json vite.config.ts database/seeders/LocalGalleryDemoSeeder.php CHANGELOG.md CONTEXT.md .scratch/messi-gallery/README.md
+git diff --cached --stat
+git commit -m "统一前台样式与转场，优化图片派生资源和后台设置"
+git push origin main
+```
+
+上述明确路径不会将本地SQLite或原始图片整个database/storage目录加入。若状态中有其他同事或无关改动，先逐项检查，再决定是否暂存，不要覆盖或重置。
+
+### B. 生产备份与维护
+
+宝塔先备份本站MySQL数据库，保存本次备份位置；确认生产.env中的APP_ENV、APP_URL、数据库、Redis及后台COS/数据万象配置保持生产值，不用本地.env覆盖。不删除COS对象，尤其不删除原图。
+
+在宝塔终端进入项目并检查工作区：
+
+```bash
+cd /www/wwwroot/img.leomessi.cn
+git status --short
+```
+
+有未提交服务器改动时先停，不强制覆盖。工作区确认后备份旧代码版本与资源，备份放在站点public之外并限制权限：
+
+```bash
+umask 077
+release_backup="/www/backup/messi-releases/$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$release_backup"
+git rev-parse HEAD > "$release_backup/commit.txt"
+cp -a .env "$release_backup/.env"
+cp -a public/build "$release_backup/build"
+/www/server/php/83/bin/php artisan down
+```
+
+若当前没有public/build，先核实现有站点资源部署方式，不跳过异常继续。维护模式期间访客不可用，以下步骤需在维护窗口完成。
+
+### C. 拉代码、依赖与构建
+
+```bash
+git pull --ff-only origin main
+export PATH="/www/server/php/83/bin:$PATH"
+php -v
+command -v composer
+```
+
+确认PHP为8.3。下面Composer路径假设上一步输出/usr/bin/composer；如果不同，替换为实际路径。
+
+```bash
+/www/server/php/83/bin/php /usr/bin/composer install --no-dev --prefer-dist --optimize-autoloader
+npm ci
+npm run build
+```
+
+必须构建成功，新manifest要包含page-transitions.css入口；不要把本地public/build直接覆盖到服务器。使用install锁定Composer依赖，不运行composer update或npm update。失败先停止定位，不继续恢复访客。
+
+### D. 刷新缓存
+
+```bash
+/www/server/php/83/bin/php artisan optimize:clear
+/www/server/php/83/bin/php artisan filament:cache-components
+/www/server/php/83/bin/php artisan config:cache
+/www/server/php/83/bin/php artisan route:cache
+/www/server/php/83/bin/php artisan view:cache
+```
+
+### E. 修改并重启宝塔现有Worker
+
+宝塔进程守护中编辑本站既有队列进程，加入image-variants，保留原有high/default/low或其他队列及原有运行用户。按既有Redis示例：
+
+```bash
+/www/server/php/83/bin/php /www/wwwroot/img.leomessi.cn/artisan queue:work redis --queue=image-variants,high,default,low --sleep=3 --tries=3 --timeout=120 --max-time=3600
+```
+
+工作目录仍为/www/wwwroot/img.leomessi.cn，保存并在宝塔重启该守护进程。若现有命令使用的连接不是redis，先核对配置，不机械替换连接。本轮不需要启动第二份常驻Worker。维护模式下普通Worker暂停消费属于正常现象。
+
+### F. 盘点与补齐生产图片资源
+
+先核对后台配置仍为COS，数据万象启用且有源对象读取/图片处理及派生对象写入权限，生成后的CDN/COS地址能够按现有策略公开访问展示资源。不要执行现有“存储检测”来替代配置核对，因为它包含试写操作。
+
+只读盘点：
+
+```bash
+/www/server/php/83/bin/php artisan media:repair-variants
+```
+
+该命令只报告图库候选数及独立站点图片数，不生成。不要带--local-only，否则会跳过仅存在COS的源图。数量很大或存储配置不明时先停在此阶段，评估维护时间、空间及处理费用；候选数量不能套用本地31+7。
+
+确认范围与备份后再执行：
+
+```bash
+/www/server/php/83/bin/php artisan media:repair-variants --apply
+```
+
+这一步只入队，后续Worker会读取源图并新增/更新最大600px缩略图及2048px展示图，额外占用存储并可能产生COS/数据万象费用。原图和发布状态不变，不生成新讨论的专用封面版本。
+
+维护模式下若需要先处理少量验证，可在当前终端运行只监听专用队列的一次性Worker，--force仅用于允许维护期间消费：
+
+```bash
+/www/server/php/83/bin/php artisan queue:work redis --queue=image-variants --max-jobs=3 --stop-when-empty --force --tries=3 --timeout=120
+```
+
+检查前三项日志及COS派生文件后，再消费其余专用任务：
+
+```bash
+/www/server/php/83/bin/php artisan queue:work redis --queue=image-variants --stop-when-empty --force --tries=3 --timeout=120
+```
+
+这里连接同样必须与生产实际一致。这是前台运行并处理完退出的临时命令，不新增常驻守护。原有守护在维护状态暂停，避免把其他队列任务一并强制执行。
+
+```bash
+/www/server/php/83/bin/php artisan queue:failed
+/www/server/php/83/bin/php artisan media:repair-variants
+```
+
+补齐后候选应归零；若尚有排队/延迟重试或失败，先查日志及失败记录，不能盲目重复--apply或queue:retry all。此盘点不是存储完整性扫描，还应抽检新派生文件确实存在、尺寸正确且CDN地址可读。源Key为外部URL的旧配置不自动抓取，需改为受管理的上传资源。
+
+### G. 恢复访问与验收
+
+```bash
+/www/server/php/83/bin/php artisan up
+```
+
+恢复后确认宝塔Worker保持运行。浏览器Ctrl+F5，以正常100%缩放检查：首页/图库/相册/专题/时间线/排行榜、个人中心及手机布局；站内转场无黑边，减少动态效果可回退；列表网络图片为thumbnail.webp，详情主图/头图为display.webp，原图地址未新暴露；后台头图焦点、单个可配置按钮、版权/备案文字与链接保存显示；注册空值/错误格式被拒绝，别用真实用户资料制造测试账号。检查浏览器控制台、Laravel日志及queue:failed。
+
+CDN只在确认存在旧缓存时定向刷新相关资源，不用全站清缓存替代依赖安装和构建。HTTP正常但图片为空时重点检查image-variants队列、失败记录、COS路径/权限和CDN，不要把代码改回读取原图掩盖问题。
+
+### H. 异常与回退
+
+任一步异常先保存错误输出，不强制git reset --hard、不清库、不执行migrate:fresh、db:seed或迁移回滚。本轮没有迁移需要回滚。代码需要回退时必须使用备份记录对应的代码及匹配public/build一起恢复，并重新安装对应锁定依赖、刷新缓存和重启Worker；不能只回退资源清单。无需为了代码问题直接恢复整库，否则可能覆盖发布后新增用户与业务记录。新派生文件一般可以保留，不盲删COS文件。必要时保持维护模式并按具体错误制定回退步骤。

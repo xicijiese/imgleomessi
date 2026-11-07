@@ -165,7 +165,7 @@ class PublicUserProfile
         return [
             'title' => $photo->title,
             'url' => '/photos/'.$photo->uuid,
-            'image_url' => PublicMediaUrl::fromPublicDisk($photo->display_key ?: $photo->thumbnail_key),
+            'image_url' => PublicMediaUrl::thumbnail($photo),
         ];
     }
 }

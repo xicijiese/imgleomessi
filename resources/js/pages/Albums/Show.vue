@@ -3,6 +3,7 @@ import ArchivePagination from '@/components/ArchivePagination.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import SharePanel from '@/components/SharePanel.vue';
+import { useGalleryScrollReveal } from '@/composables/useGalleryScrollReveal';
 import type { SeoPayload } from '@/types';
 import { Link, router } from '@inertiajs/vue3';
 import { gsap } from 'gsap';
@@ -123,6 +124,11 @@ const applySort = () => {
 const formatDate = (date: string | null) => date ?? '日期待补充';
 
 const root = ref<HTMLElement | null>(null);
+useGalleryScrollReveal(
+    root,
+    () => props.albumDetail.photos.data,
+    '.browser-photo-grid > *',
+);
 const isMobile = ref(false);
 const infoExpanded = ref(false);
 const infoVisible = computed(() => !isMobile.value || infoExpanded.value);

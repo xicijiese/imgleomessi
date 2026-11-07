@@ -2,6 +2,7 @@
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import { useArchiveBrowserMotion } from '@/composables/useArchiveBrowserMotion';
+import { useGalleryScrollReveal } from '@/composables/useGalleryScrollReveal';
 import type { SeoPayload } from '@/types';
 import { Link } from '@inertiajs/vue3';
 import { ImageOff, Images } from 'lucide-vue-next';
@@ -42,6 +43,11 @@ const imageFailures = ref<Record<string, boolean>>({});
 const hasTopics = computed(() => props.topicIndex.topics.data.length > 0);
 
 const root = ref<HTMLElement | null>(null);
+useGalleryScrollReveal(
+    root,
+    () => props.topicIndex.topics.data,
+    '.topic-grid > *',
+);
 useArchiveBrowserMotion(root);
 </script>
 <template>

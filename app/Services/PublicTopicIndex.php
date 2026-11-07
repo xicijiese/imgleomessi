@@ -38,7 +38,7 @@ class PublicTopicIndex
             ->map(fn (array $item): array => [
                 'title' => trim((string) ($item['title'] ?? '')),
                 'url' => trim((string) ($item['url'] ?? '')),
-                'cover_image_url' => $this->mediaUrl($item['cover_image_path'] ?? null),
+                'cover_image_url' => PublicMediaUrl::settingImage($item['cover_image_path'] ?? null),
             ])
             ->filter(fn (array $item): bool => filled($item['title']) && $this->isTopicUrl($item['url']))
             ->values()

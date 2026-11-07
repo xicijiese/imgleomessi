@@ -22,6 +22,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\ViewField;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
@@ -98,10 +99,17 @@ class SystemSettings extends Page
                                             ->maxLength(255),
                                         TextInput::make('site.icp_text')
                                             ->label('备案信息')
+                                            ->helperText('保存后显示在前台页脚的站点信息中。')
                                             ->maxLength(255),
                                         TextInput::make('site.copyright_text')
                                             ->label('版权文字')
+                                            ->helperText('保存后显示在前台页脚的站点信息中。')
                                             ->maxLength(255),
+                                        TextInput::make('site.icp_url')
+                                            ->label('备案信息链接')
+                                            ->helperText('填写完整的 HTTP 或 HTTPS 地址；留空时备案信息显示为普通文字。')
+                                            ->rules(['nullable', 'url:http,https'])
+                                            ->maxLength(2048),
                                     ])
                                     ->columns(2),
                                 Textarea::make('internal_note')
@@ -137,9 +145,12 @@ class SystemSettings extends Page
                                     ->schema([
                                         Toggle::make('enabled')
                                             ->label('启用')
-                                            ->default(true),
-                                        self::settingImageUpload('desktop_image_path', '桌面端图片', 'settings/hero'),
-                                        self::settingImageUpload('mobile_image_path', '移动端图片', 'settings/hero'),
+                                            ->default(true)
+                                            ->columnSpanFull(),
+                                        self::settingImageUpload('desktop_image_path', '桌面端图片', 'settings/hero')->live(),
+                                        self::settingImageUpload('mobile_image_path', '移动端图片', 'settings/hero')->live(),
+                                        self::heroFocusField('desktop', '桌面端焦点'),
+                                        self::heroFocusField('mobile', '手机端焦点'),
                                         TextInput::make('title')
                                             ->label('标题')
                                             ->maxLength(255),
@@ -304,16 +315,7 @@ class SystemSettings extends Page
                             ]),
                         Tab::make('页脚')
                             ->schema([
-                                Section::make('页脚基础')
-                                    ->schema([
-                                        TextInput::make('footer.copyright_text')
-                                            ->label('版权文字')
-                                            ->maxLength(255),
-                                        TextInput::make('footer.icp_text')
-                                            ->label('备案信息')
-                                            ->maxLength(255),
-                                    ])
-                                    ->columns(2),
+                                Text::make('版权文字与备案信息统一在“站点基础”标签中维护，保存后应用到前台页脚。'),
                                 Repeater::make('footer.links')
                                     ->label('页脚链接')
                                     ->schema([
@@ -438,6 +440,27 @@ class SystemSettings extends Page
                     ->persistTabInQueryString(),
             ])
             ->statePath('data');
+    }
+
+    private static function heroFocusField(string $device, string $label): ViewField
+    {
+        return ViewField::make($device.'_focus')
+            ->label($label)
+            ->default(['x' => 50, 'y' => 50])
+            ->view('filament.forms.hero-focus')
+            ->viewData(function (Get $get) use ($device): array {
+                $other = $device === 'desktop' ? 'mobile' : 'desktop';
+                $image = $get($device.'_image_path') ?: $get($other.'_image_path');
+                $image = is_array($image) ? reset($image) : $image;
+                $url = null;
+                if ($image instanceof TemporaryUploadedFile) {
+                    $url = $image->temporaryUrl();
+                } elseif (is_string($image) && $image !== '') {
+                    $url = app(PhotoStorage::class)->url($image);
+                }
+
+                return ['imageUrl' => $url ? Str::sanitizeUrl($url) : null, 'device' => $device];
+            });
     }
 
     private static function settingImageUpload(string $name, string $label, string $directory): FileUpload

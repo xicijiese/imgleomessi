@@ -313,3 +313,32 @@ HomepageSettings.site在原logo_path旁新增可空logo_light_path，PublicHomep
 ## 公开关键词关联检索（2026-10-22）
 
 PublicPhotoGallery供/search与/photos复用：在原title/description的同一where分组内，增加tags.name、categories.name、已发布albums.title及其categories.name的orWhereHas。分类匹配限制子/父分类都public，相册限制published；EXISTS防止一图多相册或多标签匹配产生重复，不改变外层公开/版权条件或已有AND筛选。PublicAlbumIndex增加同样公开分类名匹配，保留原标题/描述/slug逻辑。无需数据库迁移、搜索索引重建或新依赖，不接外部引擎。LocalGalleryDemoSeeder复用HomepageSettings默认搜索提示，避免演示文案反复写回。
+
+## Inertia 2.x依赖升级（2026-11-07，本地）
+
+为后续View Transitions样板，将@inertiajs/vue3及配套@inertiajs/core从2.2.7升级到2.3.29；package.json最低范围^2.3.29，package-lock.json锁定本次依赖树。仍为2.x，不跨3.x；Vue保持3.5.22，Laravel端inertia-laravel保持2.0.25，无数据库迁移。安装仅更新Inertia及关联依赖（含其引入的laravel-precognition，未启用预校验功能）。官方2.x文档说明View Transitions自2.2.13支持：https://inertiajs.com/docs/v2/the-basics/view-transitions 。
+
+本轮只升级依赖，未配置viewTransition或修改现有跳转/动效。类型检查、生产构建、14项前端测试及67项PHP测试/933断言通过。PHP测试首次与构建并发时因Vite清理manifest短暂失败1项，构建完成后顺序重跑全部通过；以后相关回归在构建完成后运行。浏览器独立标签确认同文档跳转、图库分页、相册详情、历史返回及注册空值/非法信息错误回显通过，无有效测试账号创建；登录/资料等认证业务由内存数据库测试覆盖。证据.scratch/artifacts/inertia-upgrade-*，未部署。
+## View Transitions页面转场样板（2026-11-07，本地待用户确认）
+
+在Inertia 2.3.29的createInertiaApp.defaults.visitOptions中接入官方viewTransition选项，仅当来源与目标均属于首页/图库/相册列表/相册详情、同源且pathname不同的同步GET完整页面访问时启用。同页分页/筛选/锚点、局部刷新、异步请求、表单提交、其他前台和后台均不启用。首次打开无转场，历史返回沿用Inertia原有即时恢复和滚动行为，未宣称返回也有转场。
+
+效果为旧页180ms淡出、新页220ms淡入，无位移/缩放；API不支持、页面隐藏或prefers-reduced-motion时正常跳转。快照准备超过400ms时调用skipTransition，不为了动画额外等待图片加载；该计时仅约束快照准备，不是网络或整个导航的耗时上限。保留现有GSAP模块动效和页面尺寸，不改业务路由/表单/数据。
+
+类型、ESLint、构建及14项现有前端测试通过。真实浏览器1440/390px记录原生转场ready/finished及CSS时长，样板导航通过；分页不触发、历史返回滚动位置恢复、reduce/模拟缺失API回退、快速连续点击通过。实测多图页准备偶有变慢后加入超时保护，再测正常转场与人为延迟700ms的快照更新，后者按预期跳过并完成导航。证据.scratch/artifacts/view-transition-*。独立测试标签已清理，用户标签缩放及视口未改；未部署，等待观看样板后再推广。
+## 全站页面转场推广（2026-11-07，本地）
+
+按用户授权解除Inertia样板路径白名单：所有同源、不同pathname的同步GET完整前台访问启用原生View Transitions；同页分页/筛选/锚点、only局部刷新、async请求和POST等提交仍不启用，历史返回保留Inertia即时恢复。延续旧页180ms淡出/新页220ms淡入、reduce与无API回退及快照准备400ms超时跳过，不变更页面尺寸、业务导航、权限或GSAP模块动效。
+
+新增独立resources/css/page-transitions.css构建入口，前台Blade与Filament STYLES_AFTER共用partials/page-transitions，后台整页导航以@view-transition navigation:auto接入，不启用Filament SPA。头部经典脚本在pageswap排除同路径查询、普通表单提交、reduce及无法取得导航目标的情况；pagereveal回收计时器并保护慢快照。Livewire已阻止默认提交的页内操作不受影响。外部链接、新标签、下载及不支持的浏览器沿用正常浏览器行为；跨文档浏览器支持面与前台同文档API并不完全相同。
+
+类型、ESLint、Pint、构建、14项前端测试及81项PHP测试/1013断言通过。浏览器覆盖专题、时间线、排行榜、支持/致谢及5个说明页的实际转场触发与回退，无前台脚本异常；自动化工具保持后台标签，部分转场因400ms保护跳过，不宣称全部页面都完成动画。工具前台策略不可用，未绕过限制；正常前台观感需用户确认。
+
+后台真实账户未用于保存或业务操作。最初完整隔离表单样例触发过Livewire419与会话确认，已改用实际Filament头部资源、剥离会话绑定脚本的样例；原生跨文档ready/finished及0.22s时长、同路径分页/POST排除均通过，测试POST由浏览器拦截响应，不写开发后台。证据.scratch/artifacts/view-transition-rollout-*与view-transition-admin-light.js。未部署。
+## 公共图片资源用途与异步派生（2026-11-07）
+
+PublicMediaUrl集中选择Photo的thumbnail/display版本，拒绝原图别名和缩略图/展示图共用Key。显式字段查询须同时选择original_key以供内部判别，响应中仍不得返回原图存储键。列表只返回thumbnail，详情主图display优先；缺少有效资源返回null并使用原占位组件。
+
+SettingImageVariants对受管理的settings/photos/demo-gallery相对路径规范化，以sourceKey的SHA256查settings.image_variants记录；PublicMediaUrl::settingImage只读此结果。外部URL及路径穿越不自动下载。后台HomepageSettings保存后排队，不同步压缩；GeneratePublicImageVariants为ShouldQueue+ShouldBeUnique，采用image-variants队列（sync环境强制database），按Photo ID或站点source Key去重，3次重试/120秒超时/唯一锁3600秒。原图在本地public磁盘时走GD，否则COS模式调用原有数据万象服务；不发布照片或修改图片其他资料。
+
+独立站点图片用setting-{hash}命名空间保存派生版本，设置中原上传路径不变；派生元数据另存，更新旧封面后不自动删除旧派生文件，避免误删缓存或复用资源。media:repair-variants默认只读盘点，--apply才排队，--local-only限制到本地已有源文件；图库查询lazyById(200)避免一次性加载全库。生产处理必须人工检查范围、备份和费用，不在访客或自动发布时重跑Seeder。

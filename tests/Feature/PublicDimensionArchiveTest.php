@@ -31,6 +31,7 @@ class PublicDimensionArchiveTest extends TestCase
         $publicPhoto = $this->publicPhoto('阿根廷公开图片', [
             'event_date' => '2022-12-18',
             'display_key' => 'photos/display/argentina.webp',
+            'thumbnail_key' => 'photos/thumbnail/argentina.webp',
         ]);
         $publicPhoto->categories()->sync([$argentina->id]);
 
@@ -56,7 +57,7 @@ class PublicDimensionArchiveTest extends TestCase
                 ->has('archive.dimensions', 1)
                 ->where('archive.dimensions.0.name', '阿根廷国家队')
                 ->where('archive.dimensions.0.url', '/teams/argentina-era')
-                ->where('archive.dimensions.0.cover_image_url', '/storage/photos/display/argentina.webp')
+                ->where('archive.dimensions.0.cover_image_url', '/storage/photos/thumbnail/argentina.webp')
                 ->where('archive.dimensions.0.public_photos_count', 1)
                 ->where('archive.dimensions.0.public_albums_count', 1)
             );
@@ -77,6 +78,7 @@ class PublicDimensionArchiveTest extends TestCase
             'description' => '阿根廷夺冠夜',
             'event_date' => '2022-12-18',
             'display_key' => 'photos/display/world-cup-final.webp',
+            'thumbnail_key' => 'photos/thumbnail/world-cup-final.webp',
             'published_at' => now()->subDay(),
         ]);
         $matching->categories()->sync([$argentina->id]);
@@ -137,7 +139,7 @@ class PublicDimensionArchiveTest extends TestCase
                 ->where('archive.summary.years_count', 2)
                 ->has('archive.photos.data', 1)
                 ->where('archive.photos.data.0.title', 'World Cup final celebration')
-                ->where('archive.photos.data.0.image_url', '/storage/photos/display/world-cup-final.webp')
+                ->where('archive.photos.data.0.image_url', '/storage/photos/thumbnail/world-cup-final.webp')
                 ->missing('archive.photos.data.0.original_key')
                 ->missing('archive.photos.data.0.stored_filename')
                 ->has('archive.albums', 1)

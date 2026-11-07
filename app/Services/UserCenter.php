@@ -383,7 +383,7 @@ class UserCenter
             'uuid' => $photo->uuid,
             'title' => $photo->title,
             'url' => '/photos/'.$photo->uuid,
-            'image_url' => $this->mediaUrl($photo->display_key ?: $photo->thumbnail_key),
+            'image_url' => PublicMediaUrl::thumbnail($photo),
             'category_summary' => $photo->categories
                 ->take(3)
                 ->map(fn ($category): string => $category->parent?->name ? $category->parent->name.' / '.$category->name : $category->name)

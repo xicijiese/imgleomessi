@@ -29,6 +29,7 @@ class PublicPhotoGalleryTest extends TestCase
             'status' => 'published',
             'published_at' => now(),
             'display_key' => 'photos/display/public.webp',
+            'thumbnail_key' => 'photos/thumbnail/public.webp',
         ]);
 
         $this->get('/photos')
@@ -40,7 +41,7 @@ class PublicPhotoGalleryTest extends TestCase
                 ->has('gallery.filter_options.category_groups', 8)
                 ->has('gallery.photos.data', 1)
                 ->where('gallery.photos.data.0.title', '公开图库图片')
-                ->where('gallery.photos.data.0.image_url', '/storage/photos/display/public.webp')
+                ->where('gallery.photos.data.0.image_url', '/storage/photos/thumbnail/public.webp')
             );
     }
 

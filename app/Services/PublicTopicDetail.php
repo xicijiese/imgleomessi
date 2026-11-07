@@ -70,7 +70,7 @@ class PublicTopicDetail
             'slug' => $slug,
             'url' => '/topics/'.$slug,
             'description' => filled($topic['description'] ?? null) ? (string) $topic['description'] : null,
-            'cover_image_url' => $this->mediaUrl($topic['cover_image_path'] ?? null),
+            'cover_image_url' => PublicMediaUrl::settingImage($topic['cover_image_path'] ?? null),
             'cover_alt' => trim((string) ($topic['title'] ?? '专题')),
         ];
     }
@@ -174,7 +174,7 @@ class PublicTopicDetail
             'slug' => $album->slug,
             'description' => Str::limit((string) $album->description, 120),
             'url' => '/albums/'.$album->slug,
-            'cover_image_url' => $coverPhoto instanceof Photo ? $this->mediaUrl($coverPhoto->display_key ?: $coverPhoto->thumbnail_key) : null,
+            'cover_image_url' => $coverPhoto instanceof Photo ? PublicMediaUrl::thumbnail($coverPhoto) : null,
             'cover_alt' => $album->title,
             'published_at' => $album->published_at?->toDateString(),
             'public_photos_count' => (int) ($album->public_photos_count ?? 0),
@@ -203,7 +203,7 @@ class PublicTopicDetail
             'title' => $photo->title,
             'description' => Str::limit((string) $photo->description, 96),
             'url' => '/photos/'.$photo->uuid.'?topic='.rawurlencode($slug),
-            'image_url' => $this->mediaUrl($photo->display_key ?: $photo->thumbnail_key),
+            'image_url' => PublicMediaUrl::thumbnail($photo),
             'alt' => filled($photo->title) ? $photo->title : '梅西图片档案',
             'event_date' => $photo->event_date?->toDateString(),
             'published_at' => $photo->published_at?->toDateString(),

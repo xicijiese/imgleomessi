@@ -12,6 +12,7 @@ interface NavigationItem {
 interface FooterPayload {
     copyright_text: string;
     icp_text: string | null;
+    icp_url?: string | null;
     links: NavigationItem[];
     social_links: NavigationItem[];
 }
@@ -55,7 +56,11 @@ const linkGroups = computed(() => {
             social: false,
         },
         { title: '关注我们', links: props.footer.social_links, social: true },
-    ].filter((group) => group.links.length);
+    ].filter(
+        (group) =>
+            group.links.length ||
+            (props.theme === 'archive' && group.title === '站点信息'),
+    );
 });
 
 const footerRoot = ref<HTMLElement | null>(null);
@@ -156,12 +161,24 @@ const isExternalUrl = (url: string) =>
                                 <a v-else :href="link.url">{{ link.label }}</a>
                             </li>
                         </ul>
+                        <div
+                            v-if="group.title === '站点信息'"
+                            class="archive-footer-legal"
+                        >
+                            <p>{{ footer.copyright_text }}</p>
+                            <p v-if="footer.icp_text">
+                                <a
+                                    v-if="footer.icp_url"
+                                    :href="footer.icp_url"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    >{{ footer.icp_text }}</a
+                                >
+                                <span v-else>{{ footer.icp_text }}</span>
+                            </p>
+                        </div>
                     </nav>
                 </div>
-            </div>
-            <div class="archive-footer-legal footer-reveal">
-                <p>{{ footer.copyright_text }}</p>
-                <p v-if="footer.icp_text">{{ footer.icp_text }}</p>
             </div>
         </div>
     </footer>
@@ -176,7 +193,14 @@ const isExternalUrl = (url: string) =>
                 <p class="font-semibold text-[#094067]">{{ site.name }}</p>
                 <p class="mt-2 text-sm">{{ footer.copyright_text }}</p>
                 <p v-if="footer.icp_text" class="mt-1 text-sm">
-                    {{ footer.icp_text }}
+                    <a
+                        v-if="footer.icp_url"
+                        :href="footer.icp_url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        >{{ footer.icp_text }}</a
+                    >
+                    <span v-else>{{ footer.icp_text }}</span>
                 </p>
                 <FooterSocialLinks />
             </div>
@@ -326,15 +350,23 @@ const isExternalUrl = (url: string) =>
 }
 .archive-footer-legal {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 8px 24px;
-    padding-block: 18px 24px;
-    border-top: 1px solid #04224018;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
     color: var(--footer-muted);
     font-size: 12px;
     line-height: 1.8;
     overflow-wrap: anywhere;
+}
+.archive-footer-legal a {
+    text-decoration: none;
+}
+.archive-footer-legal a:hover {
+    color: var(--footer-ink);
+}
+.archive-footer-legal a:focus-visible {
+    outline: 2px solid var(--footer-ink);
+    outline-offset: 3px;
 }
 @media (hover: hover) {
     .archive-footer-links a:hover {
@@ -384,10 +416,6 @@ const isExternalUrl = (url: string) =>
     }
     .archive-footer-links a {
         min-height: 44px;
-    }
-    .archive-footer-legal {
-        flex-direction: column;
-        padding-block: 16px 0;
     }
 }
 @media (prefers-reduced-motion: reduce) {

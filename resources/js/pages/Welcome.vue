@@ -2,6 +2,7 @@
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import SharePanel from '@/components/SharePanel.vue';
+import { useGalleryScrollReveal } from '@/composables/useGalleryScrollReveal';
 import type { SeoPayload } from '@/types';
 import { Link } from '@inertiajs/vue3';
 import { gsap } from 'gsap';
@@ -26,6 +27,8 @@ interface HeroSlide {
     button_url: string | null;
     desktop_image_url: string | null;
     mobile_image_url: string | null;
+    desktop_focus?: { x: number; y: number };
+    mobile_focus?: { x: number; y: number };
 }
 
 interface ShowcaseItem {
@@ -94,24 +97,33 @@ const props = withDefaults(
 );
 
 const homepage = ref<HTMLElement | null>(null);
+useGalleryScrollReveal(
+    homepage,
+    () => [props.home, activeCategoryTab.value],
+    '.home-section > .section-heading, .album-grid, .photo-grid > .photo-card, .topic-carousel',
+);
 let motion: gsap.MatchMedia | undefined;
 let categoryMotion: gsap.core.Tween | undefined;
 const topicTrack = ref<HTMLElement | null>(null);
-const activeTopicIndex = ref(
-    Math.min(1, Math.max(0, props.home.topic_module.items.length - 1)),
-);
+const activeTopicIndex = ref(0);
 let topicObserver: ResizeObserver | undefined;
 let topicScrollTimer: ReturnType<typeof setTimeout> | undefined;
+let topicProgrammaticScroll = false;
 const centerTopic = (index: number, animate = true) => {
     const track = topicTrack.value;
     const card = track?.querySelectorAll<HTMLElement>('.topic-card')[index];
     if (!track || !card || typeof track.scrollTo !== 'function') return;
     activeTopicIndex.value = index;
-    const left =
+    const centeredLeft =
         track.scrollLeft +
         card.getBoundingClientRect().left -
         track.getBoundingClientRect().left -
         (track.clientWidth - card.clientWidth) / 2;
+    const left = Math.max(
+        0,
+        Math.min(centeredLeft, track.scrollWidth - track.clientWidth),
+    );
+    topicProgrammaticScroll = true;
     track.scrollTo({
         left,
         behavior:
@@ -120,36 +132,47 @@ const centerTopic = (index: number, animate = true) => {
                 ? 'smooth'
                 : 'instant',
     });
+    syncTopic();
 };
 const moveTopic = (direction: number) => {
     const count = props.home.topic_module.items.length;
     if (count > 1)
         centerTopic((activeTopicIndex.value + direction + count) % count);
 };
+const selectNearestTopic = () => {
+    const track = topicTrack.value;
+    if (!track) return;
+    const center = track.getBoundingClientRect().left + track.clientWidth / 2;
+    let nearest = 0;
+    let distance = Infinity;
+    track
+        .querySelectorAll<HTMLElement>('.topic-card')
+        .forEach((card, index) => {
+            const delta = Math.abs(
+                card.getBoundingClientRect().left +
+                    card.clientWidth / 2 -
+                    center,
+            );
+            if (delta < distance) {
+                nearest = index;
+                distance = delta;
+            }
+        });
+    activeTopicIndex.value = nearest;
+};
 const syncTopic = () => {
     clearTimeout(topicScrollTimer);
     topicScrollTimer = setTimeout(() => {
-        const track = topicTrack.value;
-        if (!track) return;
-        const center =
-            track.getBoundingClientRect().left + track.clientWidth / 2;
-        let nearest = 0;
-        let distance = Infinity;
-        track
-            .querySelectorAll<HTMLElement>('.topic-card')
-            .forEach((card, index) => {
-                const delta = Math.abs(
-                    card.getBoundingClientRect().left +
-                        card.clientWidth / 2 -
-                        center,
-                );
-                if (delta < distance) {
-                    nearest = index;
-                    distance = delta;
-                }
-            });
-        activeTopicIndex.value = nearest;
+        // 首尾贴边时保留箭头选中的专题，手动滚动才按视口中心重新选中。
+        if (topicProgrammaticScroll) topicProgrammaticScroll = false;
+        else {
+            selectNearestTopic();
+            centerTopic(activeTopicIndex.value);
+        }
     }, 150);
+};
+const beginManualTopicScroll = () => {
+    topicProgrammaticScroll = false;
 };
 const activeHeroIndex = ref(0);
 const activeCategoryIndex = ref(0);
@@ -226,9 +249,16 @@ onMounted(() => {
         homepage.value ?? undefined,
     );
     if (topicTrack.value && typeof ResizeObserver !== 'undefined') {
-        topicObserver = new ResizeObserver(() =>
-            centerTopic(activeTopicIndex.value, false),
-        );
+        let previousWidth = 0;
+        topicObserver = new ResizeObserver(([entry]) => {
+            const width = entry.contentRect.width;
+            if (width === previousWidth) return;
+            if (previousWidth === 0) {
+                topicTrack.value?.scrollTo({ left: 0, behavior: 'instant' });
+                selectNearestTopic();
+            } else centerTopic(activeTopicIndex.value, false);
+            previousWidth = width;
+        });
         topicObserver.observe(topicTrack.value);
     }
     updateScrollPosition();
@@ -276,23 +306,19 @@ onUnmounted(() => {
                         <p v-if="activeHero.subtitle" class="hero-description">
                             {{ activeHero.subtitle }}
                         </p>
-                        <div class="hero-actions">
+                        <div
+                            v-if="
+                                activeHero.button_label && activeHero.button_url
+                            "
+                            class="hero-actions"
+                        >
                             <Link
-                                v-if="
-                                    activeHero.button_label &&
-                                    activeHero.button_url
-                                "
                                 :href="activeHero.button_url"
                                 class="home-button home-button-primary"
                             >
                                 {{ activeHero.button_label
                                 }}<ArrowRight :size="18" aria-hidden="true" />
                             </Link>
-                            <Link
-                                href="/albums"
-                                class="home-button home-button-secondary"
-                                >浏览相册</Link
-                            >
                         </div>
                     </div>
                     <div class="hero-visual">
@@ -308,6 +334,10 @@ onUnmounted(() => {
                                 media="(max-width: 767px)"
                             />
                             <img
+                                :style="{
+                                    '--hero-desktop-focus': `${activeHero.desktop_focus?.x ?? 50}% ${activeHero.desktop_focus?.y ?? 50}%`,
+                                    '--hero-mobile-focus': `${activeHero.mobile_focus?.x ?? 50}% ${activeHero.mobile_focus?.y ?? 50}%`,
+                                }"
                                 :src="
                                     activeHero.desktop_image_url ||
                                     activeHero.mobile_image_url ||
@@ -476,66 +506,70 @@ onUnmounted(() => {
                 <div class="section-heading">
                     <h2>{{ home.topic_module.title }}</h2>
                 </div>
-                <div
-                    v-if="hasTopics"
-                    class="topic-carousel"
-                    role="region"
-                    aria-roledescription="轮播"
-                    :aria-label="home.topic_module.title"
+            </div>
+            <div
+                v-if="hasTopics"
+                class="topic-carousel"
+                role="region"
+                aria-roledescription="轮播"
+                :aria-label="home.topic_module.title"
+            >
+                <button
+                    v-if="home.topic_module.items.length > 1"
+                    type="button"
+                    class="topic-arrow topic-prev"
+                    aria-label="上一个专题"
+                    @click="moveTopic(-1)"
                 >
-                    <button
-                        v-if="home.topic_module.items.length > 1"
-                        type="button"
-                        class="topic-arrow topic-prev"
-                        aria-label="上一个专题"
-                        @click="moveTopic(-1)"
+                    <ChevronLeft :size="22" aria-hidden="true" />
+                </button>
+                <div
+                    ref="topicTrack"
+                    class="topic-track"
+                    @scroll.passive="syncTopic"
+                    @pointerdown="beginManualTopicScroll"
+                    @wheel.passive="beginManualTopicScroll"
+                    @keydown.left.prevent="moveTopic(-1)"
+                    @keydown.right.prevent="moveTopic(1)"
+                >
+                    <Link
+                        v-for="(item, index) in home.topic_module.items"
+                        :key="item.title"
+                        :href="item.url"
+                        class="topic-card"
+                        :class="{ 'is-active': activeTopicIndex === index }"
+                        :aria-current="
+                            activeTopicIndex === index ? 'true' : undefined
+                        "
+                        @focus="centerTopic(index)"
                     >
-                        <ChevronLeft :size="22" aria-hidden="true" />
-                    </button>
-                    <div
-                        ref="topicTrack"
-                        class="topic-track"
-                        @scroll.passive="syncTopic"
-                        @keydown.left.prevent="moveTopic(-1)"
-                        @keydown.right.prevent="moveTopic(1)"
-                    >
-                        <Link
-                            v-for="(item, index) in home.topic_module.items"
-                            :key="item.title"
-                            :href="item.url"
-                            class="topic-card"
-                            :class="{ 'is-active': activeTopicIndex === index }"
-                            :aria-current="
-                                activeTopicIndex === index ? 'true' : undefined
-                            "
-                            @focus="centerTopic(index)"
-                        >
-                            <img
-                                v-if="item.cover_image_url"
-                                :src="item.cover_image_url"
-                                :alt="item.title"
-                                loading="lazy"
-                            />
-                            <div v-else class="image-placeholder" />
-                            <div class="topic-caption">
-                                <h3>{{ item.title }}</h3>
-                                <span class="topic-entry" aria-hidden="true"
-                                    >进入专题<ArrowRight :size="18"
-                                /></span>
-                            </div>
-                        </Link>
-                    </div>
-                    <button
-                        v-if="home.topic_module.items.length > 1"
-                        type="button"
-                        class="topic-arrow topic-next"
-                        aria-label="下一个专题"
-                        @click="moveTopic(1)"
-                    >
-                        <ChevronRight :size="22" aria-hidden="true" />
-                    </button>
+                        <img
+                            v-if="item.cover_image_url"
+                            :src="item.cover_image_url"
+                            :alt="item.title"
+                            loading="lazy"
+                        />
+                        <div v-else class="image-placeholder" />
+                        <div class="topic-caption">
+                            <h3>{{ item.title }}</h3>
+                            <span class="topic-entry" aria-hidden="true"
+                                >进入专题<ArrowRight :size="18"
+                            /></span>
+                        </div>
+                    </Link>
                 </div>
-                <div v-else class="home-empty">
+                <button
+                    v-if="home.topic_module.items.length > 1"
+                    type="button"
+                    class="topic-arrow topic-next"
+                    aria-label="下一个专题"
+                    @click="moveTopic(1)"
+                >
+                    <ChevronRight :size="22" aria-hidden="true" />
+                </button>
+            </div>
+            <div v-else class="home-container">
+                <div class="home-empty">
                     专题模块已启用，当前还没有可公开展示的专题配置。
                 </div>
             </div>

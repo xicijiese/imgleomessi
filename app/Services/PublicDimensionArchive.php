@@ -193,7 +193,7 @@ class PublicDimensionArchive
                     ->orderByDesc('event_date')
                     ->orderByDesc('published_at')
                     ->orderByDesc('id')
-                    ->first(['id', 'title', 'display_key', 'thumbnail_key', 'event_date', 'published_at']);
+                    ->first(['id', 'title', 'display_key', 'thumbnail_key', 'original_key', 'event_date', 'published_at']);
 
                 return [
                     'id' => $category->id,
@@ -202,7 +202,7 @@ class PublicDimensionArchive
                     'description' => Str::limit((string) $category->description, 120),
                     'url' => $config['path'].'/'.$category->slug,
                     'gallery_url' => '/photos?'.http_build_query(['categories' => [$config['gallery_query_key'] => $category->id]]),
-                    'cover_image_url' => $cover instanceof Photo ? $this->mediaUrl($cover->display_key ?: $cover->thumbnail_key) : null,
+                    'cover_image_url' => $cover instanceof Photo ? PublicMediaUrl::thumbnail($cover) : null,
                     'cover_alt' => $cover instanceof Photo ? $cover->title : $category->name,
                     'public_photos_count' => $photosCount,
                     'public_albums_count' => $this->publicAlbumsForCategoryQuery($category)->count(),
@@ -461,7 +461,7 @@ class PublicDimensionArchive
             'title' => $photo->title,
             'description' => Str::limit((string) $photo->description, 96),
             'url' => '/photos/'.$photo->uuid,
-            'image_url' => $this->mediaUrl($photo->display_key ?: $photo->thumbnail_key),
+            'image_url' => PublicMediaUrl::thumbnail($photo),
             'alt' => filled($photo->title) ? $photo->title : '梅西图片档案',
             'event_date' => $photo->event_date?->toDateString(),
             'published_at' => $photo->published_at?->toDateString(),
@@ -500,7 +500,7 @@ class PublicDimensionArchive
             'slug' => $album->slug,
             'description' => Str::limit((string) $album->description, 120),
             'url' => '/albums/'.$album->slug,
-            'cover_image_url' => $coverPhoto instanceof Photo ? $this->mediaUrl($coverPhoto->display_key ?: $coverPhoto->thumbnail_key) : null,
+            'cover_image_url' => $coverPhoto instanceof Photo ? PublicMediaUrl::thumbnail($coverPhoto) : null,
             'cover_alt' => $album->title,
             'published_at' => $album->published_at?->toDateString(),
             'public_photos_count' => (int) ($album->public_photos_count ?? 0),

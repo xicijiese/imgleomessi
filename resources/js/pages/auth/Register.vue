@@ -24,7 +24,22 @@ import { Form, Head } from '@inertiajs/vue3';
             :reset-on-success="['password', 'password_confirmation']"
             v-slot="{ errors, processing }"
             class="auth-form"
+            novalidate
         >
+            <div
+                v-if="Object.keys(errors).length"
+                role="alert"
+                class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+            >
+                <p class="font-semibold">
+                    无法创建账号，请修改以下问题后重试：
+                </p>
+                <ul class="mt-2 list-disc space-y-1 pl-5">
+                    <li v-for="(message, field) in errors" :key="field">
+                        {{ message }}
+                    </li>
+                </ul>
+            </div>
             <div class="auth-fields">
                 <div class="auth-field">
                     <Label for="name">昵称</Label>
@@ -51,7 +66,12 @@ import { Form, Head } from '@inertiajs/vue3';
                 </div>
 
                 <div class="auth-field">
-                    <Label for="email">邮箱地址</Label>
+                    <Label for="email"
+                        >邮箱地址
+                        <span class="text-red-600" aria-hidden="true"
+                            >*</span
+                        ></Label
+                    >
                     <Input
                         class="auth-input"
                         id="email"
@@ -74,7 +94,12 @@ import { Form, Head } from '@inertiajs/vue3';
                 </div>
 
                 <div class="auth-field">
-                    <Label for="phone">手机号码</Label>
+                    <Label for="phone"
+                        >手机号码
+                        <span class="text-red-600" aria-hidden="true"
+                            >*</span
+                        ></Label
+                    >
                     <Input
                         class="auth-input"
                         id="phone"

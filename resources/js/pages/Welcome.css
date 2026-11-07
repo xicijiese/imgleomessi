@@ -76,8 +76,33 @@
         transform 160ms;
 }
 .home-button-primary {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-color: var(--home-gold);
+    background: transparent;
+    color: #ffffff;
+    transition:
+        color 160ms,
+        transform 160ms;
+}
+.home-button-primary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
     background: var(--home-gold);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.home-button-primary:focus-visible,
+.home-button-primary:active {
     color: var(--home-ink);
+}
+.home-button-primary:focus-visible::before,
+.home-button-primary:active::before {
+    transform: scaleX(1);
 }
 .home-button-secondary {
     border-color: #ffffffa8;
@@ -101,7 +126,7 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center;
+    object-position: var(--hero-desktop-focus, 50% 50%);
 }
 .hero-placeholder {
     height: 100%;
@@ -333,8 +358,7 @@
     position: relative;
     gap: 20px;
     overflow-x: auto;
-    padding: 6px calc((100% - var(--topic-width)) / 2);
-    scroll-snap-type: x mandatory;
+    padding: 6px 16px;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
@@ -349,7 +373,6 @@
     flex: 0 0 var(--topic-width);
     overflow: hidden;
     border-radius: 6px;
-    scroll-snap-align: center;
     background: #a1daf7;
 }
 /* 轻微超出容器裁切，隐藏素材自带的细白边；不修改原图。 */
@@ -425,10 +448,10 @@
     transform: translateY(-50%);
 }
 .topic-prev {
-    left: -16px;
+    left: clamp(16px, 3vw, 48px);
 }
 .topic-next {
-    right: -16px;
+    right: clamp(16px, 3vw, 48px);
 }
 .topic-arrow:active {
     background: var(--home-surface);
@@ -509,8 +532,10 @@
 }
 @media (hover: hover) and (pointer: fine) {
     .home-button-primary:hover {
-        background: var(--home-gold);
-        border-color: var(--home-ink);
+        color: var(--home-ink);
+    }
+    .home-button-primary:hover::before {
+        transform: scaleX(1);
     }
     .home-button-secondary:hover {
         background: #ffffff12;
@@ -564,6 +589,9 @@
     }
 }
 @media (max-width: 767px) {
+    .hero-visual img {
+        object-position: var(--hero-mobile-focus, 50% 50%);
+    }
     .home-container {
         width: calc(100% - 40px);
     }

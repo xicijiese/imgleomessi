@@ -18,12 +18,43 @@ interface PublicShellPayload {
     footer: {
         copyright_text: string;
         icp_text: string | null;
+        icp_url?: string | null;
         links: Array<{ label: string; url: string }>;
         social_links: Array<{ label: string; url: string }>;
     };
 }
 
 createInertiaApp({
+    defaults: {
+        visitOptions: (href, options) => {
+            const supported =
+                typeof document !== 'undefined' &&
+                typeof document.startViewTransition === 'function';
+            if (!supported) return { viewTransition: false };
+            const target = new URL(href, window.location.href);
+
+            const enabled =
+                options.method === 'get' &&
+                !options.async &&
+                !options.only?.length &&
+                target.origin === window.location.origin &&
+                target.pathname !== window.location.pathname &&
+                !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            return {
+                viewTransition: enabled
+                    ? (transition: ViewTransition) => {
+                          // 多图页面快照准备过慢时直接显示新页，避免转场阻碍浏览。
+                          const timeout = window.setTimeout(
+                              () => transition.skipTransition(),
+                              400,
+                          );
+                          const clear = () => window.clearTimeout(timeout);
+                          transition.ready.then(clear, clear);
+                      }
+                    : false,
+            };
+        },
+    },
     title: (title) => (title ? `${title} - ${appName}` : appName),
     resolve: (name) =>
         resolvePageComponent(

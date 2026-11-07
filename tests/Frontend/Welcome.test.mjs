@@ -29,6 +29,8 @@ const compiled = ts.transpileModule(script.content, {
 const componentModule = { exports: {} };
 new Function('require', 'module', 'exports', compiled)(
     (name) => {
+        if (name === '@/composables/useGalleryScrollReveal')
+            return { useGalleryScrollReveal() {} };
         if (name === 'gsap')
             return {
                 gsap: {
@@ -251,9 +253,9 @@ test('完整保留后台配置的图片数量、模块标题及目标链接', (t
         'https://example.com/original',
         '/albums?original=1',
         '/topics/original',
-        '/albums',
     ])
         assert.ok(page.links().some((e) => e.props.href === href));
+    assert.ok(!page.links().some((e) => e.text === '浏览相册'));
     assert.ok(
         all(page.root, (e) => e.tag === 'h2' && e.text === '原始模块名称')
             .length,
@@ -293,6 +295,32 @@ test('手动轮播保留各页文案、图片和可选按钮规则', async (t) =
         all(page.root, (e) => e.tag === 'img' && e.props.src === '/second.webp')
             .length,
     );
+});
+
+test('头图焦点随轮播切换，旧数据默认居中', async (t) => {
+    const page = mount(t, {
+        home: {
+            hero_slides: [
+                {
+                    title: '自定义',
+                    desktop_image_url: '/focus.webp',
+                    desktop_focus: { x: 20, y: 30 },
+                    mobile_focus: { x: 80, y: 10 },
+                },
+                { title: '旧数据', desktop_image_url: '/old.webp' },
+            ],
+        },
+    });
+    const image = () =>
+        all(
+            page.root,
+            (e) => e.tag === 'img' && e.props.fetchpriority === 'high',
+        )[0];
+    assert.equal(image().props.style['--hero-desktop-focus'], '20% 30%');
+    assert.equal(image().props.style['--hero-mobile-focus'], '80% 10%');
+    await page.click('切换到第 2 张头图');
+    assert.equal(image().props.style['--hero-desktop-focus'], '50% 50%');
+    assert.equal(image().props.style['--hero-mobile-focus'], '50% 50%');
 });
 
 test('自动轮播保留6500毫秒节奏，离开页面清理定时器', async (t) => {

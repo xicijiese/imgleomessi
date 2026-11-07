@@ -26,6 +26,7 @@ class PublicTimelineTest extends TestCase
         $public2022 = $this->publicPhoto('2022 世界杯决赛', [
             'event_date' => '2022-12-18',
             'display_key' => 'photos/display/2022-final.webp',
+            'thumbnail_key' => 'photos/thumbnail/2022-final.webp',
         ]);
         $public2021 = $this->publicPhoto('2021 美洲杯', [
             'event_date' => '2021-07-10',
@@ -60,7 +61,7 @@ class PublicTimelineTest extends TestCase
                 ->where('timeline.years.0.year', 2022)
                 ->where('timeline.years.0.photos_count', 1)
                 ->where('timeline.years.0.albums_count', 1)
-                ->where('timeline.years.0.cover_image_url', '/storage/photos/display/2022-final.webp')
+                ->where('timeline.years.0.cover_image_url', '/storage/photos/thumbnail/2022-final.webp')
                 ->where('timeline.years.1.year', 2021)
                 ->has('timeline.latest_photos', 2)
                 ->where('timeline.latest_photos.0.title', '2022 世界杯决赛')
@@ -85,6 +86,7 @@ class PublicTimelineTest extends TestCase
             'description' => '阿根廷夺冠夜',
             'event_date' => '2022-12-18',
             'display_key' => 'photos/display/world-cup-final.webp',
+            'thumbnail_key' => 'photos/thumbnail/world-cup-final.webp',
         ]);
         $matching->categories()->sync([$worldCup->id]);
         $matching->tags()->sync([$tag->id]);
@@ -130,10 +132,10 @@ class PublicTimelineTest extends TestCase
                 ->where('timeline.months.0.month', 12)
                 ->has('timeline.photos.data', 1)
                 ->where('timeline.photos.data.0.title', 'World Cup final celebration')
-                ->where('timeline.photos.data.0.image_url', '/storage/photos/display/world-cup-final.webp')
+                ->where('timeline.photos.data.0.image_url', '/storage/photos/thumbnail/world-cup-final.webp')
                 ->has('timeline.albums', 1)
                 ->where('timeline.albums.0.title', 'World Cup final album')
-                ->where('timeline.albums.0.cover_image_url', '/storage/photos/display/world-cup-final.webp')
+                ->where('timeline.albums.0.cover_image_url', '/storage/photos/thumbnail/world-cup-final.webp')
             );
     }
 

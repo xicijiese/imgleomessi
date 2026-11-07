@@ -9,6 +9,7 @@ use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 class HomepageSettings
@@ -26,6 +27,7 @@ class HomepageSettings
                 'search_placeholder' => '搜索图片、相册、赛事或年份',
                 'copyright_text' => '梅西影像档案库',
                 'icp_text' => null,
+                'icp_url' => null,
                 'contact_email' => null,
             ],
             'navigation' => [
@@ -94,7 +96,16 @@ class HomepageSettings
         }
 
         $state['category_module'] = $this->normalizeCategoryModule($state['category_module'] ?? []);
+        $state['hero_slides'] = $this->normalizeHeroSlides($state['hero_slides']);
 
+        $savedSite = Setting::value('site', 'basic', []);
+        foreach (['copyright_text', 'icp_text', 'icp_url'] as $field) {
+            // 旧站点没有基础字段时，保留原页脚内容；此后统一从站点基础维护。
+            if (! array_key_exists($field, $savedSite)) {
+                $state['site'][$field] = $state['footer'][$field] ?? self::defaults()['site'][$field];
+            }
+            $state['footer'][$field] = $state['site'][$field];
+        }
 
         return $state;
     }
@@ -105,13 +116,32 @@ class HomepageSettings
     public function save(array $state, ?User $user = null): void
     {
         $state = array_replace_recursive(self::defaults(), $state);
+        $state['site']['icp_url'] = trim((string) ($state['site']['icp_url'] ?? '')) ?: null;
+        Validator::make(['data' => $state], [
+            'data.site.icp_url' => ['nullable', 'url:http,https', 'max:2048'],
+        ])->validate();
+        foreach (['copyright_text', 'icp_text', 'icp_url'] as $field) {
+            $state['footer'][$field] = $state['site'][$field];
+        }
         $state['category_module'] = $this->normalizeCategoryModule($state['category_module'] ?? []);
+
+        $focusRules = [];
+        foreach (['desktop_focus', 'mobile_focus'] as $device) {
+            $path = 'data.hero_slides.*.'.$device;
+            $focusRules[$path] = ['sometimes', 'array:x,y'];
+            foreach (['x', 'y'] as $axis) {
+                $focusRules[$path.'.'.$axis] = ['required_with:'.$path, 'numeric', 'between:0,100'];
+            }
+        }
+        Validator::make(['data' => $state], $focusRules)->validate();
+        $state['hero_slides'] = $this->normalizeHeroSlides($state['hero_slides']);
 
         $this->validatePublicContent($state);
 
         foreach ($this->settingMap() as $path => [$group, $key, $description]) {
             Setting::setValue($group, $key, Arr::get($state, $path), $user, $description);
         }
+        app(SettingImageVariants::class)->queueForSettings($state);
     }
 
     /**
@@ -184,6 +214,28 @@ class HomepageSettings
                 ]);
             }
         }
+    }
+
+    /** @return array{x: float, y: float} */
+    public static function heroFocus(mixed $value): array
+    {
+        $focus = [];
+        foreach (['x', 'y'] as $axis) {
+            $coordinate = is_array($value) ? ($value[$axis] ?? null) : null;
+            $focus[$axis] = is_numeric($coordinate) && is_finite((float) $coordinate)
+                ? round(max(0, min(100, (float) $coordinate)), 2)
+                : 50.0;
+        }
+
+        return $focus;
+    }
+
+    private function normalizeHeroSlides(array $slides): array
+    {
+        return array_map(fn (array $slide): array => array_replace($slide, [
+            'desktop_focus' => self::heroFocus($slide['desktop_focus'] ?? null),
+            'mobile_focus' => self::heroFocus($slide['mobile_focus'] ?? null),
+        ]), $slides);
     }
 
     /**

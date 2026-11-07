@@ -34,6 +34,13 @@ class CreateNewUser implements CreatesNewUsers
                 Rule::unique(User::class),
             ],
             'password' => $this->passwordRules(),
+        ], [
+            'email.required' => '请填写邮箱地址，邮箱地址为必填项。',
+            'email.email' => '邮箱地址格式不正确，请填写有效的邮箱地址。',
+            'email.unique' => '该邮箱地址已注册，请更换邮箱或直接登录。',
+            'phone.required' => '请填写手机号码，手机号码为必填项。',
+            'phone.regex' => '手机号码格式不正确，请填写以1开头、第二位为3至9的11位中国大陆手机号码。',
+            'phone.unique' => '该手机号码已注册，请更换号码或直接登录。',
         ])->validate();
 
         return User::create([

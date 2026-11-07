@@ -275,7 +275,7 @@ class PublicTimeline
             ->orderByDesc('event_date')
             ->orderByDesc('published_at')
             ->orderByDesc('id')
-            ->get(['id', 'uuid', 'title', 'display_key', 'thumbnail_key', 'event_date', 'published_at'])
+            ->get(['id', 'uuid', 'title', 'display_key', 'thumbnail_key', 'original_key', 'event_date', 'published_at'])
             ->groupBy(fn (Photo $photo): string => $photo->event_date?->format('Y') ?? '')
             ->filter(fn ($photos, string $year): bool => $year !== '')
             ->map(function ($photos, string $year): array {
@@ -298,7 +298,7 @@ class PublicTimeline
                     'url' => '/timeline/'.$year,
                     'photos_count' => $photos->count(),
                     'albums_count' => $this->albumsForPeriodQuery((int) $year)->count(),
-                    'cover_image_url' => $cover instanceof Photo ? $this->mediaUrl($cover->display_key ?: $cover->thumbnail_key) : null,
+                    'cover_image_url' => $cover instanceof Photo ? PublicMediaUrl::thumbnail($cover) : null,
                     'cover_alt' => $cover instanceof Photo ? $cover->title : $year.' 年时间线',
                     'months' => $monthCounts,
                 ];
@@ -319,7 +319,7 @@ class PublicTimeline
             ->orderByDesc('event_date')
             ->orderByDesc('published_at')
             ->orderByDesc('id')
-            ->get(['id', 'title', 'display_key', 'thumbnail_key', 'event_date', 'published_at'])
+            ->get(['id', 'title', 'display_key', 'thumbnail_key', 'original_key', 'event_date', 'published_at'])
             ->groupBy(fn (Photo $photo): string => $photo->event_date?->format('n') ?? '')
             ->filter(fn ($photos, string $month): bool => $month !== '')
             ->map(function ($photos, string $month) use ($year): array {
@@ -330,7 +330,7 @@ class PublicTimeline
                     'label' => $this->monthLabel((int) $month),
                     'url' => '/timeline/'.$year.'/'.str_pad($month, 2, '0', STR_PAD_LEFT),
                     'photos_count' => $photos->count(),
-                    'cover_image_url' => $cover instanceof Photo ? $this->mediaUrl($cover->display_key ?: $cover->thumbnail_key) : null,
+                    'cover_image_url' => $cover instanceof Photo ? PublicMediaUrl::thumbnail($cover) : null,
                     'cover_alt' => $cover instanceof Photo ? $cover->title : $year.' 年 '.$this->monthLabel((int) $month),
                 ];
             })
@@ -587,7 +587,7 @@ class PublicTimeline
             'title' => $photo->title,
             'description' => Str::limit((string) $photo->description, 96),
             'url' => '/photos/'.$photo->uuid,
-            'image_url' => $this->mediaUrl($photo->display_key ?: $photo->thumbnail_key),
+            'image_url' => PublicMediaUrl::thumbnail($photo),
             'alt' => filled($photo->title) ? $photo->title : '梅西图片档案',
             'event_date' => $photo->event_date?->toDateString(),
             'published_at' => $photo->published_at?->toDateString(),
@@ -626,7 +626,7 @@ class PublicTimeline
             'slug' => $album->slug,
             'description' => Str::limit((string) $album->description, 120),
             'url' => '/albums/'.$album->slug,
-            'cover_image_url' => $coverPhoto instanceof Photo ? $this->mediaUrl($coverPhoto->display_key ?: $coverPhoto->thumbnail_key) : null,
+            'cover_image_url' => $coverPhoto instanceof Photo ? PublicMediaUrl::thumbnail($coverPhoto) : null,
             'cover_alt' => $album->title,
             'published_at' => $album->published_at?->toDateString(),
             'public_photos_count' => (int) ($album->public_photos_count ?? 0),

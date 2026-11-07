@@ -503,7 +503,7 @@ class PublicPhotoGallery
             'title' => $photo->title,
             'description' => Str::limit((string) $photo->description, 96),
             'url' => '/photos/'.$photo->uuid,
-            'image_url' => $this->mediaUrl($photo->display_key ?: $photo->thumbnail_key),
+            'image_url' => PublicMediaUrl::thumbnail($photo),
             'alt' => filled($photo->title) ? $photo->title : '梅西图片档案',
             'event_date' => $photo->event_date?->toDateString(),
             'published_at' => $photo->published_at?->toDateString(),

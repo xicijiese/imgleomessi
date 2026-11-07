@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
+import { useGalleryScrollReveal } from '@/composables/useGalleryScrollReveal';
 import type { SeoPayload } from '@/types';
 import { Link } from '@inertiajs/vue3';
 
@@ -83,6 +84,11 @@ const formatDate = (date: string | null) => date ?? '日期待补充';
 import { useArchiveBrowserMotion } from '@/composables/useArchiveBrowserMotion';
 import '../../../css/archive-browser.css';
 const pageRoot = ref<HTMLElement | null>(null);
+useGalleryScrollReveal(
+    pageRoot,
+    () => props.timeline,
+    '.year-entry, .section-heading, .photo-grid > *',
+);
 useArchiveBrowserMotion(pageRoot);
 </script>
 <template>

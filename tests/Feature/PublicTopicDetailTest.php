@@ -25,6 +25,7 @@ class PublicTopicDetailTest extends TestCase
 
         $cover = $this->publicPhoto('相册封面', [
             'display_key' => 'photos/display/album-cover.webp',
+            'thumbnail_key' => 'photos/thumbnail/album-cover.webp',
         ]);
         $album = $this->publishedAlbum('金球奖相册', [
             'slug' => 'ballon-dor-album',
@@ -40,6 +41,7 @@ class PublicTopicDetailTest extends TestCase
         ]);
         $photo = $this->publicPhoto('金球奖精选图', [
             'display_key' => 'photos/display/topic-photo.webp',
+            'thumbnail_key' => 'photos/thumbnail/topic-photo.webp',
             'event_date' => '2023-10-30',
         ]);
         $photo->categories()->sync($this->pendingCategoryIds());
@@ -57,6 +59,11 @@ class PublicTopicDetailTest extends TestCase
             ]],
         ]);
 
+        Setting::setValue('image_variants', hash('sha256', 'settings/topics/ballon-dor.webp'), [
+            'thumbnail_key' => 'settings/topics/ballon-dor-thumbnail.webp',
+            'display_key' => 'settings/topics/ballon-dor-display.webp',
+        ]);
+
         $this->get('/topics/ballon-dor')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
@@ -65,16 +72,16 @@ class PublicTopicDetailTest extends TestCase
                 ->where('topicDetail.topic.title', '金球奖')
                 ->where('topicDetail.topic.slug', 'ballon-dor')
                 ->where('topicDetail.topic.description', '梅西金球奖影像专题')
-                ->where('topicDetail.topic.cover_image_url', '/storage/settings/topics/ballon-dor.webp')
+                ->where('topicDetail.topic.cover_image_url', '/storage/settings/topics/ballon-dor-thumbnail.webp')
                 ->has('topicDetail.albums.data', 1)
                 ->where('topicDetail.albums.data.0.title', '金球奖相册')
                 ->where('topicDetail.albums.data.0.url', '/albums/ballon-dor-album')
                 ->where('topicDetail.albums.data.0.public_photos_count', 1)
-                ->where('topicDetail.albums.data.0.cover_image_url', '/storage/photos/display/album-cover.webp')
+                ->where('topicDetail.albums.data.0.cover_image_url', '/storage/photos/thumbnail/album-cover.webp')
                 ->has('topicDetail.photos.data', 1)
                 ->where('topicDetail.photos.data.0.title', '金球奖精选图')
                 ->where('topicDetail.photos.data.0.url', '/photos/'.$photo->uuid.'?topic=ballon-dor')
-                ->where('topicDetail.photos.data.0.image_url', '/storage/photos/display/topic-photo.webp')
+                ->where('topicDetail.photos.data.0.image_url', '/storage/photos/thumbnail/topic-photo.webp')
                 ->where('topicDetail.photos.data.0.tags.0.name', '获奖')
             );
     }

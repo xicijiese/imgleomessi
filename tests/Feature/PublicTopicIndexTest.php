@@ -32,6 +32,11 @@ class PublicTopicIndexTest extends TestCase
             ],
         ]);
 
+        Setting::setValue('image_variants', hash('sha256', 'settings/topics/ballon-dor.webp'), [
+            'thumbnail_key' => 'settings/topics/ballon-dor-thumbnail.webp',
+            'display_key' => 'settings/topics/ballon-dor-display.webp',
+        ]);
+
         $this->get('/topics')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
@@ -41,7 +46,7 @@ class PublicTopicIndexTest extends TestCase
                 ->has('topicIndex.topics.data', 2)
                 ->where('topicIndex.topics.data.0.title', '金球奖')
                 ->where('topicIndex.topics.data.0.url', '/topics/ballon-dor')
-                ->where('topicIndex.topics.data.0.cover_image_url', '/storage/settings/topics/ballon-dor.webp')
+                ->where('topicIndex.topics.data.0.cover_image_url', '/storage/settings/topics/ballon-dor-thumbnail.webp')
                 ->where('topicIndex.topics.data.1.title', '世界杯')
                 ->where('topicIndex.topics.data.1.url', '/topics/world-cup')
             );
