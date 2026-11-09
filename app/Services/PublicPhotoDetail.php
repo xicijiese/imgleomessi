@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Album;
 use App\Models\Category;
-use App\Models\Comment;
 use App\Models\Photo;
 use App\Models\PhotoSimilarityCandidate;
 use App\Models\PhotoSubmission;
@@ -390,14 +389,7 @@ class PublicPhotoDetail
     {
         $user = $request->user();
         $isBanned = $user?->isBanned() ?? false;
-        $comments = $photo->comments()
-            ->published()
-            ->discussion()
-            ->with('user:id,name')
-            ->latest('created_at')
-            ->latest('id')
-            ->limit(20)
-            ->get();
+        $threads = app(PublicCommentThreads::class)->page($photo, $request);
 
         return [
             'can_submit' => $user !== null && ! $isBanned,
@@ -405,15 +397,8 @@ class PublicPhotoDetail
             'is_blocked' => $isBanned,
             'blocked_reason' => $isBanned ? '账号已被封禁，暂不能提交互动内容。' : null,
             'total' => $photo->comments()->published()->discussion()->count(),
-            'data' => $comments
-                ->map(fn (Comment $comment): array => [
-                    'id' => $comment->id,
-                    'user_name' => $comment->user?->name ?? '用户',
-                    'content' => $comment->content,
-                    'created_at' => $comment->created_at?->format('Y-m-d H:i'),
-                ])
-                ->values()
-                ->all(),
+            ...$threads,
+            'pending' => $user ? $photo->comments()->discussion()->where('user_id', $user->id)->where('status', 'pending')->latest()->limit(20)->get(['id', 'content'])->toArray() : [],
         ];
     }
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ArchivePagination from '@/components/ArchivePagination.vue';
+import CommentContent from '@/components/CommentContent.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import UserCenterNav from '@/components/UserCenterNav.vue';
 import { useArchiveBrowserMotion } from '@/composables/useArchiveBrowserMotion';
@@ -236,7 +237,7 @@ const resetFilters = () =>
                                     >
                                 </div>
                                 <p class="record-content">
-                                    {{ comment.content }}
+                                    <CommentContent :text="comment.content" />
                                 </p>
                                 <dl
                                     v-if="

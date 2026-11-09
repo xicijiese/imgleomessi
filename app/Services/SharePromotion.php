@@ -50,9 +50,9 @@ class SharePromotion
 
     public function target(string $type, string $key): array
     {
-        $settings = app(HomepageSettings::class)->formState();
+        $settings = in_array($type, ['home', 'topic'], true) ? app(HomepageSettings::class)->formState() : [];
         $defaults = Setting::value('sharing', 'defaults', []);
-        $site = $settings['site']['name'];
+        $site = $settings['site']['name'] ?? Setting::value('site', 'name', '梅西影像档案库');
         $image = null;
         $source = '图片仅用于档案展示，不代表拥有版权';
         if ($type === 'home' && $key === 'home') {
@@ -104,13 +104,23 @@ class SharePromotion
 
     public function link(?User $user, string $type, string $key, string $channel): ShareLink
     {
-        $this->target($type, $key);
-        abort_if($user && ! $this->enabledUser($user), 403);
-        $reuse = $this->hash(json_encode([$user?->id, $type, $key, $channel]));
-        $link = ShareLink::firstOrCreate(['reuse_key' => $reuse], ['code' => Str::random(24), 'user_id' => $user?->id, 'target_type' => $type, 'target_key' => $key, 'channel' => $channel]);
-        $this->available($link);
+        return $this->linksWithTarget($user, $type, $key, [$channel])['links'][$channel];
+    }
 
-        return $link;
+    /** 同一请求内只校验一次公开目标，仍逐次校验停用和账号状态。 */
+    public function linksWithTarget(?User $user, string $type, string $key, array $channels): array
+    {
+        $target = $this->target($type, $key);
+        abort_if($user && ! $this->enabledUser($user), 403);
+        $links = [];
+        foreach ($channels as $channel) {
+            $reuse = $this->hash(json_encode([$user?->id, $type, $key, $channel]));
+            $link = ShareLink::firstOrCreate(['reuse_key' => $reuse], ['code' => Str::random(24), 'user_id' => $user?->id, 'target_type' => $type, 'target_key' => $key, 'channel' => $channel]);
+            abort_unless($link->is_active, 410, '分享链接已停用');
+            $links[$channel] = $link;
+        }
+
+        return ['links' => $links, 'target' => $target];
     }
 
     public function start(Request $request, ShareLink $link): array

@@ -1,21 +1,45 @@
 <script setup lang="ts">
-import { shareRequest } from '@/lib/sharing';
+import { prepareShareLinks, shareRequest } from '@/lib/sharing';
 import { usePage } from '@inertiajs/vue3';
 import { Copy, ExternalLink, Image, QrCode, Share2, X } from 'lucide-vue-next';
 import { toDataURL } from 'qrcode';
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 const props = defineProps<{
     type: 'home' | 'photo' | 'album' | 'topic';
     targetKey: string;
     title: string;
     blockedReason?: string | null;
     theme?: 'default' | 'archive';
+    album?: { slug: string; title: string };
 }>();
+const shareAlbum = ref(false);
+const target = computed(() =>
+    shareAlbum.value && props.album
+        ? {
+              type: 'album' as const,
+              key: props.album.slug,
+              title: props.album.title,
+          }
+        : { type: props.type, key: props.targetKey, title: props.title },
+);
 const page = usePage();
 const loggedIn = computed(
     () => !!(page.props.auth as { user?: unknown } | undefined)?.user,
 );
 const dialog = ref<HTMLDialogElement | null>(null);
+const trigger = ref<HTMLElement | null>(null);
+let prepareObserver: IntersectionObserver | undefined;
+onMounted(() => {
+    if (!trigger.value || props.blockedReason) return;
+    prepareObserver = new IntersectionObserver((entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+            void prepare();
+            prepareObserver?.disconnect();
+        }
+    });
+    prepareObserver.observe(trigger.value);
+});
+onUnmounted(() => prepareObserver?.disconnect());
 const busy = ref(false);
 const preparing = ref(false);
 const status = ref('');
@@ -47,8 +71,14 @@ function reset() {
     posterState.value = 'none';
 }
 watch(
-    () => [props.type, props.targetKey],
+    () => [
+        props.type,
+        props.targetKey,
+        props.blockedReason,
+        (page.props.auth as { user?: { id?: number } } | undefined)?.user?.id,
+    ],
     () => {
+        shareAlbum.value = false;
         reset();
         dialog.value?.close();
     },
@@ -59,28 +89,30 @@ function open() {
     status.value = props.blockedReason ?? '';
     if (!props.blockedReason) void prepare();
 }
+function chooseTarget(album: boolean) {
+    if (shareAlbum.value === album) return;
+    shareAlbum.value = album;
+    reset();
+    status.value = props.blockedReason ?? '';
+    if (!props.blockedReason) void prepare();
+}
 async function prepare() {
     if (preparing.value) return;
     preparing.value = true;
     const current = generation;
-    await Promise.all(
-        (['copy_link', 'native_share'] as const).map(async (channel) => {
-            if (prepared.value[channel]) return;
-            try {
-                const result = await shareRequest<ShareLinkResult>(
-                    '/sharing/links',
-                    { type: props.type, key: props.targetKey, channel },
-                );
-                if (current === generation) prepared.value[channel] = result;
-            } catch (error) {
-                if (current === generation)
-                    status.value =
-                        error instanceof Error
-                            ? error.message
-                            : '链接准备失败，请重试';
-            }
-        }),
-    );
+    try {
+        const user = page.props.auth as { user?: { id?: number } } | undefined;
+        const result = await prepareShareLinks(
+            String(user?.user?.id ?? 'guest'),
+            target.value.type,
+            target.value.key,
+        );
+        if (current === generation) prepared.value = result.links;
+    } catch (error) {
+        if (current === generation)
+            status.value =
+                error instanceof Error ? error.message : '链接准备失败，请重试';
+    }
     if (current === generation) preparing.value = false;
 }
 async function record(code: string) {
@@ -114,8 +146,8 @@ async function act(
         const result =
             cached ??
             (await shareRequest<ShareLinkResult>('/sharing/links', {
-                type: props.type,
-                key: props.targetKey,
+                type: target.value.type,
+                key: target.value.key,
                 channel,
             }));
         if (current !== generation) {
@@ -206,10 +238,17 @@ async function refreshPoster(current = generation) {
 }
 </script>
 <template>
-    <slot name="trigger" :open="open">
+    <slot
+        name="trigger"
+        :open="open"
+        :prepare="() => !blockedReason && prepare()"
+    >
         <button
             type="button"
             class="inline-flex min-h-11 items-center justify-center gap-2 rounded-sm border border-[#90b4ce]/60 px-4 text-sm font-semibold text-[#094067] hover:border-[#3da9fc] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3da9fc]"
+            ref="trigger"
+            @pointerenter="!blockedReason && prepare()"
+            @focus="!blockedReason && prepare()"
             @click="open"
         >
             <Share2 class="h-4 w-4" aria-hidden="true" />分享
@@ -225,7 +264,7 @@ async function refreshPoster(current = generation) {
             <div>
                 <h2 class="text-xl font-bold">分享这份影像记忆</h2>
                 <p class="mt-2 text-sm break-words text-[#5f6c7b]">
-                    {{ title }}
+                    {{ target.title }}
                 </p>
             </div>
             <button
@@ -234,6 +273,29 @@ async function refreshPoster(current = generation) {
                 @click="dialog?.close()"
             >
                 <X aria-hidden="true" />
+            </button>
+        </div>
+        <div
+            v-if="album"
+            class="share-target-picker"
+            role="group"
+            aria-label="选择分享对象"
+        >
+            <button
+                type="button"
+                :aria-pressed="!shareAlbum"
+                :disabled="busy"
+                @click="chooseTarget(false)"
+            >
+                当前图片
+            </button>
+            <button
+                type="button"
+                :aria-pressed="shareAlbum"
+                :disabled="busy"
+                @click="chooseTarget(true)"
+            >
+                整个相册
             </button>
         </div>
         <p class="share-intro my-4 text-sm text-[#5f6c7b]">
@@ -514,5 +576,29 @@ async function refreshPoster(current = generation) {
     .home-share-dialog * {
         transition: none !important;
     }
+}
+.share-target-picker {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+.share-target-picker button {
+    flex: 1;
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid #cbd8e2;
+    border-radius: 6px;
+    color: #042240;
+}
+.share-target-picker button[aria-pressed='true'] {
+    border-color: #ba9f6c;
+    background: #ba9f6c;
+}
+.share-target-picker button:focus-visible {
+    outline: 2px solid #042240;
+    outline-offset: 3px;
+}
+.share-target-picker button:disabled {
+    opacity: 0.55;
 }
 </style>

@@ -59,11 +59,13 @@ useArchiveBrowserMotion(root);
                                     : null
                             "
                         >
-                            <template #trigger="{ open }"
+                            <template #trigger="{ open, prepare }"
                                 ><button
                                     class="primary"
                                     type="button"
                                     :disabled="me.user.is_banned"
+                                    @pointerenter="prepare"
+                                    @focus="prepare"
                                     @click="open"
                                 >
                                     <Share2

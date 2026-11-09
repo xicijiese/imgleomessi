@@ -1,0 +1,34 @@
+[
+  {
+    "id": "happy",
+    "label": "开心搞怪"
+  },
+  {
+    "id": "love",
+    "label": "喜爱互动"
+  },
+  {
+    "id": "sad",
+    "label": "难过生气"
+  },
+  {
+    "id": "think",
+    "label": "惊讶思考"
+  },
+  {
+    "id": "cheer",
+    "label": "手势应援"
+  },
+  {
+    "id": "festival",
+    "label": "节庆祝福"
+  },
+  {
+    "id": "daily",
+    "label": "日常趣味"
+  },
+  {
+    "id": "characters",
+    "label": "角色系列"
+  }
+]

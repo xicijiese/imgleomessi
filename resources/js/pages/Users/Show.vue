@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import BadgeIcon from '@/components/BadgeIcon.vue';
+import CommentContent from '@/components/CommentContent.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import type { SeoPayload } from '@/types';
@@ -251,7 +252,9 @@ useArchiveBrowserMotion(pageRoot);
                                         comment.photo.title
                                     }}</span>
                                 </h3>
-                                <p>{{ comment.content }}</p>
+                                <p>
+                                    <CommentContent :text="comment.content" />
+                                </p>
                                 <time>{{ comment.created_at }}</time>
                             </div>
                         </article></template

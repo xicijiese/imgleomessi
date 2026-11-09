@@ -21,8 +21,15 @@ class SharePromotionController extends Controller
 {
     public function create(Request $request, SharePromotion $service)
     {
-        $data = $request->validate(['type' => ['required', Rule::in(['home', 'photo', 'album', 'topic'])], 'key' => 'required|string|max:180', 'channel' => ['required', Rule::in(SharePromotion::CHANNELS)]]);
-        $link = $service->link($request->user(), $data['type'], $data['key'], $data['channel']);
+        $data = $request->validate([
+            'type' => ['required', Rule::in(['home', 'photo', 'album', 'topic'])],
+            'key' => 'required|string|max:180',
+            'channel' => ['required_without:channels', Rule::prohibitedIf(fn () => $request->has('channels')), Rule::in(SharePromotion::CHANNELS)],
+            'channels' => ['required_without:channel', Rule::prohibitedIf(fn () => $request->has('channel')), 'array', 'min:1', 'max:5'],
+            'channels.*' => ['required', 'distinct', Rule::in(SharePromotion::CHANNELS)],
+        ]);
+        $batch = isset($data['channels']);
+        $result = $service->linksWithTarget($request->user(), $data['type'], $data['key'], $data['channels'] ?? [$data['channel']]);
         if ($request->user()) {
             $visitor = $request->cookie('share_visitor');
             if (! is_string($visitor) || ! Str::isUuid($visitor)) {
@@ -34,7 +41,9 @@ class SharePromotionController extends Controller
             DB::table('share_known_users')->insertOrIgnore(['identity' => $hash, 'user_id' => $request->user()->id]);
         }
 
-        return response()->json(['code' => $link->code, 'url' => $service->url($link), 'title' => $service->available($link)['title']])->header('Cache-Control', 'private, no-store');
+        $links = collect($result['links'])->map(fn (ShareLink $link) => ['code' => $link->code, 'url' => $service->url($link), 'title' => $result['target']['title']])->all();
+
+        return response()->json($batch ? ['links' => $links] : $links[$data['channel']])->header('Cache-Control', 'private, no-store');
     }
 
     public function operation(Request $request, string $code, SharePromotion $service)

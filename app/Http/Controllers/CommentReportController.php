@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\RejectsBannedUsers;
 use App\Models\Comment;
 use App\Models\Report;
 use App\Models\SensitiveWord;
+use App\Services\PublicCommentThreads;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -20,7 +21,7 @@ class CommentReportController extends Controller
             return $response;
         }
 
-        $target = Comment::query()
+        $target = app(PublicCommentThreads::class)->visible(Comment::query())
             ->published()
             ->discussion()
             ->whereKey($comment)

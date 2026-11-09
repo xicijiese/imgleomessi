@@ -1,0 +1,6 @@
+来源：Augenstern-O/Stickers
+https://github.com/Augenstern-O/Stickers
+固定提交：91285989c50eaf45560dab02043df1d4b03aded1
+许可：CC BY 4.0
+https://creativecommons.org/licenses/by/4.0/
+图片未修改；本地文件重命名为稳定编号并按实际格式修正扩展名，表情配置已提取并改用本站路径。

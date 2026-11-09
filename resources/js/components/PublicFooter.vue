@@ -180,6 +180,19 @@ const isExternalUrl = (url: string) =>
                     </nav>
                 </div>
             </div>
+            <div class="archive-footer-mobile-legal">
+                <p>{{ footer.copyright_text }}</p>
+                <p v-if="footer.icp_text">
+                    <a
+                        v-if="footer.icp_url"
+                        :href="footer.icp_url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        >{{ footer.icp_text }}</a
+                    >
+                    <span v-else>{{ footer.icp_text }}</span>
+                </p>
+            </div>
         </div>
     </footer>
     <footer
@@ -368,6 +381,9 @@ const isExternalUrl = (url: string) =>
     outline: 2px solid var(--footer-ink);
     outline-offset: 3px;
 }
+.archive-footer-mobile-legal {
+    display: none;
+}
 @media (hover: hover) {
     .archive-footer-links a:hover {
         color: var(--footer-ink);
@@ -395,11 +411,11 @@ const isExternalUrl = (url: string) =>
     .archive-footer-inner {
         width: calc(100% - 40px);
         padding-right: 0;
-        padding-bottom: calc(72px + env(safe-area-inset-bottom));
+        padding-bottom: calc(28px + env(safe-area-inset-bottom));
     }
     .archive-footer-main {
         grid-template-columns: minmax(0, 1fr);
-        padding-block: 28px 20px;
+        padding-block: 24px 16px;
         gap: 24px;
     }
     .archive-footer-identity {
@@ -416,6 +432,67 @@ const isExternalUrl = (url: string) =>
     }
     .archive-footer-links a {
         min-height: 44px;
+    }
+    .archive-footer {
+        border-top: 1px solid #dce5ec;
+    }
+    .archive-footer-identity p {
+        font-size: 19px;
+    }
+    .archive-footer-directory {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+    }
+    .archive-footer-directory > nav {
+        display: grid;
+        grid-template-columns: 88px minmax(0, 1fr);
+        gap: 12px;
+        padding-top: 12px;
+        border-top: 1px solid #dce5ec;
+        min-width: 0;
+    }
+    .archive-footer-directory h2 {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+        font-size: 14px;
+    }
+    .archive-footer-links {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0 12px;
+        min-width: 0;
+    }
+    .archive-footer-links a {
+        font-size: 13px;
+        overflow-wrap: anywhere;
+    }
+    .archive-footer-legal {
+        display: none;
+    }
+    .archive-footer-mobile-legal {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 4px 16px;
+        padding-top: 16px;
+        border-top: 1px solid #dce5ec;
+        color: var(--footer-muted);
+        font-size: 12px;
+        line-height: 1.8;
+        overflow-wrap: anywhere;
+    }
+    .archive-footer-mobile-legal a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        text-decoration: none;
+    }
+    .archive-footer-mobile-legal a:focus-visible {
+        outline: 2px solid var(--footer-ink);
+        outline-offset: 3px;
     }
 }
 @media (prefers-reduced-motion: reduce) {

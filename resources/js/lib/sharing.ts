@@ -25,3 +25,34 @@ export async function shareRequest<T>(url: string, data?: unknown): Promise<T> {
     }
     return response.json() as Promise<T>;
 }
+const preparedLinks = new Map<
+    string,
+    {
+        until: number;
+        promise: Promise<{
+            links: Record<string, { code: string; url: string; title: string }>;
+        }>;
+    }
+>();
+
+// 仅短时复用当前账号与目标的准备结果，不混用账号或渠道。
+export function prepareShareLinks(owner: string, type: string, key: string) {
+    const cacheKey = JSON.stringify([owner, type, key]);
+    const cached = preparedLinks.get(cacheKey);
+    if (cached && cached.until > Date.now()) return cached.promise;
+    for (const [id, entry] of preparedLinks)
+        if (entry.until <= Date.now()) preparedLinks.delete(id);
+    const promise = shareRequest<{
+        links: Record<string, { code: string; url: string; title: string }>;
+    }>('/sharing/links', {
+        type,
+        key,
+        channels: ['copy_link', 'native_share'],
+    });
+    preparedLinks.set(cacheKey, { until: Date.now() + 60000, promise });
+    void promise.catch(() => {
+        if (preparedLinks.get(cacheKey)?.promise === promise)
+            preparedLinks.delete(cacheKey);
+    });
+    return promise;
+}

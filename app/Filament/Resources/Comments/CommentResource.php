@@ -6,6 +6,7 @@ use App\Filament\Resources\Comments\Pages\ManageComments;
 use App\Models\Comment;
 use App\Models\SensitiveWord;
 use App\Models\User;
+use App\Services\CommentStickers;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
@@ -48,6 +49,7 @@ class CommentResource extends Resource
                     ->options(Comment::STATUSES)
                     ->required(),
                 Textarea::make('content')
+                    ->formatStateUsing(fn (?string $state): string => CommentStickers::scanText($state ?? ''))
                     ->label('内容')
                     ->rows(5)
                     ->disabled()
@@ -79,6 +81,7 @@ class CommentResource extends Resource
                     ->formatStateUsing(fn (?string $state): string => $state === 'clean' || blank($state) ? '无' : (SensitiveWord::SEVERITIES[$state] ?? $state))
                     ->sortable(),
                 TextColumn::make('content')
+                    ->formatStateUsing(fn (?string $state): string => CommentStickers::scanText($state ?? ''))
                     ->label('内容摘要')
                     ->limit(48)
                     ->searchable(),

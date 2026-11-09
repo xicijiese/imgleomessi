@@ -6,6 +6,8 @@ use App\Http\Controllers\Concerns\RejectsBannedUsers;
 use App\Models\Comment;
 use App\Models\Photo;
 use App\Models\SensitiveWord;
+use App\Services\CommentStickers;
+use App\Services\PublicCommentThreads;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -22,14 +24,22 @@ class PhotoCommentController extends Controller
 
         $photo = $this->publicPhoto($uuid);
         $data = $request->validate([
-            'content' => ['required', 'string', 'min:2', 'max:1000'],
+            'content' => ['required', 'string', 'max:1000', CommentStickers::validate(...)],
+            'reply_to' => ['nullable', 'integer', 'min:1'],
         ]);
-        $scan = SensitiveWord::scan($data['content']);
+        $target = null;
+        if (! empty($data['reply_to'])) {
+            $target = app(PublicCommentThreads::class)->visible(Comment::query())->where('photo_id', $photo->id)->findOrFail($data['reply_to']);
+            abort_if($target->parent_id && $target->parent?->photo_id !== $photo->id, 404);
+        }
+        $scan = SensitiveWord::scan(CommentStickers::scanText($data['content']));
 
         $comment = Comment::query()->create([
             'photo_id' => $photo->id,
             'user_id' => $request->user()->id,
             'type' => 'discussion',
+            'parent_id' => $target ? ($target->parent_id ?? $target->id) : null,
+            'meta' => $target ? ['reply_to_id' => $target->id] : null,
             'content' => $data['content'],
             'status' => 'pending',
             'risk_level' => $scan['risk_level'],
@@ -38,6 +48,7 @@ class PhotoCommentController extends Controller
 
         return response()->json([
             'submitted' => true,
+            'id' => $comment->id,
             'status' => $comment->status,
             'message' => '评论已提交，等待审核。',
         ], 201);

@@ -4,8 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\Album;
 use App\Models\Category;
+use App\Models\Comment;
 use App\Models\Photo;
+use App\Models\PhotoSimilarityCandidate;
 use App\Models\Tag;
+use App\Models\User;
 use Database\Seeders\GalleryTaxonomySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -215,6 +218,56 @@ class PublicAlbumDetailTest extends TestCase
             ->where('albumDetail.photos.data.0.title', '分页照片 25')
             ->where('albumDetail.photos.data.0.url', fn ($url) => str_contains($url, 'album=paginated-album'))
             ->where('albumDetail.photos.links.next', null));
+    }
+
+    public function test_album_slides_keep_current_photo_comments_and_recommendation_links_in_sync(): void
+    {
+        $album = $this->publishedAlbum('幻灯片相册', ['slug' => 'slides']);
+        $first = $this->publicPhoto('第一张', ['event_date' => '2022-01-01', 'display_key' => 'photos/display/first.webp', 'thumbnail_key' => 'photos/thumbnail/first.webp']);
+        $second = $this->publicPhoto('第二张', ['event_date' => '2022-01-02', 'display_key' => 'photos/display/second.webp']);
+        $private = $this->publicPhoto('不可见图片', ['status' => 'draft']);
+        $album->photos()->sync([$first->id, $second->id, $private->id]);
+        $user = User::factory()->create();
+        foreach ([$first, $second] as $photo) {
+            Comment::query()->create(['photo_id' => $photo->id, 'user_id' => $user->id, 'type' => 'discussion', 'status' => 'published', 'content' => $photo->title.'的评论']);
+        }
+        PhotoSimilarityCandidate::query()->create(['photo_id' => $first->id, 'candidate_photo_id' => $second->id, 'distance' => 1, 'similarity_score' => 98.4, 'status' => 'pending_review']);
+
+        $this->actingAs($user)->get('/albums/slides?sort=event_asc')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('albumDetail.viewer.position', 1)
+            ->where('albumDetail.viewer.total', 2)
+            ->where('albumDetail.viewer.previous_url', null)
+            ->where('albumDetail.viewer.next_url', '/albums/slides?sort=event_asc&slide=2')
+            ->where('albumDetail.current_photo.photo.uuid', $first->uuid)
+            ->where('albumDetail.current_photo.photo.image_url', '/storage/photos/display/first.webp')
+            ->where('albumDetail.current_photo.comments.can_submit', true)
+            ->where('albumDetail.current_photo.comments.data.0.content', '第一张的评论')
+            ->where('albumDetail.current_photo.similar.data.0.url', '/photos/'.$second->uuid));
+
+        $this->get('/albums/slides?sort=event_asc&slide=2')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('albumDetail.viewer.position', 2)
+            ->where('albumDetail.viewer.next_url', null)
+            ->where('albumDetail.current_photo.photo.uuid', $second->uuid)
+            ->where('albumDetail.current_photo.comments.data.0.content', '第二张的评论'));
+    }
+
+    public function test_album_slide_can_cross_thumbnail_pages_and_clamps_out_of_range_positions(): void
+    {
+        $album = $this->publishedAlbum('长相册', ['slug' => 'long-slides']);
+        for ($i = 1; $i <= 25; $i++) {
+            $photo = $this->publicPhoto('照片'.$i, ['event_date' => sprintf('2022-01-%02d', $i)]);
+            $album->photos()->attach($photo);
+        }
+        $this->get('/albums/long-slides?sort=event_asc&slide=25')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('albumDetail.photos.meta.current_page', 2)
+            ->has('albumDetail.photos.data', 1)
+            ->where('albumDetail.current_photo.photo.title', '照片25')
+            ->where('albumDetail.viewer.previous_url', '/albums/long-slides?sort=event_asc&slide=24')
+            ->where('albumDetail.viewer.next_url', null));
+        $this->get('/albums/long-slides?sort=event_asc&slide=999')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('albumDetail.viewer.position', 25));
+        $this->get('/albums/long-slides?sort=event_asc&slide=-1')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('albumDetail.viewer.position', 1));
     }
 
     /**

@@ -379,12 +379,14 @@ onUnmounted(() => {
 
         <aside class="home-tools" aria-label="首页快捷工具">
             <SharePanel type="home" target-key="home" :title="home.site.name">
-                <template #trigger="{ open }">
+                <template #trigger="{ open, prepare }">
                     <button
                         type="button"
                         class="tool-button"
                         aria-label="分享网站"
                         aria-haspopup="dialog"
+                        @pointerenter="prepare"
+                        @focus="prepare"
                         @click="open"
                     >
                         <Share2 :size="20" aria-hidden="true" /><span

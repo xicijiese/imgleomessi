@@ -23,7 +23,11 @@ class PublicAlbumDetail
         'published_asc' => '最早发布',
     ];
 
-    public function __construct(private readonly HomepageSettings $settings, private readonly PublicSeo $seo) {}
+    public function __construct(
+        private readonly HomepageSettings $settings,
+        private readonly PublicSeo $seo,
+        private readonly PublicPhotoDetail $photoDetails,
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -38,9 +42,15 @@ class PublicAlbumDetail
             ->with(['categories.parent', 'tags']);
         $this->applySort($query, $sort);
 
+        $total = (clone $query)->count();
+        $requestedSlide = $request->integer('slide', max(1, $request->integer('page', 1)) * self::PER_PAGE - self::PER_PAGE + 1);
+        $slide = max(1, min($requestedSlide, max(1, $total)));
+        $selected = (clone $query)->offset($slide - 1)->first();
+
         /** @var LengthAwarePaginator<int, Photo> $paginator */
-        $paginator = $query->paginate(self::PER_PAGE)->withQueryString();
+        $paginator = $query->paginate(self::PER_PAGE, ['*'], 'page', (int) ceil($slide / self::PER_PAGE))->withQueryString();
         $albumHeader = $this->albumHeader($album, $coverPhoto);
+        $photoRequest = $request->duplicate(array_merge($request->query(), ['album' => $album->slug]));
 
         return [
             'site' => $this->site(),
@@ -59,6 +69,13 @@ class PublicAlbumDetail
                     ->all(),
             ],
             'album' => $albumHeader,
+            'viewer' => [
+                'position' => $selected ? $slide : 0,
+                'total' => $total,
+                'previous_url' => $slide > 1 ? $albumHeader['url'].'?'.http_build_query(['sort' => $sort, 'slide' => $slide - 1]) : null,
+                'next_url' => $slide < $total ? $albumHeader['url'].'?'.http_build_query(['sort' => $sort, 'slide' => $slide + 1]) : null,
+            ],
+            'current_photo' => $selected ? $this->photoDetails->payload($photoRequest, $selected->uuid) : null,
             'photos' => [
                 'data' => $paginator->getCollection()
                     ->map(fn (Photo $photo): array => $this->photoCard($photo, $album))

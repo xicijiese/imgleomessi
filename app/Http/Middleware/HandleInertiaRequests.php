@@ -38,6 +38,10 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+            return parent::share($request);
+        }
+
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
         return [

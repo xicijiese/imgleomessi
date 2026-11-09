@@ -143,7 +143,7 @@ class PublicUserProfile
     {
         return [
             'id' => $comment->id,
-            'content' => str($comment->content)->limit(160)->toString(),
+            'content' => CommentStickers::preview($comment->content),
             'created_at' => $comment->created_at?->format('Y-m-d'),
             'photo' => $this->photoItem($comment->photo),
         ];

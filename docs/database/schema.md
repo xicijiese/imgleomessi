@@ -849,3 +849,8 @@ openid/unionid不返回公开接口或普通日志；无解密业务时不长期
 ### settings.image_variants派生资源记录（2026-11-07）
 
 沿用settings表，不新增迁移。group=image_variants、key=规范化站点图片源Key的SHA256，value={display_key,thumbnail_key}；只有两者均有值、互不相同且不等于源Key才视为就绪。公开响应只输出按用途解析后的URL，不输出原源路径或整份元数据。Photo沿用原有display_key/thumbnail_key，补生成只更新这两列及updated_at，不动original_key或发布状态。
+## 评论两级讨论与点赞数据补充（2026-11-09，覆盖此前预留不启用说明）
+
+comments.parent_id现用于两级讨论，始终指向同一图片的主评论；回复某条回复的目标保存在meta.reply_to_id，展示时再次验证目标公开。like_count用于已公开普通评论的实际点赞数量。
+
+新增comment_likes：comment_id关联comments、user_id关联users，二者组成联合主键，created_at记录时间；外键级联清除只在记录被物理删除时发生。点赞/取消在评论行锁内幂等写入并重算该评论计数。新评论/回复仍默认pending，公开列表不返回他人待审内容；本人待审只随本人图片详情返回。不存在公开三级回复。

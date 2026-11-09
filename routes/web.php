@@ -3,6 +3,7 @@
 use App\Http\Controllers\AlbumDetailController;
 use App\Http\Controllers\AlbumIndexController;
 use App\Http\Controllers\CommentReportController;
+use App\Http\Controllers\CommentThreadController;
 use App\Http\Controllers\DimensionArchiveController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PaymentReportController;
@@ -91,7 +92,7 @@ Route::middleware(['auth', EnsureFreshUserSession::class])->group(function (): v
     Route::delete('/photos/{uuid}/favorite', [PhotoFavoriteController::class, 'destroy'])->name('photos.favorite.destroy');
     Route::post('/photos/{uuid}/like', [PhotoLikeController::class, 'store'])->name('photos.like.store');
     Route::delete('/photos/{uuid}/like', [PhotoLikeController::class, 'destroy'])->name('photos.like.destroy');
-    Route::post('/photos/{uuid}/comments', [PhotoCommentController::class, 'storeDiscussion'])->name('photos.comments.store');
+    Route::post('/photos/{uuid}/comments', [PhotoCommentController::class, 'storeDiscussion'])->middleware('throttle:12,1')->name('photos.comments.store');
     Route::post('/photos/{uuid}/corrections', [PhotoCommentController::class, 'storeCorrection'])->name('photos.corrections.store');
     Route::post('/comments/{comment}/reports', [CommentReportController::class, 'store'])->name('comments.reports.store');
 });
@@ -125,3 +126,6 @@ Route::get('dashboard', function () {
 require __DIR__.'/settings.php';
 
 Route::post('/payments/xunhu/notify', [XunhuPaymentController::class, 'notify'])->middleware('throttle:120,1')->name('payments.xunhu.notify');
+
+Route::get('/photos/{uuid}/discussion', [CommentThreadController::class, 'index'])->middleware('throttle:120,1');
+Route::match(['post', 'delete'], '/comments/{comment}/like', [CommentThreadController::class, 'like'])->middleware(['auth', EnsureFreshUserSession::class, 'throttle:60,1'])->whereNumber('comment');

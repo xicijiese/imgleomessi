@@ -1,0 +1,380 @@
+/* 相册沿用首页蓝、金、白基准，图片完整展示，缩略图裁切填满。 */
+.album-slideshow-heading {
+    max-width: 1344px;
+    margin: auto;
+    padding: 16px 32px 0;
+}
+.album-slideshow .album-back {
+    margin: 0 0 8px;
+}
+.album-slideshow-title {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 24px;
+}
+.album-slideshow-title > div:first-child {
+    flex: 1;
+    min-width: 0;
+}
+.album-slideshow-title > button {
+    flex-shrink: 0;
+}
+.album-slideshow-title button {
+    white-space: nowrap;
+}
+.album-slideshow-title h1 {
+    font-size: clamp(23px, 2.2vw, 32px);
+    line-height: 1.35;
+    font-weight: 650;
+    text-wrap: balance;
+}
+.album-slideshow-title p {
+    max-width: 76ch;
+    margin-top: 8px;
+    color: #526779;
+    font-size: 14px;
+    line-height: 1.7;
+}
+.album-slideshow-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 10px 0;
+    margin-top: 8px;
+    border-bottom: 1px solid #cbd8e2;
+}
+.album-slideshow-toolbar > p {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #526779;
+    font-variant-numeric: tabular-nums;
+}
+.album-slideshow-toolbar strong {
+    font-size: 22px;
+    color: #042240;
+}
+.album-slideshow .album-photo-detail {
+    min-height: 0;
+}
+.album-slideshow .detail-container {
+    padding-top: 24px;
+}
+.album-slideshow .detail-viewer {
+    position: relative;
+    height: clamp(360px, calc(100svh - 335px), 850px);
+    background: #edf4f8;
+}
+.album-slideshow .detail-title h2 {
+    font-size: 24px;
+    line-height: 1.45;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+.album-slide-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #04224020;
+    border-radius: 50%;
+    background: #ffffffeb;
+    color: #042240;
+    box-shadow: 0 3px 12px #04224012;
+    cursor: pointer;
+    transition:
+        background 160ms,
+        opacity 160ms,
+        box-shadow 160ms;
+}
+.album-slide-previous {
+    left: 16px;
+}
+.album-slide-next {
+    right: 16px;
+}
+.album-slide-arrow:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+.album-slide-arrow:not(:disabled):hover {
+    background: #ba9f6c;
+    box-shadow: 0 4px 16px #04224026;
+}
+.album-slide-arrow:focus-visible,
+.album-filmstrip button:focus-visible {
+    outline: 2px solid #042240;
+    outline-offset: 4px;
+}
+.album-filmstrip {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 12px 3px 8px;
+    scrollbar-width: thin;
+    scrollbar-color: #ba9f6c #edf4f8;
+}
+.album-filmstrip button {
+    width: 76px;
+    height: 60px;
+    flex: 0 0 76px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background: #edf4f8;
+    opacity: 0.65;
+    cursor: pointer;
+    transition:
+        opacity 160ms,
+        border-color 160ms;
+}
+.album-slideshow .album-filmstrip img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    object-fit: cover;
+}
+.album-filmstrip button[aria-current='true'] {
+    border-color: #ba9f6c;
+    opacity: 1;
+}
+.album-filmstrip button:hover {
+    opacity: 1;
+}
+.album-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.album-loading svg {
+    animation: album-loading-spin 1s linear infinite;
+}
+.album-slideshow-empty {
+    min-height: 300px;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 16px;
+    color: #526779;
+}
+.album-slideshow-empty a {
+    color: #042240;
+    text-decoration: underline;
+}
+@keyframes album-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+@media (max-width: 767px) {
+    .album-slideshow-heading {
+        padding: 12px 16px 0;
+    }
+    .album-slideshow-title {
+        gap: 12px;
+    }
+    .album-slideshow .detail-container {
+        padding-top: 16px;
+    }
+    .album-slideshow .detail-viewer {
+        min-height: 280px;
+        height: clamp(300px, calc(100svh - 310px), 600px);
+    }
+    .album-slide-previous {
+        left: 10px;
+    }
+    .album-slide-next {
+        right: 10px;
+    }
+    .album-slideshow .detail-title h2 {
+        font-size: 21px;
+    }
+    .album-filmstrip button {
+        width: 64px;
+        height: 52px;
+        flex-basis: 64px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .album-loading svg {
+        animation: none;
+    }
+    .album-slide-arrow,
+    .album-filmstrip button {
+        transition: none;
+    }
+}
+
+/* 相册抬头保持紧凑，将屏幕留给图片。 */
+.album-slideshow .album-slideshow-heading {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 24px;
+    padding-top: 8px;
+}
+.album-slideshow .album-back {
+    align-self: start;
+    margin: 0;
+}
+.album-slideshow .album-slideshow-title {
+    align-items: start;
+    gap: 16px;
+}
+.album-slideshow .album-slideshow-title h1 {
+    font-size: 22px;
+    line-height: 1.5;
+    font-weight: 600;
+}
+.album-description-disclosure {
+    color: #526779;
+    font-size: 13px;
+    margin-top: 4px;
+}
+.album-description-disclosure summary {
+    cursor: pointer;
+    width: fit-content;
+    min-height: 24px;
+}
+.album-description-disclosure p {
+    max-width: 76ch;
+    margin: 6px 0;
+    font-size: 14px;
+    line-height: 1.7;
+}
+.album-slideshow .album-slideshow-toolbar {
+    grid-column: 1 / -1;
+    padding: 4px 0;
+    margin-top: 4px;
+    min-height: 44px;
+}
+.album-slideshow .album-slideshow-toolbar strong {
+    font-size: 17px;
+}
+.album-slideshow .detail-container {
+    padding-top: 12px;
+}
+.album-slideshow .detail-title h2 {
+    font-size: 20px;
+}
+@media (max-width: 767px) {
+    .album-slideshow .album-slideshow-heading {
+        display: block;
+        padding: 4px 20px 0;
+    }
+    .album-slideshow .album-back {
+        min-height: 36px;
+        margin: 0;
+    }
+    .album-slideshow .album-slideshow-title h1 {
+        font-size: 19px;
+    }
+    .album-slideshow .album-slideshow-title {
+        gap: 12px;
+    }
+    .album-slideshow .detail-title h2 {
+        font-size: 18px;
+    }
+    .album-slideshow .detail-container {
+        padding-top: 10px;
+    }
+}
+
+.album-slideshow .album-back {
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid #cbd8e2;
+    border-radius: 6px;
+    background: #fff;
+    white-space: nowrap;
+    transition:
+        background 160ms,
+        border-color 160ms;
+}
+.album-slideshow .album-back:hover {
+    background: #98cef026;
+    border-color: #ba9f6c;
+}
+.album-slideshow .album-back:focus-visible {
+    outline: 2px solid #042240;
+    outline-offset: 3px;
+}
+.album-slideshow .album-slideshow-heading {
+    padding-top: 12px;
+    align-items: start;
+}
+.album-slideshow .album-slideshow-title .browser-sort-control {
+    flex-shrink: 0;
+}
+.album-position-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: auto;
+}
+.album-position-controls p {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: #526779;
+    font-variant-numeric: tabular-nums;
+}
+.album-position-controls strong {
+    color: #042240;
+}
+.album-position-controls button {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid #cbd8e2;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.album-position-controls button:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+.album-position-controls button:not(:disabled):hover {
+    background: #98cef026;
+    border-color: #ba9f6c;
+}
+.album-position-controls button:focus-visible {
+    outline: 2px solid #042240;
+    outline-offset: 3px;
+}
+@media (max-width: 767px) {
+    .album-slideshow .album-slideshow-title {
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 10px;
+    }
+    .album-slideshow .album-slideshow-title > div:first-child {
+        flex-basis: 100%;
+    }
+    .album-slideshow .album-slideshow-title .browser-sort-control {
+        margin-left: auto;
+    }
+    .album-position-controls {
+        grid-column: 1 / -1;
+        justify-content: space-between;
+        width: 100%;
+        margin: 0;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .album-slideshow .album-back {
+        transition: none;
+    }
+}

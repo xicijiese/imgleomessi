@@ -221,4 +221,25 @@ onUnmounted(() => document.removeEventListener('pointerdown', closeOutside));
         background: var(--footer-gold, #ba9f6c);
     }
 }
+@media (max-width: 767px) {
+    .footer-socials {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        width: 100%;
+        margin-top: 20px;
+    }
+    .footer-social-button {
+        width: 100%;
+        min-height: 64px;
+        border: 1px solid #dce5ec;
+        font-size: 12px;
+    }
+    .footer-social-qr {
+        min-width: 0;
+    }
+    .footer-social-popover {
+        max-width: calc(100vw - 40px);
+    }
+}
 </style>

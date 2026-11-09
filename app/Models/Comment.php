@@ -145,6 +145,7 @@ class Comment extends Model
         ];
         $meta['moderation_history'] = $history;
 
+        $wasPublished = $this->status === 'published';
         $updated = $this->update([
             'status' => $status,
             'reviewed_by' => $reviewer?->id,
@@ -168,6 +169,12 @@ class Comment extends Model
 
             if ($status === 'published' && $this->type === 'discussion') {
                 app(BadgeService::class)->evaluate($this->user);
+                if (! $wasPublished && $this->parent?->status === 'published' && $this->photo?->status === 'published' && ! in_array($this->photo->copyright_status, ['restricted', 'remove_requested'], true)) {
+                    $recipient = self::query()->published()->discussion()->where('photo_id', $this->photo_id)->whereKey($this->meta['reply_to_id'] ?? $this->parent_id)->first()?->user;
+                    if ($recipient && ! $recipient->is($this->user) && ! $recipient->isBanned()) {
+                        $recipient->notify(new UserCenterNotification('comment_reply', '收到新的回复', '你参与的图片讨论有了新回复。', '/photos/'.$this->photo->uuid, 'comment', $this->id));
+                    }
+                }
             }
         }
 
