@@ -26,13 +26,24 @@ const liked = ref(props.comment.liked),
     avatarFailed = ref(false),
     allBadges = ref(false);
 const replies = ref(props.comment.replies ?? []),
+    repliesExpanded = ref(false),
     replyPage = ref(0),
     loading = ref(false),
     more = ref((props.comment.reply_count ?? 0) > replies.value.length);
 const target = ref<ThreadComment | null>(null),
     content = ref(''),
-    sending = ref(false),
-    pending = ref<{ id: number; content: string }[]>([]);
+    sending = ref(false);
+watch(
+    () => props.comment,
+    (value) => {
+        replies.value = value.replies ?? [];
+        replyPage.value = 0;
+        more.value = (value.reply_count ?? 0) > replies.value.length;
+        liked.value = value.liked;
+        count.value = value.like_count;
+        if (repliesExpanded.value) void load();
+    },
+);
 const replyForm = ref<HTMLElement | null>(null);
 let replyMotion: gsap.core.Tween | undefined;
 watch(target, async (value) => {
@@ -135,6 +146,10 @@ const load = async () => {
         loading.value = false;
     }
 };
+const toggleReplies = async () => {
+    repliesExpanded.value = !repliesExpanded.value;
+    if (repliesExpanded.value && replyPage.value === 0) await load();
+};
 const submit = async () => {
     if (!target.value || sending.value) return;
     sending.value = true;
@@ -143,12 +158,17 @@ const submit = async () => {
             `/photos/${props.uuid}/comments`,
             { reply_to: target.value.id, content: content.value },
         );
-        pending.value.push({ id: r.id, content: content.value });
+        router.reload({
+            only: ['photoDetail', 'albumDetail'],
+        });
         content.value = '';
         target.value = null;
         message.value = r.message;
-    } catch {
-        message.value = '回复未提交，请检查字数或稍后重试。';
+    } catch (error) {
+        message.value =
+            error instanceof Error
+                ? error.message
+                : '回复未提交，请检查字数或稍后重试。';
     } finally {
         sending.value = false;
     }
@@ -246,12 +266,31 @@ const submit = async () => {
             <p v-if="message" role="status" class="comment-feedback">
                 {{ message }}
             </p>
+            <button
+                v-if="!isReply && (comment.reply_count ?? 0) > 0"
+                type="button"
+                class="comment-load-replies"
+                :aria-expanded="repliesExpanded"
+                :aria-controls="`replies-${comment.id}`"
+                :disabled="loading"
+                @click="toggleReplies"
+            >
+                {{
+                    loading
+                        ? '正在加载回复'
+                        : repliesExpanded
+                          ? '收起回复'
+                          : `查看 ${comment.reply_count} 条回复`
+                }}
+            </button>
             <div
-                v-if="!isReply && (replies.length || pending.length || target)"
+                v-if="!isReply"
+                v-show="repliesExpanded || target"
+                :id="`replies-${comment.id}`"
                 class="comment-replies"
             >
                 <CommentThreadRow
-                    v-for="child in replies"
+                    v-for="child in repliesExpanded ? replies : []"
                     :key="child.id"
                     :comment="child"
                     :uuid="uuid"
@@ -261,14 +300,6 @@ const submit = async () => {
                     @report="emit('report', $event)"
                     @reply="target = $event"
                 />
-                <div
-                    v-for="item in pending"
-                    :key="item.id"
-                    class="comment-pending"
-                >
-                    <span>我的回复 · 待审核</span>
-                    <p><CommentContent :text="item.content" /></p>
-                </div>
                 <form
                     v-if="target"
                     ref="replyForm"
@@ -299,17 +330,13 @@ const submit = async () => {
                 </form>
             </div>
             <button
-                v-if="!isReply && more"
+                v-if="!isReply && repliesExpanded && more"
                 type="button"
                 class="comment-load-replies"
                 :disabled="loading"
                 @click="load"
             >
-                {{
-                    loading
-                        ? '正在加载'
-                        : `查看${replyPage ? '更多' : `全部 ${comment.reply_count} 条`}回复`
-                }}
+                {{ loading ? '正在加载' : '加载更多回复' }}
             </button>
         </div>
     </div>

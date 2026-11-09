@@ -12,14 +12,14 @@ class CommentStickersTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_sticker_and_single_emoji_are_accepted_and_stay_pending(): void
+    public function test_sticker_and_single_emoji_are_accepted_and_published(): void
     {
         $p = Photo::create(['title' => '表情测试', 'status' => 'published', 'published_at' => now()]);
         $this->actingAs(User::factory()->create());
         $id = array_key_first(CommentStickers::catalog());
         foreach (['[dy:'.$id.']', '😀', '⚽', '文字[dy:'.$id.']'] as $content) {
-            $this->postJson('/photos/'.$p->uuid.'/comments', ['content' => $content])->assertCreated()->assertJsonPath('status', 'pending');
-            $this->assertDatabaseHas('comments', ['photo_id' => $p->id, 'content' => $content, 'status' => 'pending']);
+            $this->postJson('/photos/'.$p->uuid.'/comments', ['content' => $content])->assertCreated()->assertJsonPath('status', 'published');
+            $this->assertDatabaseHas('comments', ['photo_id' => $p->id, 'content' => $content, 'status' => 'published']);
         }
         $this->postJson('/photos/'.$p->uuid.'/comments', ['content' => 'a'])->assertUnprocessable();
         $this->postJson('/photos/'.$p->uuid.'/comments', ['content' => '[dy:unknown]'])->assertUnprocessable();

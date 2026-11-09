@@ -1161,7 +1161,7 @@ redis-cli ping
 
 ~~~bash
 cd /www/wwwroot/img.leomessi.cn
-umask 077
+umask 022
 CHECK_TIME="$(date +%Y%m%d-%H%M%S)"
 BACKUP_DIR="/www/wwwroot/img.leomessi.cn/.deploy-backups/$CHECK_TIME"
 mkdir -p "$BACKUP_DIR"
@@ -1210,7 +1210,7 @@ grep -E '^(APP_ENV|APP_DEBUG|APP_URL|SESSION_DRIVER|SESSION_COOKIE|SESSION_DOMAI
 
 ~~~bash
 cd /www/wwwroot/img.leomessi.cn
-umask 077
+umask 022
 CHECK_TIME="$(date +%Y%m%d-%H%M%S)"
 BACKUP_DIR="/www/wwwroot/img.leomessi.cn/.deploy-backups/$CHECK_TIME"
 mkdir -p "$BACKUP_DIR"
@@ -2260,9 +2260,10 @@ git status --short
 有未提交服务器改动时先停，不强制覆盖。工作区确认后备份旧代码版本与资源，备份放在站点public之外并限制权限：
 
 ```bash
-umask 077
+umask 022
 release_backup="/www/backup/messi-releases/$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$release_backup"
+chmod 700 "$release_backup"
 git rev-parse HEAD > "$release_backup/commit.txt"
 cp -a .env "$release_backup/.env"
 cp -a public/build "$release_backup/build"
@@ -2377,3 +2378,52 @@ CDN只在确认存在旧缓存时定向刷新相关资源，不用全站清缓�
 本轮无新迁移，但需完整发布public/stickers/douyin/（437张图片及来源许可）、resources/data/douyin-stickers.json和PHP代码，并执行npm ci、npm run build及既有缓存刷新。此前comment_likes迁移仍需按上一节执行。表情由本站静态路径提供，不调用COS、不运行media:repair-variants、不批量处理图库。
 
 必须保留本地NOTICE和LICENSE及页面署名；图片不得漏传，清单不得单独更新。新表情添加不应替换历史编号的含义，避免旧评论指向错误图片。验收主评论/回复纯表情待审核、公开后显示、后台显示名称、手机面板和浏览器无第三方CDN请求。
+
+## 评论自动发布增量部署（2026-11-09，本地完成，未发布生产）
+
+完整发布CommentModeration、控制器/模型/前台修改及resources/data/sensitive-lexicon目录（words.json、source.json、upstream原始词库与MIT许可），执行既有依赖/前端构建和缓存步骤。无需新迁移、词库入库、后台批量导入、图片补生成或新队列。新增代码和词库须一并上传，缺少词库应修复文件而不是绕过过滤。旧pending不自动公开，纠错仍人工审核。更新后验收正常评论/回复立即公开、命中返回原因且不公开、输入保留、回复通知和举报/隐藏；本轮只改本地，不能当作生产已上线。
+
+## 词库录入后台的生产增量步骤（2026-11-09，尚未生产执行）
+
+本节覆盖上一节“无需词库入库”：同步LocalSensitiveLexicon、ImportSensitiveLexicon、CommentModeration及后台列修改后，备份生产数据库；先在项目目录执行`/www/server/php/83/bin/php artisan moderation:import-sensitive-words`核对连接及待新增数量，再执行同命令附加`--apply`。无需迁移、不运行Seeder、不处理图库。写入成功后切换为后台规则事实源，原规则和停用状态保留。再次运行只提示已完成，不恢复管理员改词/删除的条目。未导入时保留旧静态规则兼容；不要手动删除完成标记来强制重置词库。
+
+本地新增16587条/跳过5条不是生产必然数量，生产已有规则可能不同。导入期间避免管理员并发编辑；出现唯一键或权限错误先排查，事务失败不切换词源。发布后验证后台搜索、备注来源、分页及停用/编辑效果；启停测试使用明确测试词，不临时关闭大量真实拦截规则。
+
+## 本地上传任务不自动执行排查（2026-11-09，只读检查）
+
+实际环境：APP_ENV=local、SQLite为本项目database/database.sqlite、queue.default=database、队列default、图片存储public、云处理关闭、维护模式关闭。进程清单仅artisan serve与PHP内置网页服务器，无queue:work；QueueWorkerStatus心跳false。jobs表35条、全部reserved_at为空、attempts=0；其中26条对应pending的ProcessPhotoAnalysisJob，另4条对应手动处理后done的同类任务。processing_jobs待处理合计26条（metadata9/hash9/derivatives8），关联9张图片且9张publish_after_processing=true。诊断时未消费队列、未重置任务、未改发布状态；启动Worker后可能自动发布满足条件的积压图片，须先确认范围。
+
+根因是本地只启动网页而没有队列Worker；上传服务确实已创建任务并dispatch，手动补处理直接调用process因此可成功。已运行上传/处理/失败恢复/批次统计相关24项测试107断言通过，未在业务库制造新上传。5条历史派生任务失败记录指向当时数据万象未启用或COS配置不完整，不代表当前本地派生必须启用COS；当前public分支使用GD/WebP，历史失败不会自动重试。
+
+开发时现有网页进程保持运行，可在另一个项目终端运行`php artisan queue:work database --queue=default,image-variants --sleep=1 --tries=3 --timeout=120`；该命令会开始消费积压并可能触发自动发布，本轮未执行。以后统一用composer dev可一起启动网页/Worker/前端，不与已在同端口运行的serve重复启动。生产继续核对实际Redis连接、Supervisor运行用户/队列与权限，不能将此本地结论当作生产也未运行Worker的证明。
+
+完整触发：后台上传临时文件→PhotoUploadService持久保存原图、生成系统文件名、创建草稿/批次/分类/相册/标签关系→createDefaultJobs创建metadata、hash、datawanxiang_derivatives并入默认队列→Worker执行与写回状态→检查三个最新必需任务及派生Key→勾选自动发布且标题/必选分类/版权等满足才发布。metadata/hash当前都调用同一analyze读取尺寸/MIME/大小/EXIF/SHA256，不创建自动相似候选。OCR仅上传勾选且云配置有效才建任务，不阻塞发布；相似分析需独立入口或治理任务。站点头图等独立资源的GeneratePublicImageVariants使用image-variants队列，与上传入库任务记录不同。
+
+## 本地队列恢复与积压完成（2026-11-09，覆盖此前未启动状态）
+
+用户明确授权启动本地服务并处理全部待处理入库任务，已再次核对local/SQLite/public模式、无既有Worker、云处理关闭；先在线备份database.sqlite到storage/app/private/backups/before-queue-drain-20261109-172137.sqlite，并保存26条pending任务及5条历史failed的ID快照。用当前PHP隐藏启动后台进程PID32320：`php artisan queue:work database --queue=default,image-variants --sleep=1 --tries=3 --timeout=120`，工作目录F:/cursor/messiimage，日志为storage/logs/local-queue-worker.out.log及local-queue-worker.err.log。未新增开机自启动或生产Supervisor配置。
+
+验收：26条目标入库任务全部done，pending=0/running=0，jobs队列=0，failed_jobs=0，Worker心跳true且进程仍存活。图片41—49共9张均published，自动发布标记已清除，逐张确认display_key与thumbnail_key对应本地文件存在。原队列中已手动完成的4条分析消息被正常跳过；原有搜索/海报消息亦已随default队列消费。5条历史失败记录未删除或重新执行。本次启动后服务保持运行，电脑重启/进程退出后需重启；后续统一composer dev时避免重复启动同一套服务。未连接生产、不涉及COS费用或原图删除。
+
+## 以图搜图索引补齐增量发布（2026-11-09，生产未执行）
+
+同步PhotoProcessingService、PhotoSimilarityService及RepairImageSearchIndex后，按既有流程备份数据库并重启队列Worker。无需迁移。先运行`/www/server/php/83/bin/php artisan media:repair-search-index`盘点缺失索引数量，确认源图可读、PHP GD和内存/源文件读取费用后，再追加--apply补建；COS生产不要加--local-only。该命令只补公开图片缺失dHash，不生成相似候选或归档图片，不要用全库重复图治理代替索引修复。
+
+本地已备份至storage/app/private/backups/before-search-index-repair-20261109-174056.sqlite，补建10项/失败0，公开图库44项索引全部就绪。原PID32320 Worker已通过queue:restart正常退出，替换为隐藏PID21708，沿用database/default,image-variants并保持运行。生产没有相应操作；历史空结果页需要重新选择文件查询。
+
+## 2026-11-09累计整改生产更新统一步骤（以本节为准，尚未执行）
+
+范围包括：首页精选相册文字分类/金色滑动标记/方向翻入及去箭头、相册列表缩小动效、普通评论与二级回复自动发布及敏感词拦截、白名单表情误判修复、回复默认折叠、敏感词后台纳管、新上传自动生成视觉指纹及旧图索引补建。若更早相册幻灯片/点赞分享/表情资产等未发布，必须随完整代码和静态资源一并发布。本地验证399项6564断言通过，不能视作生产已验证。
+
+1. 本地检查git status/diff，暂存本轮app/resources/routes/tests/docs/public/stickers/douyin及锁文件、vite配置；若comment_likes迁移此前尚未提交也须包含。确认不包含.env、SQLite/storage、临时artifacts、依赖与本地build后提交推送main。不要git add .，不要覆盖生产数据库或COS对象。
+2. 宝塔备份本站MySQL；服务器项目根目录先umask 022，再检查git status。记录旧commit并将.env/public/build备份到public之外的/www/backup/messi-releases/时间戳目录。目录chmod700、备份.env chmod600；不再让umask077影响后续构建。网站进入维护模式，在宝塔停止现有Worker并等待在途任务结束。
+3. git pull --ff-only origin main；export PATH=/www/server/php/83/bin:$PATH，核对PHP8.3；composer install --no-dev --prefer-dist --optimize-autoloader，npm ci --include=dev，npm run build。缺少新CSS manifest项会500，须确认resources/css/page-transitions.css条目存在。保留437张本地表情及两个表情JSON清单、sensitive-lexicon完整目录。
+4. 生产此前已确认PHP工作用户www:www。用root只调整bootstrap/cache和storage的所有权www:www，目录750/文件640；之后artisan维护命令都用runuser -u www -- /www/server/php/83/bin/php执行，避免root缓存权限不匹配。不要将全项目改777；生产.env不覆盖。代码与public/build依靠umask022生成可读权限。若仍有旧600文件，按之前权限修复章节处理；不扩开.env或备份目录权限。
+5. 检查PHP8.3 CLI的GD和WebP支持，缺少先在宝塔启用，视觉指纹与查询依赖GD。清缓存后执行指定comment_likes迁移--path=database/migrations/2026_11_09_000001_create_comment_likes_table.php --force；已执行则无操作，本轮其他变更无新迁移。不可migrate:fresh/refresh、db:seed或批量rollback。
+6. 用网站用户先执行moderation:import-sensitive-words检查生产连接和数量，再附加--apply导入。保留原词条/停用设置，新词有来源备注；已完成再次执行不恢复后台删除项。导入失败不要手动设置完成标记。生产计数不照搬本地16587+5。
+7. 用网站用户执行media:repair-search-index只读盘点；确认存储为COS及缺失数量，评估源图读取流量、内存和耗时后再--apply。生产不要带--local-only。此操作只补公开图片dHash，不生成相似候选/分组、不去重归档、不改发布状态；失败按ID查日志，重跑会跳过已有索引。完成再盘点应归零。无需重复media:repair-variants --apply，除非另有缩略图缺失证据。
+8. 依次以www执行filament:cache-components、config:cache、route:cache、view:cache。宝塔恢复原Redis Worker，建议命令保留原队列并含image-variants,high,default,low、sleep3/tries3/timeout120/max-time3600，原工作目录、运行用户/数量不变。Supervisor自动重启应开启；不改成database，不另起一份无守护终端Worker。恢复网站artisan up后确认守护进程持续运行，不是只保存配置。
+9. 浏览器强制刷新验收首页Tab/四向翻入/无箭头、相册列表缩小、手机标题常驻，评论/回复立即公开、表情不误判、敏感词拒绝且输入保留、回复默认折叠，以及后台规则检索。以图搜图须重新上传原先搜不到的图片发起新查询；旧完成查询保存旧matches，不会因刷新重算。新上传验证三类任务自动done、perceptual_hash存在及前台可检索，自动发布仍取决于勾选与资料条件。查询公开状态/版权限制不放宽。
+10. 看本次时间之后的新日志和队列失败，旧9月失败任务不自动重试；若进程停了先查Supervisor/权限/配置。生产.env保持APP_ENV=production和APP_DEBUG=false。失败先留错误、不执行reset --hard、不清库；代码回退须匹配对应build与依赖，保留新增词条、索引及评论点赞数据，不为了页面回退恢复整库。
+
+本节仅编写教程并修正文档，不代表已提交代码、推送仓库或连接生产执行。启动生产Worker可能消费原积压并触发已勾选的自动发布；上线前应核对积压范围。

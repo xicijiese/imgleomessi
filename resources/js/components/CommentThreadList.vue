@@ -2,7 +2,7 @@
 import CommentThreadRow from '@/components/CommentThreadRow.vue';
 import { shareRequest } from '@/lib/sharing';
 import type { ThreadComment } from '@/types/comments';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 const props = defineProps<{
     initial: ThreadComment[];
     uuid: string;
@@ -16,6 +16,14 @@ const items = ref(props.initial),
     more = ref(props.hasMore),
     busy = ref(false),
     error = ref('');
+watch(
+    () => props.initial,
+    (value) => {
+        items.value = value;
+        page.value = 1;
+        more.value = props.hasMore;
+    },
+);
 const load = async () => {
     if (busy.value) return;
     busy.value = true;

@@ -61,7 +61,7 @@ class PublicPhotoCommentTest extends TestCase
         ])->assertRedirect(route('login'));
     }
 
-    public function test_authenticated_user_can_submit_pending_discussion_comment(): void
+    public function test_authenticated_user_can_submit_published_discussion_comment(): void
     {
         $photo = $this->publicPhoto('提交普通评论图片');
         $user = User::factory()->create();
@@ -73,8 +73,8 @@ class PublicPhotoCommentTest extends TestCase
             ->assertCreated()
             ->assertJson([
                 'submitted' => true,
-                'status' => 'pending',
-                'message' => '评论已提交，等待审核。',
+                'status' => 'published',
+                'message' => '评论已发布。',
             ]);
 
         $this->assertDatabaseHas('comments', [
@@ -82,15 +82,15 @@ class PublicPhotoCommentTest extends TestCase
             'user_id' => $user->id,
             'type' => 'discussion',
             'content' => '这张图应该是赛后庆祝。',
-            'status' => 'pending',
+            'status' => 'published',
         ]);
 
         $this->actingAs($user)
             ->get('/photos/'.$photo->uuid)
             ->assertInertia(fn (Assert $page) => $page
                 ->where('photoDetail.comments.can_submit', true)
-                ->where('photoDetail.comments.total', 0)
-                ->has('photoDetail.comments.data', 0)
+                ->where('photoDetail.comments.total', 1)
+                ->has('photoDetail.comments.data', 1)
             );
     }
 

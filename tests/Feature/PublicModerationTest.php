@@ -28,44 +28,17 @@ class PublicModerationTest extends TestCase
         $this->assertTrue(Schema::hasColumns('sensitive_words', ['word', 'severity', 'is_enabled', 'internal_note']));
     }
 
-    public function test_sensitive_words_mark_comments_and_corrections_without_auto_rejecting(): void
+    public function test_sensitive_comments_are_blocked_and_corrections_still_await_review(): void
     {
-        SensitiveWord::query()->create([
-            'word' => '敏感测试词',
-            'severity' => 'high',
-            'is_enabled' => true,
-        ]);
+        SensitiveWord::create(['word' => '敏感测试词', 'severity' => 'high']);
         $photo = $this->publicPhoto('敏感词测试图片');
-        $user = User::factory()->create();
-
-        $this->actingAs($user)
-            ->postJson('/photos/'.$photo->uuid.'/comments', [
-                'content' => '这里包含敏感测试词，但仍应进入人工审核。',
-            ])
-            ->assertCreated()
-            ->assertJsonPath('status', 'pending');
-
-        $this->actingAs($user)
-            ->postJson('/photos/'.$photo->uuid.'/corrections', [
-                'correction_field' => 'source',
-                'suggested_value' => '敏感测试词来源线索',
-                'content' => '补充一个来源线索。',
-            ])
-            ->assertCreated()
-            ->assertJsonPath('status', 'pending');
-
-        $this->assertDatabaseHas('comments', [
-            'photo_id' => $photo->id,
-            'type' => 'discussion',
-            'status' => 'pending',
-            'risk_level' => 'high',
-        ]);
-        $this->assertDatabaseHas('comments', [
-            'photo_id' => $photo->id,
-            'type' => 'discussion',
-            'status' => 'pending',
-            'risk_level' => 'high',
-        ]);
+        $this->actingAs(User::factory()->create());
+        $this->postJson('/photos/'.$photo->uuid.'/comments', ['content' => '包含敏感测试词'])
+            ->assertUnprocessable()->assertJsonValidationErrors('content');
+        $this->assertDatabaseMissing('comments', ['type' => 'discussion', 'photo_id' => $photo->id]);
+        $this->postJson('/photos/'.$photo->uuid.'/corrections', ['correction_field' => 'source', 'suggested_value' => '敏感测试词来源线索', 'content' => '补充一个来源线索。'])
+            ->assertCreated()->assertJsonPath('status', 'pending');
+        $this->assertDatabaseHas('comments', ['type' => 'correction', 'photo_id' => $photo->id, 'status' => 'pending', 'risk_level' => 'high']);
     }
 
     public function test_authenticated_user_can_report_published_discussion_comment(): void

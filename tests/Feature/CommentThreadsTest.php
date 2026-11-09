@@ -25,15 +25,15 @@ class CommentThreadsTest extends TestCase
         return Comment::create(array_merge(['photo_id' => $p->id, 'user_id' => $u->id, 'content' => '公开评论', 'status' => 'published'], $extra));
     }
 
-    public function test_reply_to_reply_is_flattened_and_pending(): void
+    public function test_reply_to_reply_is_flattened_and_published(): void
     {
         $u = User::factory()->create();
         $p = $this->photo();
         $root = $this->comment($p, $u);
         $child = $this->comment($p, $u, ['parent_id' => $root->id]);
         $r = $this->actingAs($u)->postJson('/photos/'.$p->uuid.'/comments', ['content' => '回复第二层', 'reply_to' => $child->id])->assertCreated();
-        $this->assertDatabaseHas('comments', ['id' => $r->json('id'), 'parent_id' => $root->id, 'status' => 'pending']);
-        $this->getJson('/photos/'.$p->uuid.'/discussion')->assertJsonCount(1, 'data.0.replies');
+        $this->assertDatabaseHas('comments', ['id' => $r->json('id'), 'parent_id' => $root->id, 'status' => 'published']);
+        $this->getJson('/photos/'.$p->uuid.'/discussion')->assertJsonCount(2, 'data.0.replies');
     }
 
     public function test_cross_photo_hidden_and_correction_targets_are_rejected(): void

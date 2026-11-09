@@ -1,0 +1,124 @@
+{
+  "source": "https://github.com/konsheng/Sensitive-lexicon",
+  "commit": "68a595fb24d31bd9f882c081b4252443a69ac57b",
+  "files": [
+    {
+      "path": "LICENSE",
+      "sha": "497bd06ea1c33bbe0fcf3abcc6d7d70dd3493207",
+      "bytes": 1070
+    },
+    {
+      "path": "Vocabulary/COVID-19词库.txt",
+      "sha": "0c5c7fecd0741d1cbb5df2a2c7dfa8303d86fadc",
+      "bytes": 1628
+    },
+    {
+      "path": "Vocabulary/GFW补充词库.txt",
+      "sha": "901d77198aaaadc729e665c10a38321fec8e6592",
+      "bytes": 90429
+    },
+    {
+      "path": "Vocabulary/其他词库.txt",
+      "sha": "3f14910d8f98eef55beb5eedc7e9bbc89fdd565c",
+      "bytes": 1367
+    },
+    {
+      "path": "Vocabulary/反动词库.txt",
+      "sha": "2e5e59a62b1e797a44e171e88623d71f7794a68a",
+      "bytes": 5887
+    },
+    {
+      "path": "Vocabulary/广告类型.txt",
+      "sha": "0777f8c4437ea4aa343ff4a7cef2424264574bda",
+      "bytes": 1251
+    },
+    {
+      "path": "Vocabulary/微信输入法/微信输入法内置词库26.11.7.txt",
+      "sha": "ac5ee3014b0d8ddee0d5db0b61c0eb45287bc093",
+      "bytes": 172663
+    },
+    {
+      "path": "Vocabulary/政治类型.txt",
+      "sha": "04f9c44077ecc86f217778a2399afd7f81d56d1f",
+      "bytes": 3006
+    },
+    {
+      "path": "Vocabulary/新思想启蒙.txt",
+      "sha": "f46046d71db73fb52e85ccddfdbf4414d9347804",
+      "bytes": 250
+    },
+    {
+      "path": "Vocabulary/暴恐词库.txt",
+      "sha": "adb13b1c4e314bea6603a6a59854b756691e47ba",
+      "bytes": 1941
+    },
+    {
+      "path": "Vocabulary/民生词库.txt",
+      "sha": "12a0a5fb0da892d41325443f624feee9c89e5708",
+      "bytes": 5954
+    },
+    {
+      "path": "Vocabulary/涉枪涉爆.txt",
+      "sha": "bd7affc3213a3fec3e21835297db12d283af2ebd",
+      "bytes": 8824
+    },
+    {
+      "path": "Vocabulary/网易前端过滤敏感词库.txt",
+      "sha": "3375f1e8214b5b621c166aa50c2da8177028f228",
+      "bytes": 114008
+    },
+    {
+      "path": "Vocabulary/色情类型.txt",
+      "sha": "d6c8a31904371799d1a75dc9d0342e2da4e4626d",
+      "bytes": 2349
+    },
+    {
+      "path": "Vocabulary/色情词库.txt",
+      "sha": "ec11d343a902b9be43059c37e38c19f4ba0c1c5d",
+      "bytes": 7596
+    },
+    {
+      "path": "Vocabulary/补充词库.txt",
+      "sha": "25597ae2a38f2946472da191b0754a24fa502c26",
+      "bytes": 11459
+    },
+    {
+      "path": "Vocabulary/贪腐词库.txt",
+      "sha": "c21cfdf3a74ecb761cb67a22477f4158fa97757d",
+      "bytes": 2747
+    },
+    {
+      "path": "Vocabulary/零时-Tencent.txt",
+      "sha": "2d929be88bdaad438a60b049fa989250c855993a",
+      "bytes": 716330
+    },
+    {
+      "path": "Vocabulary/非法网址.txt",
+      "sha": "7631eb8b685fa6488eaebef8d8dfa92bb5fcadd9",
+      "bytes": 219148
+    }
+  ],
+  "active_files": [
+    "Vocabulary/色情词库.txt",
+    "Vocabulary/色情类型.txt",
+    "Vocabulary/暴恐词库.txt",
+    "Vocabulary/涉枪涉爆.txt",
+    "Vocabulary/反动词库.txt",
+    "Vocabulary/政治类型.txt",
+    "Vocabulary/非法网址.txt"
+  ],
+  "excluded_ambiguous_words": [
+    "乳房",
+    "性交",
+    "成人",
+    "打飞机",
+    "拔出来",
+    "激情",
+    "爱女人",
+    "盘古",
+    "美女",
+    "阴道",
+    "高潮"
+  ],
+  "word_count": 16592
+}

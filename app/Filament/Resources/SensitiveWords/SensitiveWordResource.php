@@ -83,6 +83,10 @@ class SensitiveWordResource extends Resource
                     ->label('更新时间')
                     ->dateTime('Y-m-d H:i')
                     ->sortable(),
+                TextColumn::make('internal_note')
+                    ->label('来源 / 备注')
+                    ->limit(60)
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('severity')

@@ -591,12 +591,17 @@ const submitDiscussion = async () => {
             message: string;
             id: number;
         }>(commentUrl.value, 'POST', { content });
-        pendingDiscussions.value.push({ id: result.id, content });
+        router.reload({
+            only: ['photoDetail', 'albumDetail'],
+        });
         commentContent.value = '';
         activeComposer.value = null;
         commentStatus.value = result.message;
-    } catch {
-        commentStatus.value = '评论提交失败，请稍后重试。';
+    } catch (error) {
+        commentStatus.value =
+            error instanceof Error && error.message !== 'interaction_failed'
+                ? error.message
+                : '评论提交失败，请稍后重试。';
     } finally {
         commentPending.value = false;
         clearCommentStatus();
@@ -700,7 +705,6 @@ const stepZoom = (direction: 'previous' | 'next') => {
         photo.url,
         {},
         {
-            preserveScroll: true,
             preserveState: true,
             onFinish: () => {
                 zoomPending.value = false;
@@ -1305,7 +1309,7 @@ watch(
                         <p><CommentContent :text="item.content" /></p>
                     </div>
                     <CommentThreadList
-                        :key="photoDetail.photo.uuid"
+                        :key="`${photoDetail.photo.uuid}-${photoDetail.comments.total}`"
                         :initial="photoDetail.comments.data"
                         :uuid="photoDetail.photo.uuid"
                         :can-interact="photoDetail.comments.can_submit"

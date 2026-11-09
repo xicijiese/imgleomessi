@@ -107,7 +107,8 @@ class PhotoProcessingService
 
         try {
             match ($job->type) {
-                'metadata', 'hash' => $this->analyze($job->photo),
+                'metadata' => $this->analyze($job->photo),
+                'hash' => $this->processHash($job->photo),
                 'ocr_placeholder' => $this->markPlaceholder($job->photo),
                 'datawanxiang_derivatives' => $this->processDerivatives($job->photo),
                 'similarity' => $this->processSimilarity($job->photo),
@@ -245,6 +246,12 @@ class PhotoProcessingService
             : $this->localDerivatives->generate($photo);
 
         $photo->update($keys);
+    }
+
+    private function processHash(Photo $photo): void
+    {
+        $this->analyze($photo);
+        $this->similarity->updatePerceptualHash($photo);
     }
 
     private function analyze(Photo $photo): PhotoAnalysisResult

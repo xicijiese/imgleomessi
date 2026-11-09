@@ -14,6 +14,12 @@ export async function shareRequest<T>(url: string, data?: unknown): Promise<T> {
         body: data === undefined ? undefined : JSON.stringify(data),
     });
     if (!response.ok) {
+        if (response.status === 422) {
+            const data = await response.json();
+            throw new Error(
+                data.errors?.content?.[0] ?? data.message ?? '请检查填写内容',
+            );
+        }
         if (response.status === 419)
             throw new Error('页面已过期，请刷新后重试');
         if (response.status === 429) throw new Error('操作较频繁，请稍后重试');

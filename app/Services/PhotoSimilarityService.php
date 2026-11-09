@@ -81,7 +81,7 @@ class PhotoSimilarityService
         return $candidate->refresh();
     }
 
-    private function updatePerceptualHash(Photo $photo): string
+    public function updatePerceptualHash(Photo $photo): string
     {
         if (blank($photo->original_key)) {
             throw new RuntimeException('图片缺少原图存储 Key。');

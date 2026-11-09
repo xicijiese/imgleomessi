@@ -6,10 +6,12 @@ use App\Http\Controllers\Concerns\RejectsBannedUsers;
 use App\Models\Comment;
 use App\Models\Photo;
 use App\Models\SensitiveWord;
+use App\Services\CommentModeration;
 use App\Services\CommentStickers;
 use App\Services\PublicCommentThreads;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class PhotoCommentController extends Controller
@@ -32,25 +34,30 @@ class PhotoCommentController extends Controller
             $target = app(PublicCommentThreads::class)->visible(Comment::query())->where('photo_id', $photo->id)->findOrFail($data['reply_to']);
             abort_if($target->parent_id && $target->parent?->photo_id !== $photo->id, 404);
         }
-        $scan = SensitiveWord::scan(CommentStickers::scanText($data['content']));
+        app(CommentModeration::class)->ensureAllowed($data['content']);
 
-        $comment = Comment::query()->create([
-            'photo_id' => $photo->id,
-            'user_id' => $request->user()->id,
-            'type' => 'discussion',
-            'parent_id' => $target ? ($target->parent_id ?? $target->id) : null,
-            'meta' => $target ? ['reply_to_id' => $target->id] : null,
-            'content' => $data['content'],
-            'status' => 'pending',
-            'risk_level' => $scan['risk_level'],
-            'sensitive_word_hits' => $scan['hits'] === [] ? null : $scan['hits'],
-        ]);
+        $comment = DB::transaction(function () use ($photo, $request, $data, $target) {
+            $comment = Comment::query()->create([
+                'photo_id' => $photo->id,
+                'user_id' => $request->user()->id,
+                'type' => 'discussion',
+                'parent_id' => $target ? ($target->parent_id ?? $target->id) : null,
+                'meta' => $target ? ['reply_to_id' => $target->id] : null,
+                'content' => $data['content'],
+                'status' => 'published',
+                'risk_level' => 'clean',
+                'sensitive_word_hits' => null,
+            ]);
+            $comment->notifyPublication();
+
+            return $comment;
+        });
 
         return response()->json([
             'submitted' => true,
             'id' => $comment->id,
             'status' => $comment->status,
-            'message' => '评论已提交，等待审核。',
+            'message' => '评论已发布。',
         ], 201);
     }
 

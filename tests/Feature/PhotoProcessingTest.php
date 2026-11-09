@@ -388,11 +388,13 @@ class PhotoProcessingTest extends TestCase
         $this->assertSame('failed', $failed->status);
         $this->assertStringContainsString('原图文件不存在', (string) $failed->error_message);
 
-        Storage::disk('public')->put('missing/photo.jpg', 'recovered-binary');
+        $recoveredFile = UploadedFile::fake()->image('recovered.jpg');
+        $recovered = file_get_contents($recoveredFile->getRealPath());
+        Storage::disk('public')->put('missing/photo.jpg', $recovered);
         $retried = $service->retry($failed);
 
         $this->assertSame('done', $retried->status);
-        $this->assertSame(hash('sha256', 'recovered-binary'), $photo->refresh()->analysisResult?->sha256_hash);
+        $this->assertSame(hash('sha256', $recovered), $photo->refresh()->analysisResult?->sha256_hash);
     }
 
     public function test_ocr_processing_writes_text_and_manual_retry_can_succeed(): void

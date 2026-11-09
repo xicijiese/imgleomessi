@@ -342,3 +342,20 @@ PublicMediaUrl集中选择Photo的thumbnail/display版本，拒绝原图别名�
 SettingImageVariants对受管理的settings/photos/demo-gallery相对路径规范化，以sourceKey的SHA256查settings.image_variants记录；PublicMediaUrl::settingImage只读此结果。外部URL及路径穿越不自动下载。后台HomepageSettings保存后排队，不同步压缩；GeneratePublicImageVariants为ShouldQueue+ShouldBeUnique，采用image-variants队列（sync环境强制database），按Photo ID或站点source Key去重，3次重试/120秒超时/唯一锁3600秒。原图在本地public磁盘时走GD，否则COS模式调用原有数据万象服务；不发布照片或修改图片其他资料。
 
 独立站点图片用setting-{hash}命名空间保存派生版本，设置中原上传路径不变；派生元数据另存，更新旧封面后不自动删除旧派生文件，避免误删缓存或复用资源。media:repair-variants默认只读盘点，--apply才排队，--local-only限制到本地已有源文件；图库查询lazyById(200)避免一次性加载全库。生产处理必须人工检查范围、备份和费用，不在访客或自动发布时重跑Seeder。
+## 评论自动发布与离线词库（2026-11-09）
+
+普通discussion入口调用CommentModeration：先移除已经通过白名单校验的本地表情标记（不扫描表情名称），对剩余文字统一大小写、全角英文/数字、空白及零宽字符，再匹配resources/data/sensitive-lexicon/words.json与数据库SensitiveWord覆盖项。静态16592条规则按400条一批preg_quote转义后正则匹配；纯ASCII字母数字词增加边界，避免短英文词命中较长英文词内部；无外网调用、无逐词数据库查询。文件缺失、JSON解析或正则失败抛异常阻止发布。词库原文件、固定提交及blob SHA保存在upstream/source.json相关文件，不放public。
+
+未命中后在事务内创建published普通评论，复用Comment.notifyPublication触发勋章与有效被回复者站内通知，不制造人工审核结果通知；原后台首次审核通过复用同一路径，历史pending仍保持原状态。命中返回422、不落库；纠错入口继续敏感标记+人工审核。前台成功后Inertia局部重新读取photoDetail/albumDetail，列表与回复状态同步重置，避免preserveState留下待审文案或旧回复。失败显示服务端原因并保留输入。无需迁移或新增队列。
+
+## 敏感词后台统一管理（2026-11-09，覆盖此前静态词库叠加模式）
+
+LocalSensitiveLexicon负责读取初始JSON和首次导入；moderation:import-sensitive-words无--apply只报告，写入使用单事务、100条一批，按CommentModeration.normalize去重并跳过已有词。新增词写入现有sensitive_words，备注记录来源版本，不改变原风险/启停设置；完成后在现有settings(group=moderation,key=lexicon_import)写入completed/source_commit/imported_at。不增加迁移或新增队列，不做每请求自动导入。
+
+CommentModeration先读取后台规则；完成标记为true后完全以数据库规则为准，不再合并静态词表，使改词/停用/删除立即有效。首次未导入维持旧版静态词库+数据库覆盖，避免生产在尚未执行导入时丢失拦截；成功标记与数据原子写入，导入失败不切换。已经完成首次导入时命令直接退出，不恢复已删规则。后台表格增加可选“来源/备注”列，分页搜索沿用Filament。
+
+## 上传自动建立以图搜图索引（2026-11-09）
+
+PhotoProcessingService将metadata与hash分开匹配，hash通过processHash调用analyze和PhotoSimilarityService.updatePerceptualHash；后者从原图计算64位dHash并写perceptual_hash，与查询端hashForContents算法一致。此前同图漏检源于该字段缺失而不是匹配阈值，故不放宽阈值或查询权限。上传处理进程需重启加载新代码，PHP GD为当前视觉指纹算法依赖；候选生成/分组/归档仍是独立维护流程。
+
+新增media:repair-search-index：缺失指纹公开图片按lazyById(100)遍历，只生成索引；默认盘点、--apply写入、--local-only限制存储模式。不新增库表、队列或自动批量归档。异常逐项记录，继续其他条目并以失败退出码报告，原始文件和图片状态不变。

@@ -6,7 +6,9 @@ use App\Jobs\ProcessPhotoImageSearch;
 use App\Models\Photo;
 use App\Models\PhotoAnalysisResult;
 use App\Models\PhotoImageSearch;
+use App\Services\PhotoProcessingService;
 use App\Services\PhotoSimilarityService;
+use App\Services\PhotoUploadService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
@@ -18,6 +20,48 @@ use Tests\TestCase;
 class PhotoImageSearchTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_search_index_repair_is_explicit_and_only_indexes_public_photos(): void
+    {
+        Storage::fake('public');
+        $file = UploadedFile::fake()->image('repair.jpg', 80, 60);
+        Storage::disk('public')->put('repair.jpg', file_get_contents($file->getRealPath()));
+        $photos = collect(['published', 'draft', 'archived'])->map(fn ($status) => Photo::create(['title' => $status, 'status' => $status, 'original_key' => 'repair.jpg']));
+        $restricted = Photo::create(['title' => 'restricted', 'status' => 'published', 'copyright_status' => 'restricted', 'original_key' => 'repair.jpg']);
+        $this->artisan('media:repair-search-index --local-only')->assertSuccessful();
+        $this->assertDatabaseCount('photo_analysis_results', 0);
+        $this->artisan('media:repair-search-index --local-only --apply')->assertSuccessful();
+        $this->assertDatabaseCount('photo_analysis_results', 1);
+        $photo = $photos->first()->fresh();
+        $this->assertSame('published', $photo->status);
+        $this->assertNotNull($photo->analysisResult?->perceptual_hash);
+        $this->assertNull($restricted->fresh()->analysisResult);
+        $this->assertDatabaseCount('processing_jobs', 0);
+        $this->assertDatabaseCount('photo_similarity_candidates', 0);
+        $this->artisan('media:repair-search-index --local-only --apply')->assertSuccessful();
+        $this->assertDatabaseCount('photo_analysis_results', 1);
+    }
+
+    public function test_uploaded_photo_is_searchable_after_normal_processing_without_manual_similarity_analysis(): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+        Storage::fake('local');
+        $file = UploadedFile::fake()->image('uploaded.jpg', 120, 90);
+        $contents = file_get_contents($file->getRealPath());
+        $photo = app(PhotoUploadService::class)->store($file);
+        foreach ($photo->processingJobs()->orderBy('id')->get() as $job) {
+            $this->assertSame('done', app(PhotoProcessingService::class)->process($job)->status);
+        }
+        $this->assertSame(app(PhotoSimilarityService::class)->hashForContents($contents), $photo->fresh()->analysisResult?->perceptual_hash);
+        $photo->update(['status' => 'published', 'published_at' => now()]);
+        $query = PhotoImageSearch::create(['id' => (string) Str::uuid(), 'session_hash' => 'test', 'temporary_path' => 'image-search/uploaded.jpg', 'expires_at' => now()->addHour()]);
+        Storage::disk('local')->put($query->temporary_path, $contents);
+        (new ProcessPhotoImageSearch($query->id))->handle(app(PhotoSimilarityService::class));
+        $this->assertSame('done', $query->fresh()->status);
+        $this->assertSame([['photo_id' => $photo->id, 'distance' => 0]], $query->fresh()->matches);
+        $this->assertDatabaseCount('photo_similarity_candidates', 0);
+    }
 
     public function test_guest_can_submit_private_query_and_receive_only_public_matches(): void
     {

@@ -104,6 +104,64 @@ useGalleryScrollReveal(
 );
 let motion: gsap.MatchMedia | undefined;
 let categoryMotion: gsap.core.Tween | undefined;
+let categoryRequest = 0;
+const categoryNav = ref<HTMLElement | null>(null);
+const categoryMarker = ref({ left: 0, width: 0 });
+let categoryObserver: ResizeObserver | undefined;
+const albumHoverTweens = new Map<HTMLElement, gsap.core.Tween>();
+const clearAlbumHover = () => {
+    albumHoverTweens.forEach((tween) => tween.revert());
+    albumHoverTweens.clear();
+};
+const updateCategoryMarker = () => {
+    const button = categoryNav.value?.querySelector<HTMLElement>('.is-active');
+    if (button)
+        categoryMarker.value = {
+            left: button.offsetLeft,
+            width: button.offsetWidth,
+        };
+};
+const albumHover = (event: PointerEvent, show: boolean) => {
+    if (
+        event.pointerType === 'touch' ||
+        !window.matchMedia(
+            '(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)',
+        ).matches
+    )
+        return;
+    const card = event.currentTarget as HTMLElement;
+    const overlay = card.querySelector<HTMLElement>('.album-caption');
+    if (!overlay || card.matches(':focus-visible')) return;
+    const r = card.getBoundingClientRect();
+    const distances = [
+        event.clientY - r.top,
+        r.right - event.clientX,
+        r.bottom - event.clientY,
+        event.clientX - r.left,
+    ];
+    const edge = distances.indexOf(Math.min(...distances));
+    const pose = [
+        { rotationX: -90, rotationY: 0, transformOrigin: '50% 0%' },
+        { rotationX: 0, rotationY: -90, transformOrigin: '100% 50%' },
+        { rotationX: 90, rotationY: 0, transformOrigin: '50% 100%' },
+        { rotationX: 0, rotationY: 90, transformOrigin: '0% 50%' },
+    ][edge];
+    albumHoverTweens.get(overlay)?.kill();
+    if (show && Number(gsap.getProperty(overlay, 'opacity')) < 0.01)
+        gsap.set(overlay, { ...pose, autoAlpha: 0 });
+    if (!show) gsap.set(overlay, { transformOrigin: pose.transformOrigin });
+    albumHoverTweens.set(
+        overlay,
+        gsap.to(overlay, {
+            ...(show
+                ? { rotationX: 0, rotationY: 0, autoAlpha: 1 }
+                : { ...pose, autoAlpha: 0 }),
+            duration: show ? 0.3 : 0.22,
+            ease: 'power2.out',
+            overwrite: true,
+        }),
+    );
+};
 const topicTrack = ref<HTMLElement | null>(null);
 const activeTopicIndex = ref(0);
 let topicObserver: ResizeObserver | undefined;
@@ -211,29 +269,101 @@ const showTopics = computed(() => props.home.topic_module.enabled);
 const hasTopics = computed(() => props.home.topic_module.items.length > 0);
 
 const setCategoryTab = (index: number) => {
-    activeCategoryIndex.value = index;
+    if (!props.home.category_module.tabs[index]) return;
+    const ticket = ++categoryRequest;
+    categoryMotion?.revert();
+    if (homepage.value)
+        gsap.set(homepage.value.querySelectorAll('.album-card'), {
+            clearProps: 'opacity,transform',
+        });
+    clearAlbumHover();
+    if (activeCategoryIndex.value === index) return;
+    const reduced = window.matchMedia(
+        '(prefers-reduced-motion: reduce)',
+    ).matches;
+    const apply = async () => {
+        if (ticket !== categoryRequest) return;
+        activeCategoryIndex.value = index;
+        await nextTick();
+        if (ticket !== categoryRequest || !homepage.value) return;
+        updateCategoryMarker();
+        const nav = categoryNav.value;
+        const button = nav?.querySelector<HTMLElement>('.is-active');
+        if (nav && button) {
+            const left = button.offsetLeft,
+                right = left + button.offsetWidth;
+            if (left < nav.scrollLeft)
+                nav.scrollTo({
+                    left,
+                    behavior: reduced ? 'instant' : 'smooth',
+                });
+            else if (right > nav.scrollLeft + nav.clientWidth)
+                nav.scrollTo({
+                    left: right - nav.clientWidth,
+                    behavior: reduced ? 'instant' : 'smooth',
+                });
+        }
+        if (!reduced)
+            categoryMotion = gsap.fromTo(
+                homepage.value.querySelectorAll('.album-card'),
+                { opacity: 0, y: 8 },
+                {
+                    opacity: 1,
+                    y: 0,
+                    duration: 0.26,
+                    stagger: 0.025,
+                    ease: 'power2.out',
+                    clearProps: 'opacity,transform',
+                },
+            );
+    };
+    const cards = homepage.value?.querySelectorAll('.album-card');
+    if (reduced || !cards?.length) void apply();
+    else
+        categoryMotion = gsap.to(cards, {
+            opacity: 0,
+            y: -5,
+            duration: 0.12,
+            onComplete: () => void apply(),
+        });
 };
-
+const categoryKey = (event: KeyboardEvent, index: number) => {
+    const length = props.home.category_module.tabs.length;
+    const next =
+        event.key === 'ArrowRight'
+            ? (index + 1) % length
+            : event.key === 'ArrowLeft'
+              ? (index + length - 1) % length
+              : event.key === 'Home'
+                ? 0
+                : event.key === 'End'
+                  ? length - 1
+                  : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    categoryNav.value
+        ?.querySelectorAll<HTMLButtonElement>('.category-tab')
+        [next]?.focus({ preventScroll: true });
+    setCategoryTab(next);
+};
 const setHero = (index: number) => {
     activeHeroIndex.value = index;
 };
-
-watch(activeCategoryIndex, async () => {
-    await nextTick();
-    categoryMotion?.revert();
-    if (
-        !homepage.value ||
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    )
-        return;
-    categoryMotion = gsap.fromTo(
-        homepage.value.querySelectorAll('.album-card'),
-        { y: 6 },
-        { y: 0, duration: 0.24, ease: 'power2.out', clearProps: 'transform' },
-    );
-});
+watch(
+    () => props.home.category_module.tabs,
+    async () => {
+        await nextTick();
+        updateCategoryMarker();
+    },
+);
 
 onMounted(() => {
+    updateCategoryMarker();
+    categoryObserver = new ResizeObserver(updateCategoryMarker);
+    if (categoryNav.value) categoryObserver.observe(categoryNav.value);
+    void document.fonts.ready.then(() => {
+        if (homepage.value) updateCategoryMarker();
+    });
     motion = gsap.matchMedia();
     motion.add(
         '(prefers-reduced-motion: no-preference)',
@@ -276,6 +406,9 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+    categoryRequest++;
+    categoryObserver?.disconnect();
+    clearAlbumHover();
     topicObserver?.disconnect();
     clearTimeout(topicScrollTimer);
     motion?.revert();
@@ -413,6 +546,7 @@ onUnmounted(() => {
                 </div>
                 <div class="album-toolbar">
                     <div
+                        ref="categoryNav"
                         class="category-scroll"
                         role="tablist"
                         aria-label="精选相册子分类导航"
@@ -426,11 +560,23 @@ onUnmounted(() => {
                                 'is-active': activeCategoryIndex === index,
                             }"
                             role="tab"
+                            :id="`home-album-tab-${index}`"
                             :aria-selected="activeCategoryIndex === index"
+                            :tabindex="activeCategoryIndex === index ? 0 : -1"
+                            aria-controls="home-album-results"
+                            @keydown="categoryKey($event, index)"
                             @click="setCategoryTab(index)"
                         >
                             {{ tab.label }}
                         </button>
+                        <span
+                            class="category-marker"
+                            aria-hidden="true"
+                            :style="{
+                                width: `${categoryMarker.width}px`,
+                                transform: `translateX(${categoryMarker.left}px)`,
+                            }"
+                        />
                     </div>
                     <Link
                         :href="home.category_module.more_url"
@@ -438,31 +584,42 @@ onUnmounted(() => {
                         >更多<ArrowRight :size="18" aria-hidden="true"
                     /></Link>
                 </div>
-                <div v-if="activeCategoryTab?.items.length" class="album-grid">
-                    <Link
-                        v-for="item in activeCategoryTab.items"
-                        :key="item.id"
-                        :href="item.url"
-                        class="album-card"
-                        :aria-label="`查看相册：${item.title}`"
+                <div
+                    id="home-album-results"
+                    role="tabpanel"
+                    :aria-labelledby="`home-album-tab-${activeCategoryIndex}`"
+                    tabindex="0"
+                >
+                    <div
+                        v-if="activeCategoryTab?.items.length"
+                        class="album-grid"
                     >
-                        <div class="album-image">
-                            <img
-                                v-if="item.image_url"
-                                :src="item.image_url"
-                                :alt="item.alt"
-                                loading="lazy"
-                            />
-                            <div v-else class="image-placeholder" />
-                        </div>
-                        <div class="album-caption">
-                            <h3>{{ item.title }}</h3>
-                            <ArrowRight :size="20" aria-hidden="true" />
-                        </div>
-                    </Link>
-                </div>
-                <div v-else class="home-empty">
-                    当前分类还没有可公开展示的图片或相册。
+                        <Link
+                            v-for="item in activeCategoryTab.items"
+                            :key="item.id"
+                            :href="item.url"
+                            class="album-card"
+                            @pointerenter="albumHover($event, true)"
+                            @pointerleave="albumHover($event, false)"
+                            :aria-label="`查看相册：${item.title}`"
+                        >
+                            <div class="album-image">
+                                <img
+                                    v-if="item.image_url"
+                                    :src="item.image_url"
+                                    :alt="item.alt"
+                                    loading="lazy"
+                                />
+                                <div v-else class="image-placeholder" />
+                                <div class="album-caption">
+                                    <h3>{{ item.title }}</h3>
+                                </div>
+                            </div>
+                        </Link>
+                    </div>
+                    <div v-else class="home-empty">
+                        当前分类还没有可公开展示的图片或相册。
+                    </div>
                 </div>
             </div>
         </section>
