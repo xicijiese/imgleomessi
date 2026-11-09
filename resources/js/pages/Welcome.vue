@@ -162,6 +162,47 @@ const albumHover = (event: PointerEvent, show: boolean) => {
         }),
     );
 };
+let photoTiltFrame: number | undefined;
+let activeTiltCard: HTMLElement | null = null;
+const resetPhotoTilt = (event?: PointerEvent) => {
+    if (photoTiltFrame !== undefined) cancelAnimationFrame(photoTiltFrame);
+    photoTiltFrame = undefined;
+    const card = event ? (event.currentTarget as HTMLElement) : activeTiltCard;
+    card?.classList.remove('is-tilting');
+    card?.style.removeProperty('--photo-tilt-x');
+    card?.style.removeProperty('--photo-tilt-y');
+    activeTiltCard = null;
+};
+const tiltPhoto = (event: PointerEvent) => {
+    if (
+        event.pointerType === 'touch' ||
+        !window.matchMedia(
+            '(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)',
+        ).matches
+    ) {
+        resetPhotoTilt();
+        return;
+    }
+    const card = event.currentTarget as HTMLElement;
+    if (activeTiltCard && activeTiltCard !== card) resetPhotoTilt();
+    const rect = card.getBoundingClientRect();
+    const x = Math.max(
+        -1,
+        Math.min(1, ((event.clientX - rect.left) / rect.width) * 2 - 1),
+    );
+    const y = Math.max(
+        -1,
+        Math.min(1, ((event.clientY - rect.top) / rect.height) * 2 - 1),
+    );
+    activeTiltCard = card;
+    if (photoTiltFrame !== undefined) cancelAnimationFrame(photoTiltFrame);
+    photoTiltFrame = requestAnimationFrame(() => {
+        card.classList.add('is-tilting');
+        card.style.setProperty('--photo-tilt-x', `${y * 10}deg`);
+        card.style.setProperty('--photo-tilt-y', `${-x * 10}deg`);
+        photoTiltFrame = undefined;
+    });
+};
 const topicTrack = ref<HTMLElement | null>(null);
 const activeTopicIndex = ref(0);
 let topicObserver: ResizeObserver | undefined;
@@ -406,6 +447,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+    resetPhotoTilt();
     categoryRequest++;
     categoryObserver?.disconnect();
     clearAlbumHover();
@@ -638,6 +680,9 @@ onUnmounted(() => {
                         :key="item.id"
                         :href="item.url"
                         class="photo-card"
+                        @pointermove="tiltPhoto"
+                        @pointerleave="resetPhotoTilt"
+                        @pointercancel="resetPhotoTilt"
                         :aria-label="`查看图片：${item.title}`"
                     >
                         <div class="photo-image">

@@ -694,6 +694,20 @@
 }
 /* 封面框保持尺寸，悬停时图片从放大裁切平滑缩回，避免四周留白。 */
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    .photo-image {
+        transform: perspective(1400px) rotateX(var(--photo-tilt-x, 0deg))
+            rotateY(var(--photo-tilt-y, 0deg));
+        transform-origin: center;
+        transition:
+            transform 650ms cubic-bezier(0.03, 0.98, 0.52, 0.99),
+            outline-color 160ms,
+            box-shadow 300ms;
+    }
+    .photo-card.is-tilting .photo-image {
+        transition-duration: 140ms, 160ms, 300ms;
+        will-change: transform;
+        box-shadow: 0 12px 26px #04224020;
+    }
     .album-caption {
         inset: 0;
         flex-direction: column;
@@ -701,7 +715,7 @@
         justify-content: center;
         text-align: center;
         padding: 28px;
-        background: #042240b8;
+        background: #04224080;
         opacity: 0;
         visibility: hidden;
     }
