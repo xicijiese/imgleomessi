@@ -765,3 +765,65 @@ html:has(.browser-filter-dialog[open]) {
         transform: none !important;
     }
 }
+
+/* 图库将以图搜图与筛选操作集中排列，其他页面保留原布局。 */
+.archive-gallery .browser-quick-filters {
+    grid-template-columns:
+        minmax(200px, 1.7fr) minmax(130px, 1fr) minmax(115px, 0.85fr)
+        auto auto auto;
+}
+.archive-gallery .browser-apply-top {
+    display: inline-flex;
+}
+.browser-gallery-image-search {
+    white-space: nowrap;
+}
+@media (max-width: 1279px) {
+    .archive-gallery .browser-quick-filters {
+        grid-template-columns:
+            minmax(180px, 1.5fr) minmax(110px, 1fr) minmax(100px, 0.85fr)
+            auto auto auto;
+    }
+}
+@media (max-width: 1023px) {
+    .archive-gallery .browser-quick-filters {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+    .archive-gallery .browser-keyword {
+        grid-column: 1 / -1;
+    }
+    .archive-gallery .browser-quick-category {
+        display: block;
+        grid-column: span 3;
+    }
+    .archive-gallery .browser-filter-toggle,
+    .archive-gallery .browser-apply-top,
+    .archive-gallery .browser-gallery-image-search {
+        grid-column: span 2;
+        justify-content: center;
+        justify-self: stretch;
+        min-height: 46px;
+        min-width: 0;
+        font-size: 14px;
+        padding-inline: 8px;
+        gap: 6px;
+        white-space: nowrap;
+    }
+}
+@media (max-width: 359px) {
+    .archive-gallery .browser-filter-toggle {
+        grid-column: 1 / -1;
+    }
+    .archive-gallery .browser-apply-top,
+    .archive-gallery .browser-gallery-image-search {
+        grid-column: span 3;
+    }
+}
+@media (max-width: 767px) {
+    .archive-gallery .browser-quick-category {
+        display: none;
+    }
+    .archive-gallery .browser-filter-toggle::after {
+        content: none;
+    }
+}

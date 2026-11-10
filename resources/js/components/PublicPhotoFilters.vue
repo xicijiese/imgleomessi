@@ -489,6 +489,7 @@ const removeChip = (chip: ActiveChip) => {
             >
                 {{ isApplying ? '正在加载…' : submitLabel }}
             </button>
+            <slot name="quick-actions" />
         </div>
         <dialog
             ref="dialog"

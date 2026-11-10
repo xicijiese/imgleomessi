@@ -8,7 +8,7 @@ import { useArchiveBrowserMotion } from '@/composables/useArchiveBrowserMotion';
 import { useGalleryScrollReveal } from '@/composables/useGalleryScrollReveal';
 import type { SeoPayload } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { ArrowUpRight, Image, Search } from 'lucide-vue-next';
+import { Image, Search } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import '../../../css/archive-browser.css';
 
@@ -138,13 +138,6 @@ const hasPhotos = computed(() => props.gallery.photos.data.length > 0);
                     <h1>图库</h1>
                     <p>按时间、赛事与生涯阶段查阅影像。</p>
                 </div>
-                <Link href="/search/image" class="browser-image-search"
-                    ><Image
-                        :size="20"
-                        aria-hidden="true" />以图搜图<ArrowUpRight
-                        :size="16"
-                        aria-hidden="true"
-                /></Link>
             </div>
             <PublicPhotoFilters
                 :filters="gallery.filters"
@@ -153,6 +146,14 @@ const hasPhotos = computed(() => props.gallery.photos.data.length > 0);
                 submit-label="应用筛选"
                 @loading="isLoading = $event"
             >
+                <template #quick-actions>
+                    <Link
+                        href="/search/image"
+                        class="browser-outline browser-gallery-image-search"
+                    >
+                        <Image :size="18" aria-hidden="true" />以图搜图
+                    </Link>
+                </template>
                 <template #count
                     ><strong>{{ gallery.photos.meta.total }}</strong>
                     张公开图片<span
