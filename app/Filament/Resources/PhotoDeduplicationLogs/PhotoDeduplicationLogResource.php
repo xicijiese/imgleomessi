@@ -49,9 +49,9 @@ class PhotoDeduplicationLogResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table->columns([
-            TextColumn::make('photo.title')->label('归档图片')->searchable(),
-            TextColumn::make('retainedPhoto.title')->label('保留图片'),
+        return $table->extraAttributes(['class' => 'admin-content-table'])->columns([
+            TextColumn::make('photo.title')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])->label('归档图片')->searchable(),
+            TextColumn::make('retainedPhoto.title')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])->label('保留图片'),
             TextColumn::make('sha256_hash')->label('SHA-256')->limit(16)->copyable(),
             TextColumn::make('previous_status')->label('归档前状态')->formatStateUsing(fn ($state) => Photo::STATUSES[$state] ?? $state),
             TextColumn::make('created_at')->label('归档时间')->dateTime('Y-m-d H:i'),

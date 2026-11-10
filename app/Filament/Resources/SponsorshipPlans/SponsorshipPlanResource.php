@@ -39,6 +39,7 @@ class SponsorshipPlanResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(['default' => 1, 'sm' => 2])
             ->components([
                 TextInput::make('name')
                     ->label('方案名称')
@@ -85,16 +86,17 @@ class SponsorshipPlanResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
-                TextColumn::make('name')
+                TextColumn::make('name')->extraCellAttributes(['class' => 'admin-object-cell'])->wrap()
                     ->label('方案名称')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('amount_cents')
+                TextColumn::make('amount_cents')->alignEnd()
                     ->label('金额')
                     ->formatStateUsing(fn (int $state): string => '¥'.number_format($state / 100, 2))
                     ->sortable(),
-                TextColumn::make('duration_days')
+                TextColumn::make('duration_days')->alignEnd()
                     ->label('天数')
                     ->placeholder('一次性')
                     ->sortable(),
@@ -106,7 +108,7 @@ class SponsorshipPlanResource extends Resource
                     ->label('启用')
                     ->boolean()
                     ->sortable(),
-                TextColumn::make('sort_order')
+                TextColumn::make('sort_order')->alignEnd()
                     ->label('排序')
                     ->sortable(),
                 TextColumn::make('updated_at')
@@ -123,7 +125,7 @@ class SponsorshipPlanResource extends Resource
             ])
             ->defaultSort('sort_order')
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()->modalWidth('5xl')->stickyModalHeader()->stickyModalFooter(),
                 DeleteAction::make(),
             ]);
     }

@@ -10,6 +10,7 @@ export default defineConfig({
             input: [
                 'resources/js/app.ts',
                 'resources/css/page-transitions.css',
+                'resources/css/admin-layout.css',
             ],
             ssr: 'resources/js/ssr.ts',
             refresh: true,

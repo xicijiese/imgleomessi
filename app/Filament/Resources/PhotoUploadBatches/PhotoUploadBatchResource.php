@@ -14,6 +14,7 @@ use Filament\Forms\Components\Select;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\ColumnGroup;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -45,17 +46,18 @@ class PhotoUploadBatchResource extends Resource
             ->withCount([
                 'photos as draft_photos_count' => fn (Builder $query): Builder => $query->where('status', 'draft'),
                 'photos as published_photos_count' => fn (Builder $query): Builder => $query->where('status', 'published'),
-                'processingJobs as pending_processing_jobs_count' => fn (Builder $query): Builder => $query->where('processing_jobs.type', '!=', 'labels')->where('processing_jobs.status', 'pending'),
-                'processingJobs as running_processing_jobs_count' => fn (Builder $query): Builder => $query->where('processing_jobs.type', '!=', 'labels')->where('processing_jobs.status', 'running'),
-                'processingJobs as failed_processing_jobs_count' => fn (Builder $query): Builder => $query->where('processing_jobs.type', '!=', 'labels')->where('processing_jobs.status', 'failed'),
+                'processingJobs as pending_processing_jobs_count' => fn (Builder $query): Builder => $query->whereNotIn('processing_jobs.type', ['labels', 'ocr', 'ocr_placeholder'])->where('processing_jobs.status', 'pending'),
+                'processingJobs as running_processing_jobs_count' => fn (Builder $query): Builder => $query->whereNotIn('processing_jobs.type', ['labels', 'ocr', 'ocr_placeholder'])->where('processing_jobs.status', 'running'),
+                'processingJobs as failed_processing_jobs_count' => fn (Builder $query): Builder => $query->whereNotIn('processing_jobs.type', ['labels', 'ocr', 'ocr_placeholder'])->where('processing_jobs.status', 'failed'),
             ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
-                TextColumn::make('id')
+                TextColumn::make('id')->alignEnd()
                     ->label('任务 ID')
                     ->sortable(),
                 TextColumn::make('mode')
@@ -63,7 +65,7 @@ class PhotoUploadBatchResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => PhotoUploadBatch::MODES[$state] ?? $state)
                     ->sortable(),
-                TextColumn::make('album.title')
+                TextColumn::make('album.title')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])
                     ->label('目标相册')
                     ->placeholder('无')
                     ->searchable(),
@@ -76,29 +78,35 @@ class PhotoUploadBatchResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => PhotoUploadBatch::STATUSES[$state] ?? $state)
                     ->sortable(),
-                TextColumn::make('total_count')
-                    ->label('总数')
-                    ->sortable(),
-                TextColumn::make('success_count')
-                    ->label('成功')
-                    ->sortable(),
-                TextColumn::make('failed_count')
-                    ->label('失败')
-                    ->sortable(),
-                TextColumn::make('draft_photos_count')
-                    ->label('待整理'),
-                TextColumn::make('published_photos_count')
-                    ->label('已发布'),
-                TextColumn::make('pending_processing_jobs_count')
-                    ->label('待处理任务')
-                    ->sortable(),
-                TextColumn::make('running_processing_jobs_count')
-                    ->label('处理中任务')
-                    ->sortable(),
-                TextColumn::make('failed_processing_jobs_count')
-                    ->label('失败任务')
-                    ->color('danger')
-                    ->sortable(),
+                ColumnGroup::make('上传结果', [
+                    TextColumn::make('total_count')->alignEnd()
+                        ->label('总数')
+                        ->sortable(),
+                    TextColumn::make('success_count')->alignEnd()
+                        ->label('成功')
+                        ->sortable(),
+                    TextColumn::make('failed_count')->alignEnd()
+                        ->label('失败')
+                        ->sortable(),
+                ]),
+                ColumnGroup::make('图片整理', [
+                    TextColumn::make('draft_photos_count')->alignEnd()
+                        ->label('待整理'),
+                    TextColumn::make('published_photos_count')->alignEnd()
+                        ->label('已发布'),
+                ]),
+                ColumnGroup::make('入库任务', [
+                    TextColumn::make('pending_processing_jobs_count')->alignEnd()
+                        ->label('待处理任务')
+                        ->sortable(),
+                    TextColumn::make('running_processing_jobs_count')->alignEnd()
+                        ->label('处理中任务')
+                        ->sortable(),
+                    TextColumn::make('failed_processing_jobs_count')->alignEnd()
+                        ->label('失败任务')
+                        ->color('danger')
+                        ->sortable(),
+                ]),
                 TextColumn::make('note')
                     ->label('备注')
                     ->limit(24)

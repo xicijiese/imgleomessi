@@ -38,6 +38,7 @@ class ReportResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(3)
             ->components([
                 Select::make('target_type')
                     ->label('目标类型')
@@ -66,13 +67,14 @@ class ReportResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
                 TextColumn::make('status')
                     ->label('状态')
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => Report::STATUSES[$state] ?? $state)
                     ->sortable(),
-                TextColumn::make('reason')
+                TextColumn::make('reason')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])
                     ->label('原因')
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => Report::REASONS[$state] ?? $state)
@@ -82,7 +84,7 @@ class ReportResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => $state === 'clean' || blank($state) ? '无' : (SensitiveWord::SEVERITIES[$state] ?? $state))
                     ->sortable(),
-                TextColumn::make('comment.content')
+                TextColumn::make('comment.content')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])
                     ->label('目标评论')
                     ->limit(42),
                 TextColumn::make('reporter.name')
@@ -111,9 +113,9 @@ class ReportResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->recordActions([
-                EditAction::make()
+                EditAction::make()->modalWidth('4xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('备注'),
-                Action::make('resolve')
+                Action::make('resolve')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('处理')
                     ->color('success')
                     ->form([
@@ -122,7 +124,7 @@ class ReportResource extends Resource
                             ->rows(3),
                     ])
                     ->action(fn (Report $record, array $data): bool => $record->resolve(auth()->user() instanceof User ? auth()->user() : null, $data['internal_note'] ?? null)),
-                Action::make('resolve_and_hide')
+                Action::make('resolve_and_hide')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('处理并隐藏评论')
                     ->color('warning')
                     ->form([
@@ -131,7 +133,7 @@ class ReportResource extends Resource
                             ->rows(3),
                     ])
                     ->action(fn (Report $record, array $data): bool => $record->resolve(auth()->user() instanceof User ? auth()->user() : null, $data['internal_note'] ?? null, true)),
-                Action::make('reject')
+                Action::make('reject')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('驳回')
                     ->color('danger')
                     ->form([

@@ -56,21 +56,21 @@ class SubmissionApplicationResource extends Resource
 
     public static function table(Table $table): Table
     {
-        $actions = [Action::make('history')->label('申请历史')->modalSubmitAction(false)->modalCancelActionLabel('关闭')->modalContent(fn (SubmissionApplication $record) => view('filament.submission-application-history', ['events' => SubmissionEvent::query()->where('application_id', $record->id)->oldest()->get()]))];
+        $actions = [Action::make('history')->modalWidth('4xl')->stickyModalHeader()->stickyModalFooter()->label('申请历史')->modalSubmitAction(false)->modalCancelActionLabel('关闭')->modalContent(fn (SubmissionApplication $record) => view('filament.submission-application-history', ['events' => SubmissionEvent::query()->where('application_id', $record->id)->oldest()->get()]))];
         foreach (['approved' => '通过', 'rejected' => '拒绝', 'revoked' => '撤销资格'] as $decision => $label) {
-            $actions[] = Action::make($decision)->label($label)->color($decision === 'approved' ? 'success' : 'danger')
+            $actions[] = Action::make($decision)->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()->label($label)->color($decision === 'approved' ? 'success' : 'danger')
                 ->visible(fn (SubmissionApplication $record): bool => $decision === 'revoked' ? $record->status === 'approved' : $record->status === 'pending')
                 ->form([Textarea::make('note')->label('用户可见处理原因')->required()->maxLength(2000)])
                 ->action(fn (SubmissionApplication $record, array $data) => app(SubmissionQualification::class)->review($record, auth()->user(), $decision, $data['note']));
         }
 
-        return $table->columns([
+        return $table->extraAttributes(['class' => 'admin-content-table'])->columns([
             TextColumn::make('user.name')->label('用户')->searchable(),
             TextColumn::make('user.email')->label('邮箱')->searchable(),
             TextColumn::make('user.role')->label('当前角色')->formatStateUsing(fn ($state) => AdminUserManagementService::ROLES[$state] ?? $state),
-            TextColumn::make('reason')->label('申请理由')->wrap(),
+            TextColumn::make('reason')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])->label('申请理由')->wrap(),
             TextColumn::make('status')->label('状态')->badge()->formatStateUsing(fn ($state) => SubmissionApplication::STATUSES[$state] ?? $state),
-            TextColumn::make('review_note')->label('处理原因')->wrap(),
+            TextColumn::make('review_note')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])->label('处理原因')->wrap(),
             TextColumn::make('reviewer.name')->label('审核人'),
             TextColumn::make('created_at')->label('申请时间')->dateTime('Y-m-d H:i')->timezone('Asia/Shanghai'),
             TextColumn::make('reviewed_at')->label('处理时间')->dateTime('Y-m-d H:i')->timezone('Asia/Shanghai'),

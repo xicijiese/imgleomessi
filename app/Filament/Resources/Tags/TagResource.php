@@ -37,6 +37,7 @@ class TagResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(2)
             ->components([
                 TextInput::make('name')
                     ->label('标签名')
@@ -58,12 +59,13 @@ class TagResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
-                TextColumn::make('name')
+                TextColumn::make('name')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])
                     ->label('标签名')
                     ->sortable()
                     ->searchable(),
-                TextColumn::make('sort_order')
+                TextColumn::make('sort_order')->alignEnd()
                     ->label('排序')
                     ->sortable(),
                 TextColumn::make('updated_at')
@@ -73,7 +75,7 @@ class TagResource extends Resource
             ])
             ->defaultSort('sort_order')
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()->modalWidth('2xl')->stickyModalHeader()->stickyModalFooter(),
                 DeleteAction::make(),
             ])
             ->toolbarActions([

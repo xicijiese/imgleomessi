@@ -13,7 +13,7 @@ class ProcessingJob extends Model
         'hash' => '文件哈希计算',
         'ocr_placeholder' => 'OCR 预留',
         'datawanxiang_derivatives' => '生成展示图 / 缩略图',
-        'similarity' => '生成相似候选',
+        'similarity' => '计算查重候选',
         'ocr' => '数据万象 OCR 识别',
     ];
 

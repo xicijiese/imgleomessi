@@ -62,8 +62,9 @@ class PaymentLogResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
-                TextColumn::make('order.order_no')
+                TextColumn::make('order.order_no')->extraCellAttributes(['class' => 'admin-object-cell'])->wrap()
                     ->label('订单号')
                     ->placeholder('无订单')
                     ->searchable(),
@@ -79,7 +80,7 @@ class PaymentLogResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => PaymentLog::STATUSES[$state] ?? $state)
                     ->sortable(),
-                TextColumn::make('message')
+                TextColumn::make('message')->extraCellAttributes(['class' => 'admin-object-cell'])->wrap()
                     ->label('消息')
                     ->limit(40),
                 TextColumn::make('created_at')

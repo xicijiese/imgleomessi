@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Album;
 use App\Models\Category;
 use App\Models\Photo;
-use App\Models\PhotoSimilarityCandidate;
 use App\Models\PhotoSubmission;
 use App\Models\Tag;
 use Illuminate\Database\Eloquent\Builder;
@@ -38,7 +37,7 @@ class PublicPhotoDetail
             'related' => [
                 'data' => $this->related($photo, $context),
             ],
-            'similar' => ['data' => $this->similar($photo)],
+            'suggestions' => ['data' => $this->suggestions($photo)],
             'comments' => $this->comments($photo, $request),
         ];
     }
@@ -269,21 +268,18 @@ class PublicPhotoDetail
             ->all();
     }
 
-    private function similar(Photo $photo): array
+    private function suggestions(Photo $photo): array
     {
-        $candidates = PhotoSimilarityCandidate::query()
-            ->where(fn (Builder $query) => $query->where('photo_id', $photo->id)->orWhere('candidate_photo_id', $photo->id))
-            ->whereIn('status', ['pending_review', 'confirmed_duplicate'])
-            ->where('distance', '<=', PhotoSimilarityService::DISTANCE_THRESHOLD)
-            ->orderBy('distance')->orderBy('id')->get();
-        $ids = $candidates->map(fn ($candidate) => $candidate->photo_id === $photo->id
-            ? $candidate->candidate_photo_id : $candidate->photo_id)->unique()->all();
+        $tagIds = $photo->tags->pluck('id')->all();
+        if ($tagIds === []) {
+            return [];
+        }
 
-        return $this->publicPhotosQuery()->whereIn('id', $ids)->get()
-            ->sortBy(fn (Photo $match) => array_search($match->id, $ids, true))
-            ->take(self::RELATED_LIMIT)
-            ->map(fn (Photo $match) => $this->photoCard($match, ['type' => 'gallery', 'summary' => ['slug' => null]]))
-            ->values()->all();
+        return $this->publicPhotosQuery()->where('id', '!=', $photo->id)
+            ->whereHas('tags', fn (Builder $tags) => $tags->whereIn('tags.id', $tagIds))
+            ->inRandomOrder()->limit(self::RELATED_LIMIT)->get()
+            ->map(fn (Photo $match): array => $this->photoCard($match, ['type' => 'gallery', 'summary' => ['slug' => null]]))
+            ->all();
     }
 
     /**

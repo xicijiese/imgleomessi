@@ -13,7 +13,7 @@ class ManageSponsorshipPlans extends ManageRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            CreateAction::make()->modalWidth('5xl')->stickyModalHeader()->stickyModalFooter(),
         ];
     }
 }

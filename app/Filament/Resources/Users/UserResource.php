@@ -21,6 +21,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\ImageColumn;
@@ -59,68 +60,80 @@ class UserResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(['default' => 1, 'sm' => 2])
             ->components([
-                TextInput::make('name')
-                    ->label('昵称')
-                    ->required()
-                    ->maxLength(255),
-                TextInput::make('email')
-                    ->label('邮箱')
-                    ->email()
-                    ->required()
-                    ->maxLength(255)
-                    ->unique(ignoreRecord: true),
-                TextInput::make('phone')
-                    ->label('手机号')
-                    ->tel()
-                    ->nullable()
-                    ->maxLength(20)
-                    ->rule('regex:/^1[3-9]\d{9}$/')
-                    ->unique(ignoreRecord: true),
-                TextInput::make('new_password')
-                    ->label('重置登录密码')
-                    ->password()
-                    ->revealable()
-                    ->nullable()
-                    ->dehydrated(fn (?string $state): bool => filled($state))
-                    ->rule(Password::default())
-                    ->confirmed()
-                    ->validationMessages([
-                        'min' => '新密码至少需要 8 个字符。',
-                    ])
-                    ->helperText('留空表示不修改密码；新密码至少 8 个字符，并需再次确认。重置后该用户的现有登录会话将失效。'),
-                TextInput::make('new_password_confirmation')
-                    ->label('确认新密码')
-                    ->password()
-                    ->revealable()
-                    ->nullable(),
-                self::avatarUpload(),
-                DateTimePicker::make('banned_until')
-                    ->label('封禁到期')
-                    ->seconds(false),
-                Textarea::make('ban_reason')
-                    ->label('封禁原因')
-                    ->rows(3)
-                    ->columnSpanFull(),
-                Textarea::make('moderation_note')
-                    ->label('内部备注')
-                    ->rows(3)
-                    ->columnSpanFull(),
+                Section::make('基本资料')->columns(['default' => 1, 'sm' => 2])->columnSpanFull()->schema([
+                    TextInput::make('name')
+                        ->label('昵称')
+                        ->required()
+                        ->maxLength(255),
+                    TextInput::make('email')
+                        ->label('邮箱')
+                        ->email()
+                        ->required()
+                        ->maxLength(255)
+                        ->unique(ignoreRecord: true),
+                    TextInput::make('phone')
+                        ->label('手机号')
+                        ->tel()
+                        ->nullable()
+                        ->maxLength(20)
+                        ->rule('regex:/^1[3-9]\d{9}$/')
+                        ->unique(ignoreRecord: true),
+                ]),
+                Section::make('重置密码')->columns(['default' => 1, 'sm' => 2])->columnSpanFull()->schema([
+                    TextInput::make('new_password')
+                        ->label('重置登录密码')
+                        ->password()
+                        ->revealable()
+                        ->nullable()
+                        ->dehydrated(fn (?string $state): bool => filled($state))
+                        ->rule(Password::default())
+                        ->confirmed()
+                        ->validationMessages([
+                            'min' => '新密码至少需要 8 个字符。',
+                        ])
+                        ->helperText('留空表示不修改密码；新密码至少 8 个字符，并需再次确认。重置后该用户的现有登录会话将失效。'),
+                    TextInput::make('new_password_confirmation')
+                        ->label('确认新密码')
+                        ->password()
+                        ->revealable()
+                        ->nullable(),
+                ]),
+                Section::make('用户头像')->columns(['default' => 1, 'sm' => 2])->columnSpanFull()->schema([
+                    self::avatarUpload(),
+                ]),
+                Section::make('封禁资料')->columns(['default' => 1, 'sm' => 2])->columnSpanFull()->schema([
+                    DateTimePicker::make('banned_until')
+                        ->label('封禁到期')
+                        ->seconds(false),
+                    Textarea::make('ban_reason')
+                        ->label('封禁原因')
+                        ->rows(3)
+                        ->columnSpanFull(),
+                ]),
+                Section::make('内部记录')->columns(['default' => 1, 'sm' => 2])->columnSpanFull()->schema([
+                    Textarea::make('moderation_note')
+                        ->label('内部备注')
+                        ->rows(3)
+                        ->columnSpanFull(),
+                ]),
             ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
                 ImageColumn::make('avatar')
                     ->label('头像')
                     ->circular(),
-                TextColumn::make('name')
+                TextColumn::make('name')->extraCellAttributes(['class' => 'admin-object-cell'])->wrap()
                     ->label('昵称')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('email')
+                TextColumn::make('email')->extraCellAttributes(['class' => 'admin-object-cell'])->wrap()
                     ->label('邮箱')
                     ->searchable()
                     ->sortable(),
@@ -224,7 +237,7 @@ class UserResource extends Resource
             ->recordActions([
                 Action::make('submissionQualification')->label('投稿资格记录')
                     ->url(fn (User $record) => '/admin/submission-applications?search='.urlencode($record->email)),
-                EditAction::make()
+                EditAction::make()->modalWidth('5xl')->stickyModalHeader()->stickyModalFooter()
                     ->using(function (User $record, array $data, AdminUserManagementService $service): User {
                         $operator = auth()->user();
                         abort_unless($operator instanceof User, 403);
@@ -249,7 +262,7 @@ class UserResource extends Resource
 
                         return $record;
                     }),
-                Action::make('changeRole')
+                Action::make('changeRole')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('调整角色')
                     ->color('warning')
                     ->visible(fn (User $record): bool => ! $record->is(auth()->user()))
@@ -277,7 +290,7 @@ class UserResource extends Resource
                         $service->enable($record, $operator);
                         Notification::make()->title('用户已启用')->success()->send();
                     }),
-                Action::make('disable')
+                Action::make('disable')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('停用')
                     ->color('warning')
                     ->visible(fn (User $record): bool => $record->status === 'active' && $record->role !== 'admin')
@@ -289,7 +302,7 @@ class UserResource extends Resource
                         Notification::make()->title('用户已停用')->success()->send();
                     }),
 
-                Action::make('revokeSessions')
+                Action::make('revokeSessions')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('强制退出全部会话')
                     ->color('danger')
                     ->requiresConfirmation()
@@ -300,7 +313,7 @@ class UserResource extends Resource
                         Notification::make()->title('该用户的全部会话已失效')->success()->send();
                     }),
 
-                Action::make('grantContributor')
+                Action::make('grantContributor')->modalWidth('4xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('授予档案共建者')
                     ->color('primary')
                     ->visible(fn (User $record): bool => $record->role !== 'admin' && ! $record->contributorProfile?->isActive())
@@ -345,7 +358,7 @@ class UserResource extends Resource
                             ->body('该用户已获得图片档案整理权限。')
                             ->send();
                     }),
-                Action::make('editContributor')
+                Action::make('editContributor')->modalWidth('4xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('编辑共建者资料')
                     ->color('warning')
                     ->visible(fn (User $record): bool => $record->contributorProfile?->isActive() === true)
@@ -387,7 +400,7 @@ class UserResource extends Resource
                             ->title('共建者资料已保存')
                             ->send();
                     }),
-                Action::make('revokeContributor')
+                Action::make('revokeContributor')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('撤销共建者')
                     ->color('danger')
                     ->visible(fn (User $record): bool => $record->role !== 'admin' && $record->contributorProfile?->isActive() === true)
@@ -404,7 +417,7 @@ class UserResource extends Resource
                             ->body('该用户的共建者资料已停用，若编辑员身份由本次授予产生，也已恢复为普通用户。')
                             ->send();
                     }),
-                Action::make('ban')
+                Action::make('ban')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('封禁')
                     ->color('danger')
                     ->visible(fn (User $record): bool => ! $record->isBanned())
@@ -424,7 +437,7 @@ class UserResource extends Resource
                         abort_unless($operator instanceof User, 403);
                         return $service->ban($record, $operator, $data['ban_reason'] ?? null, $data['moderation_note'] ?? null, $data['banned_until'] ?? null);
                     }),
-                Action::make('unban')
+                Action::make('unban')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('解封')
                     ->color('success')
                     ->visible(fn (User $record): bool => $record->isBanned())

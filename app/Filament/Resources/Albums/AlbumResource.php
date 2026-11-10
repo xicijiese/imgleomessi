@@ -13,12 +13,12 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Notifications\Notification;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Arr;
@@ -45,33 +45,37 @@ class AlbumResource extends Resource
     {
         return $schema
             ->components([
-                TextInput::make('title')
-                    ->label('相册名')
-                    ->required()
-                    ->maxLength(255),
-                TextInput::make('slug')
-                    ->label('URL 标识')
-                    ->required()
-                    ->maxLength(255)
-                    ->unique(ignoreRecord: true)
-                    ->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? Str::slug($state) : null),
+                Section::make('基础资料')->schema([
+                    TextInput::make('title')
+                        ->label('相册名')
+                        ->required()
+                        ->maxLength(255),
+                    TextInput::make('slug')
+                        ->label('URL 标识')
+                        ->required()
+                        ->maxLength(255)
+                        ->unique(ignoreRecord: true)
+                        ->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? Str::slug($state) : null),
+                ])->columns(2)->columnSpanFull(),
                 Section::make('相册分类')
                     ->schema(self::categorySelectors())
                     ->columns(2)
                     ->columnSpanFull(),
-                Select::make('status')
-                    ->label('状态')
-                    ->options(Album::STATUSES)
-                    ->default('draft')
-                    ->required(),
-                TextInput::make('sort_order')
-                    ->label('排序')
-                    ->numeric()
-                    ->default(0)
-                    ->required(),
-                DateTimePicker::make('published_at')
-                    ->label('发布时间')
-                    ->seconds(false),
+                Section::make('发布设置')->schema([
+                    Select::make('status')
+                        ->label('状态')
+                        ->options(Album::STATUSES)
+                        ->default('draft')
+                        ->required(),
+                    TextInput::make('sort_order')
+                        ->label('排序')
+                        ->numeric()
+                        ->default(0)
+                        ->required(),
+                    DateTimePicker::make('published_at')
+                        ->label('发布时间')
+                        ->seconds(false),
+                ])->columns(3)->columnSpanFull(),
                 Textarea::make('description')
                     ->label('说明')
                     ->rows(4)
@@ -82,15 +86,16 @@ class AlbumResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
-                TextColumn::make('title')
+                TextColumn::make('title')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])
                     ->label('相册名')
                     ->sortable()
                     ->searchable(),
                 TextColumn::make('slug')
                     ->label('URL 标识')
                     ->searchable(),
-                TextColumn::make('categories_count')
+                TextColumn::make('categories_count')->alignEnd()
                     ->label('分类数')
                     ->counts('categories'),
                 TextColumn::make('status')
@@ -102,7 +107,7 @@ class AlbumResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (bool $state): string => $state ? '已精选' : '未精选')
                     ->color(fn (bool $state): string => $state ? 'warning' : 'gray'),
-                TextColumn::make('sort_order')
+                TextColumn::make('sort_order')->alignEnd()
                     ->label('排序')
                     ->sortable(),
                 TextColumn::make('updated_at')
@@ -155,6 +160,9 @@ class AlbumResource extends Resource
                         Notification::make()->title('已取消首页精选')->success()->send();
                     }),
                 EditAction::make()
+                    ->modalWidth('5xl')
+                    ->stickyModalHeader()
+                    ->stickyModalFooter()
                     ->mutateRecordDataUsing(fn (array $data, Album $record): array => [
                         ...$data,
                         ...self::categoryFormDataFromRecord($record),

@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Photos;
 
 use App\Filament\Resources\Photos\Pages\ManagePhotos;
-use App\Filament\Resources\PhotoSimilarityGroups\PhotoSimilarityGroupResource;
 use App\Models\Album;
 use App\Models\Category;
 use App\Models\Photo;
@@ -27,6 +26,8 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
@@ -72,110 +73,147 @@ class PhotoResource extends Resource
     private static function formComponents(): array
     {
         return [
-            Section::make('基础信息')
+            Grid::make(['default' => 1, 'lg' => 3])
                 ->schema([
-                    TextInput::make('title')
-                        ->label('标题')
-                        ->required()
-                        ->maxLength(255),
-                    Textarea::make('description')
-                        ->label('说明')
-                        ->rows(4)
-                        ->columnSpanFull(),
-                    DateTimePicker::make('taken_at')
-                        ->label('拍摄时间')
-                        ->seconds(false),
-                    DatePicker::make('event_date')
-                        ->label('事件日期'),                    TextInput::make('source_url')
-                        ->label('来源链接')
-                        ->url()
-                        ->maxLength(2048)
-                        ->helperText('可选；来源平台请在分类中选择。'),
-                    Select::make('uploaded_by')
-                        ->label('上传者')
-                        ->options(fn (): array => User::query()->orderBy('name')->pluck('name', 'id')->all())
-                        ->searchable()
-                        ->preload(),
-                    Select::make('copyright_status')
-                        ->label('版权状态')
-                        ->options(Photo::COPYRIGHT_STATUSES)
-                        ->default('unknown')
-                        ->required(),
-                    TextInput::make('status')
-                        ->label('发布状态')
-                        ->formatStateUsing(fn (?string $state): string => Photo::STATUSES[$state ?? 'draft'] ?? '草稿')
-                        ->disabled()
-                        ->dehydrated(false)
-                        ->helperText('发布状态只能通过列表中的“发布”、“归档”或“恢复为草稿”操作变更。'),
-                    DateTimePicker::make('published_at')
-                        ->label('发布时间')
-                        ->seconds(false)
-                        ->disabled()
-                        ->dehydrated(false)
-                        ->helperText('未发布时显示“未发布”；发布时间由系统在实际发布时写入。'),
-                ])
-                ->columns(2),
-            Section::make('分类与标签')
-                ->schema([
-                    Section::make('图片分类与相册')
+                    Group::make()
                         ->schema([
-                            ...self::categorySelectors(),
-                            Select::make('albums')
-                                ->label('关联相册')
-                                ->relationship(name: 'albums', titleAttribute: 'title')
-                                ->multiple()
-                                ->preload()
-                                ->searchable()
-                                ->helperText('可直接选择分类，也可以只选择相册；选择相册后图片自动继承相册分类。'),
+                            Section::make('基础信息')
+                                ->schema([
+                                    TextInput::make('title')
+                                        ->columnSpanFull()
+                                        ->label('标题')
+                                        ->required()
+                                        ->maxLength(255),
+                                    Textarea::make('description')
+                                        ->label('说明')
+                                        ->rows(4)
+                                        ->columnSpanFull(),
+                                    DateTimePicker::make('taken_at')
+                                        ->label('拍摄时间')
+                                        ->seconds(false),
+                                    DatePicker::make('event_date')
+                                        ->label('事件日期'),                    TextInput::make('source_url')
+                                        ->columnSpanFull()
+                                        ->label('来源链接')
+                                        ->url()
+                                        ->maxLength(2048)
+                                        ->helperText('可选；来源平台请在分类中选择。'),
+                                    Select::make('uploaded_by')
+                                        ->label('上传者')
+                                        ->options(fn (): array => User::query()->orderBy('name')->pluck('name', 'id')->all())
+                                        ->searchable()
+                                        ->preload(),
+                                    Select::make('copyright_status')
+                                        ->label('版权状态')
+                                        ->options(Photo::COPYRIGHT_STATUSES)
+                                        ->default('unknown')
+                                        ->required(),
+                                    TextInput::make('status')
+                                        ->label('发布状态')
+                                        ->formatStateUsing(fn (?string $state): string => Photo::STATUSES[$state ?? 'draft'] ?? '草稿')
+                                        ->disabled()
+                                        ->dehydrated(false)
+                                        ->helperText('发布状态只能通过列表中的“发布”、“归档”或“恢复为草稿”操作变更。'),
+                                    DateTimePicker::make('published_at')
+                                        ->label('发布时间')
+                                        ->seconds(false)
+                                        ->disabled()
+                                        ->dehydrated(false)
+                                        ->helperText('未发布时显示“未发布”；发布时间由系统在实际发布时写入。'),
+                                ])
+                                ->columns(2),
+                            Section::make('分类与标签')
+                                ->schema([
+                                    ...self::categorySelectors(),
+                                    Select::make('albums')
+                                        ->columnSpanFull()
+                                        ->label('关联相册')
+                                        ->relationship(name: 'albums', titleAttribute: 'title')
+                                        ->multiple()
+                                        // 自定义保存逻辑需要读取关联 ID，不能省略多选值。
+                                        ->dehydrated()
+                                        ->preload()
+                                        ->searchable()
+                                        ->helperText('可直接选择分类，也可以只选择相册；选择相册后图片自动继承相册分类。'),
+                                    Select::make('tags')
+                                        ->columnSpanFull()
+                                        ->label('标签')
+                                        ->relationship(name: 'tags', titleAttribute: 'name')
+                                        ->multiple()
+                                        ->dehydrated()
+                                        ->preload()
+                                        ->searchable()
+                                        ->createOptionForm([
+                                            TextInput::make('name')
+                                                ->label('标签名')
+                                                ->required()
+                                                ->maxLength(255)
+                                                ->unique(table: 'tags', column: 'name'),
+                                        ])
+                                        ->createOptionUsing(fn (array $data): int => (int) Tag::query()->create($data)->getKey())
+                                        ->helperText('输入关键词搜索；输入不存在的标签后可直接创建.'),
+                                ])
+                                ->columns(2),
                         ])
-                        ->columns(2),                    Select::make('tags')
-                        ->label('标签')
-                        ->relationship(name: 'tags', titleAttribute: 'name')
-                        ->multiple()
-                        ->preload()
-                        ->searchable()
-                        ->createOptionForm([
-                            TextInput::make('name')
-                                ->label('标签名')
-                                ->required()
-                                ->maxLength(255)
-                                ->unique(table: 'tags', column: 'name'),
+                        ->columnSpan(['default' => 1, 'lg' => 2]),
+                    Section::make('文件信息')
+                        ->description('由上传及图片处理流程自动维护，仅供查看。')
+                        ->schema([
+                            TextInput::make('original_filename')
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->columnSpanFull()
+                                ->label('原始文件名')
+                                ->maxLength(255),
+                            TextInput::make('stored_filename')
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->columnSpanFull()
+                                ->label('系统文件名')
+                                ->maxLength(255),
+                            TextInput::make('original_key')
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->columnSpanFull()
+                                ->label('原图存储 Key')
+                                ->maxLength(255),
+                            TextInput::make('display_key')
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->columnSpanFull()
+                                ->label('展示图存储 Key')
+                                ->maxLength(255),
+                            TextInput::make('thumbnail_key')
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->columnSpanFull()
+                                ->label('缩略图存储 Key')
+                                ->maxLength(255),
+                            TextInput::make('mime_type')
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->label('MIME')
+                                ->maxLength(255),
+                            TextInput::make('file_size')
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->label('文件大小')
+                                ->numeric(),
+                            TextInput::make('width')
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->label('宽度')
+                                ->numeric(),
+                            TextInput::make('height')
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->label('高度')
+                                ->numeric(),
                         ])
-                        ->createOptionUsing(fn (array $data): int => (int) Tag::query()->create($data)->getKey())
-                        ->helperText('输入关键词搜索；输入不存在的标签后可直接创建.'),
+                        ->columns(2)
+                        ->columnSpan(1),
                 ])
-                ->columns(2),
-            Section::make('文件信息')
-                ->schema([
-                    TextInput::make('original_filename')
-                        ->label('原始文件名')
-                        ->maxLength(255),
-                    TextInput::make('stored_filename')
-                        ->label('系统文件名')
-                        ->maxLength(255),
-                    TextInput::make('original_key')
-                        ->label('原图存储 Key')
-                        ->maxLength(255),
-                    TextInput::make('display_key')
-                        ->label('展示图存储 Key')
-                        ->maxLength(255),
-                    TextInput::make('thumbnail_key')
-                        ->label('缩略图存储 Key')
-                        ->maxLength(255),
-                    TextInput::make('mime_type')
-                        ->label('MIME')
-                        ->maxLength(255),
-                    TextInput::make('file_size')
-                        ->label('文件大小')
-                        ->numeric(),
-                    TextInput::make('width')
-                        ->label('宽度')
-                        ->numeric(),
-                    TextInput::make('height')
-                        ->label('高度')
-                        ->numeric(),
-                ])
-                ->columns(3),
+                ->columnSpanFull(),
         ];
     }
 
@@ -362,56 +400,10 @@ class PhotoResource extends Resource
                             ->body('处理任务 #'.$job->id.' 将根据当前存储方式生成图片。')
                             ->success()
                             ->send();
-                    }),                Action::make('ocr')
-                    ->label('识别 OCR')
-                    ->color('info')
-                    ->requiresConfirmation()
-                    ->action(function (Photo $record): void {
-                        $job = app(PhotoProcessingService::class)->queueOcr($record);
-
-                        Notification::make()
-                            ->title('OCR 任务已入队')
-                            ->body('处理任务 #'.$job->id.' 已创建，可在“图片入库处理”中查看。')
-                            ->success()
-                            ->send();
-                    }),
-                Action::make('clearOcr')
-                    ->label('清空 OCR')
-                    ->color('warning')
-                    ->visible(fn (Photo $record): bool => filled($record->analysisResult?->ocr_text))
-                    ->requiresConfirmation()
-                    ->action(function (Photo $record): void {
-                        app(PhotoProcessingService::class)->clearOcr($record);
-
-                        Notification::make()
-                            ->title('OCR 文本已清空')
-                            ->success()
-                            ->send();
-                    }),
-                Action::make('similarity')
-                    ->label('计算相似候选')
-                    ->color('info')
-                    ->requiresConfirmation()
-                    ->action(function (Photo $record): void {
-                        $job = app(PhotoProcessingService::class)->queueSimilarity($record);
-
-                        Notification::make()
-                            ->title('相似候选计算已入队')
-                            ->body('处理任务 #'.$job->id.' 已创建，可在“图片入库处理”中查看。')
-                            ->success()
-                            ->send();
-                    }),
-                Action::make('similarityCandidates')
-                    ->label('查看相似候选')
-                    ->url(fn (Photo $record): string => PhotoSimilarityGroupResource::getUrl(parameters: [
-                        'tab' => 'candidates',
-                        'filters' => [
-                            'photo' => [
-                                'photo_id' => $record->id,
-                            ],
-                        ],
-                    ])),
-                EditAction::make()
+                    }),                                EditAction::make()
+                    ->modalWidth('6xl')
+                    ->stickyModalHeader()
+                    ->stickyModalFooter()
                     ->schema(self::formComponents())
                     ->mutateRecordDataUsing(function (array $data): array {
                         $photo = Photo::query()->findOrFail((int) $data['id']);

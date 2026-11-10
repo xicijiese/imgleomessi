@@ -6,7 +6,6 @@ use App\Models\Album;
 use App\Models\Category;
 use App\Models\Comment;
 use App\Models\Photo;
-use App\Models\PhotoSimilarityCandidate;
 use App\Models\Tag;
 use App\Models\User;
 use Database\Seeders\GalleryTaxonomySeeder;
@@ -231,7 +230,9 @@ class PublicAlbumDetailTest extends TestCase
         foreach ([$first, $second] as $photo) {
             Comment::query()->create(['photo_id' => $photo->id, 'user_id' => $user->id, 'type' => 'discussion', 'status' => 'published', 'content' => $photo->title.'的评论']);
         }
-        PhotoSimilarityCandidate::query()->create(['photo_id' => $first->id, 'candidate_photo_id' => $second->id, 'distance' => 1, 'similarity_score' => 98.4, 'status' => 'pending_review']);
+        $tag = Tag::create(['name' => '幻灯片共用标签']);
+        $first->tags()->sync([$tag->id]);
+        $second->tags()->sync([$tag->id]);
 
         $this->actingAs($user)->get('/albums/slides?sort=event_asc')->assertOk()->assertInertia(fn (Assert $page) => $page
             ->where('albumDetail.viewer.position', 1)
@@ -242,13 +243,14 @@ class PublicAlbumDetailTest extends TestCase
             ->where('albumDetail.current_photo.photo.image_url', '/storage/photos/display/first.webp')
             ->where('albumDetail.current_photo.comments.can_submit', true)
             ->where('albumDetail.current_photo.comments.data.0.content', '第一张的评论')
-            ->where('albumDetail.current_photo.similar.data.0.url', '/photos/'.$second->uuid));
+            ->where('albumDetail.current_photo.suggestions.data.0.url', '/photos/'.$second->uuid));
 
         $this->get('/albums/slides?sort=event_asc&slide=2')->assertOk()->assertInertia(fn (Assert $page) => $page
             ->where('albumDetail.viewer.position', 2)
             ->where('albumDetail.viewer.next_url', null)
             ->where('albumDetail.current_photo.photo.uuid', $second->uuid)
-            ->where('albumDetail.current_photo.comments.data.0.content', '第二张的评论'));
+            ->where('albumDetail.current_photo.comments.data.0.content', '第二张的评论')
+            ->where('albumDetail.current_photo.suggestions.data.0.url', '/photos/'.$first->uuid));
     }
 
     public function test_album_slide_can_cross_thumbnail_pages_and_clamps_out_of_range_positions(): void

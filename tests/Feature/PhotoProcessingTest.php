@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\PhotoDuplicates\PhotoDuplicateResource;
 use App\Filament\Resources\PhotoSimilarityCandidates\PhotoSimilarityCandidateResource;
-use App\Filament\Resources\PhotoSimilarityGroups\PhotoSimilarityGroupResource;
 use App\Filament\Resources\ProcessingJobs\ProcessingJobResource;
 use App\Jobs\ProcessPhotoAnalysisJob;
 use App\Models\Category;
@@ -134,12 +134,12 @@ class PhotoProcessingTest extends TestCase
             'original_key' => 'photos/originals/no-labels.jpg',
         ]);
         $wanxiang = Mockery::mock(TencentDataWanxiangService::class);
-        $wanxiang->shouldReceive('enabled')->once()->andReturn(true);
+        $wanxiang->shouldNotReceive('enabled');
         $this->app->instance(TencentDataWanxiangService::class, $wanxiang);
 
         $jobs = app(PhotoProcessingService::class)->createDefaultJobs($photo, true);
 
-        $this->assertSame(['metadata', 'hash', 'datawanxiang_derivatives', 'ocr'], collect($jobs)->map->type->all());
+        $this->assertSame(['metadata', 'hash', 'datawanxiang_derivatives'], collect($jobs)->map->type->all());
         $this->assertFalse($photo->processingJobs()->where('type', 'labels')->exists());
     }
 
@@ -397,41 +397,18 @@ class PhotoProcessingTest extends TestCase
         $this->assertSame(hash('sha256', $recovered), $photo->refresh()->analysisResult?->sha256_hash);
     }
 
-    public function test_ocr_processing_writes_text_and_manual_retry_can_succeed(): void
+    public function test_legacy_ocr_jobs_do_not_call_the_provider_or_remove_saved_text(): void
     {
-        $photo = Photo::query()->create([
-            'title' => 'OCR 测试图片',
-            'original_key' => 'ocr/test.jpg',
-        ]);
-        $attempt = 0;
-        $service = Mockery::mock(TencentDataWanxiangService::class);
-        $service->shouldReceive('recognizeText')
-            ->twice()
-            ->with(Mockery::on(fn (Photo $candidate): bool => $candidate->is($photo)))
-            ->andReturnUsing(function () use (&$attempt): string {
-                $attempt++;
-
-                if ($attempt === 1) {
-                    throw new \RuntimeException('OCR 请求失败');
-                }
-
-                return "Messi\nBarcelona";
-            });
-        $this->app->instance(TencentDataWanxiangService::class, $service);
-
-        $processing = app(PhotoProcessingService::class);
-        $failed = $processing->process($processing->createJob($photo, 'ocr'));
-
-        $this->assertSame('failed', $failed->status);
-        $this->assertSame('OCR 请求失败', $failed->error_message);
-
-        $retried = $processing->retry($failed);
-
-        $this->assertSame('done', $retried->status);
-        $this->assertSame("Messi\nBarcelona", $photo->refresh()->analysisResult?->ocr_text);
-        app(PhotoProcessingService::class)->clearOcr($photo->refresh());
-
-        $this->assertNull($photo->refresh()->analysisResult?->ocr_text);
+        $photo = Photo::create(['title' => '历史识别记录']);
+        PhotoAnalysisResult::create(['photo_id' => $photo->id, 'ocr_text' => '历史文字']);
+        $provider = Mockery::mock(TencentDataWanxiangService::class);
+        $provider->shouldNotReceive('recognizeText');
+        $this->app->instance(TencentDataWanxiangService::class, $provider);
+        $job = ProcessingJob::create(['photo_id' => $photo->id, 'type' => 'ocr']);
+        $this->assertSame('done', app(PhotoProcessingService::class)->process($job)->status);
+        $this->assertSame('历史文字', $photo->fresh()->analysisResult->ocr_text);
+        $this->expectException(\RuntimeException::class);
+        app(PhotoProcessingService::class)->queueOcr($photo);
     }
 
     public function test_datawanxiang_service_builds_ocr_request_and_extracts_text(): void
@@ -557,7 +534,7 @@ class PhotoProcessingTest extends TestCase
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
 
         $this->get(PhotoSimilarityCandidateResource::getUrl())
-            ->assertRedirect(PhotoSimilarityGroupResource::getUrl(parameters: ['tab' => 'candidates', 'filters' => []]));
+            ->assertRedirect(PhotoDuplicateResource::getUrl());
     }
 
     public function test_admin_can_visit_processing_job_resource(): void

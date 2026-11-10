@@ -59,12 +59,13 @@ class PhotoSimilarityCandidateResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
-                TextColumn::make('photo.title')
+                TextColumn::make('photo.title')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])
                     ->label('图片 A')
                     ->limit(28)
                     ->searchable(),
-                TextColumn::make('candidatePhoto.title')
+                TextColumn::make('candidatePhoto.title')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])
                     ->label('图片 B')
                     ->limit(28)
                     ->searchable(),
@@ -75,11 +76,11 @@ class PhotoSimilarityCandidateResource extends Resource
                 TextColumn::make('candidatePhoto.status')
                     ->label('图片 B 状态')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => Photo::STATUSES[$state] ?? $state),                TextColumn::make('similarity_score')
+                    ->formatStateUsing(fn (string $state): string => Photo::STATUSES[$state] ?? $state),                TextColumn::make('similarity_score')->alignEnd()
                     ->label('相似度')
                     ->suffix('%')
                     ->sortable(),
-                TextColumn::make('distance')
+                TextColumn::make('distance')->alignEnd()
                     ->label('感知距离')
                     ->sortable(),
                 TextColumn::make('status')

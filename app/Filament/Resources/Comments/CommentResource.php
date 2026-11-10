@@ -39,6 +39,7 @@ class CommentResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(2)
             ->components([
                 Select::make('type')
                     ->label('类型')
@@ -64,6 +65,7 @@ class CommentResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
                 TextColumn::make('type')
                     ->label('类型')
@@ -80,12 +82,12 @@ class CommentResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => $state === 'clean' || blank($state) ? '无' : (SensitiveWord::SEVERITIES[$state] ?? $state))
                     ->sortable(),
-                TextColumn::make('content')
+                TextColumn::make('content')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])
                     ->formatStateUsing(fn (?string $state): string => CommentStickers::scanText($state ?? ''))
                     ->label('内容摘要')
                     ->limit(48)
                     ->searchable(),
-                TextColumn::make('photo.title')
+                TextColumn::make('photo.title')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])
                     ->label('图片')
                     ->limit(28)
                     ->searchable(),
@@ -115,7 +117,7 @@ class CommentResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->recordActions([
-                EditAction::make()
+                EditAction::make()->modalWidth('4xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('备注'),
                 self::reviewAction('publish', '发布', 'published', 'success'),
                 self::reviewAction('reject', '拒绝', 'rejected', 'danger'),
@@ -135,6 +137,7 @@ class CommentResource extends Resource
     private static function reviewAction(string $name, string $label, string $status, string $color): Action
     {
         return Action::make($name)
+            ->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()
             ->label($label)
             ->color($color)
             ->form([

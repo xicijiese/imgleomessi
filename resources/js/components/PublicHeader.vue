@@ -21,7 +21,7 @@ interface SearchSuggestionItem {
     label: string;
     description: string | null;
     url: string;
-    source: 'recommendation' | 'hot';
+    source: 'hot';
 }
 
 const props = withDefaults(

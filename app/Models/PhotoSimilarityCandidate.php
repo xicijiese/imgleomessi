@@ -60,4 +60,28 @@ class PhotoSimilarityCandidate extends Model
     {
         return $query->where('status', 'pending_review');
     }
+
+    public function scopeNotExactFile(Builder $query): Builder
+    {
+        return $query->whereNotExists(fn ($hashes) => $hashes->selectRaw('1')
+            ->from('photo_analysis_results as source_hash')
+            ->join('photo_analysis_results as match_hash', 'source_hash.sha256_hash', '=', 'match_hash.sha256_hash')
+            ->whereColumn('source_hash.photo_id', 'photo_similarity_candidates.photo_id')
+            ->whereColumn('match_hash.photo_id', 'photo_similarity_candidates.candidate_photo_id')
+            ->whereNotNull('source_hash.sha256_hash')->where('source_hash.sha256_hash', '!=', ''));
+    }
+
+    public function scopePublicPair(Builder $query): Builder
+    {
+        return $query->where('distance', '<=', \App\Services\PhotoSimilarityService::DISTANCE_THRESHOLD)
+            ->whereHas('photo', fn ($photos) => $photos->published()->whereNotIn('copyright_status', ['restricted', 'remove_requested']))
+            ->whereHas('candidatePhoto', fn ($photos) => $photos->published()->whereNotIn('copyright_status', ['restricted', 'remove_requested']));
+    }
+
+    public function isExactFile(): bool
+    {
+        $hash = $this->photo?->analysisResult?->sha256_hash;
+
+        return filled($hash) && $hash === $this->candidatePhoto?->analysisResult?->sha256_hash;
+    }
 }

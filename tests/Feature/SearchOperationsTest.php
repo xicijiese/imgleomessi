@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Filament\Resources\SearchRecommendations\SearchRecommendationResource;
 use App\Models\Photo;
 use App\Models\SearchQuery;
 use App\Models\SearchRecommendation;
@@ -58,7 +57,7 @@ class SearchOperationsTest extends TestCase
         $this->assertArrayNotHasKey('q', $query->filters_json);
     }
 
-    public function test_search_recommendations_only_expose_active_safe_fields(): void
+    public function test_historical_manual_recommendations_are_not_exposed_and_are_preserved(): void
     {
         SearchRecommendation::query()->create([
             'keyword' => 'World Cup',
@@ -78,12 +77,9 @@ class SearchOperationsTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Search/Index')
-                ->has('search_operations.recommendations', 1)
-                ->where('search_operations.recommendations.0.term', 'World Cup')
-                ->where('search_operations.recommendations.0.label', '世界杯决赛')
-                ->where('search_operations.recommendations.0.url', '/search?q=World%20Cup')
-                ->missing('search_operations.recommendations.0.internal_note')
+                ->missing('search_operations.recommendations')
             );
+        $this->assertDatabaseCount('search_recommendations', 2);
     }
 
     public function test_hot_terms_only_include_valid_resultful_repeated_searches(): void
@@ -113,7 +109,7 @@ class SearchOperationsTest extends TestCase
             );
     }
 
-    public function test_suggestions_endpoint_returns_recommendations_and_hot_terms_safely(): void
+    public function test_suggestions_only_return_automatic_hot_terms_and_ignore_manual_configuration(): void
     {
         SearchRecommendation::query()->create([
             'keyword' => 'World Cup',
@@ -136,10 +132,9 @@ class SearchOperationsTest extends TestCase
             'filters_json' => ['source_mode' => 'has'],
         ]);
 
-        $this->getJson('/search/suggestions?q=w')
+        $this->getJson('/search/suggestions?q=world')
             ->assertOk()
-            ->assertJsonCount(1, 'items')
-            ->assertJsonPath('items.0.source', 'recommendation')
+            ->assertJsonCount(0, 'items')
             ->assertJsonMissingPath('items.0.internal_note')
             ->assertJsonMissingPath('items.0.filters_json')
             ->assertJsonMissingPath('items.0.user_id');
@@ -154,10 +149,11 @@ class SearchOperationsTest extends TestCase
             ->assertJsonMissingPath('items.0.search_count');
     }
 
-    public function test_admin_can_manage_search_recommendations(): void
+    public function test_removed_search_operations_page_is_not_available_even_to_admins(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']))
-            ->get(SearchRecommendationResource::getUrl())
-            ->assertOk();
+            ->get('/admin/search-recommendations')
+            ->assertNotFound();
+        $this->get('/admin')->assertOk()->assertDontSee('搜索运营');
     }
 }

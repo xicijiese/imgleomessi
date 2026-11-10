@@ -16,6 +16,9 @@ class ManageAlbums extends ManageRecords
     {
         return [
             CreateAction::make()
+                ->modalWidth('5xl')
+                ->stickyModalHeader()
+                ->stickyModalFooter()
                 ->using(function (array $data): Album {
                     $categoryIds = AlbumResource::categoryIdsFromFormData($data);
                     $album = Album::create(Arr::except($data, AlbumResource::categoryFieldNamesForForm()));

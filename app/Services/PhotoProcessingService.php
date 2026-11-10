@@ -26,10 +26,6 @@ class PhotoProcessingService
     {
         $types = ['metadata', 'hash', 'datawanxiang_derivatives'];
 
-        if ($autoOcr && $this->dataWanxiang->enabled()) {
-            $types[] = 'ocr';
-        }
-
         $jobs = collect($types)
             ->map(fn (string $type): ProcessingJob => $this->createJob($photo, $type))
             ->all();
@@ -43,6 +39,10 @@ class PhotoProcessingService
 
     public function createJob(Photo $photo, string $type, array $payload = []): ProcessingJob
     {
+        if (in_array($type, ['ocr', 'ocr_placeholder'], true)) {
+            throw new RuntimeException('OCR 功能已停用，不再创建识别任务。');
+        }
+
         if (! array_key_exists($type, ProcessingJob::TYPES)) {
             throw new RuntimeException('未知图片处理任务类型：'.$type);
         }
@@ -109,10 +109,9 @@ class PhotoProcessingService
             match ($job->type) {
                 'metadata' => $this->analyze($job->photo),
                 'hash' => $this->processHash($job->photo),
-                'ocr_placeholder' => $this->markPlaceholder($job->photo),
+                'ocr_placeholder', 'ocr' => null,
                 'datawanxiang_derivatives' => $this->processDerivatives($job->photo),
                 'similarity' => $this->processSimilarity($job->photo),
-                'ocr' => $this->processOcr($job->photo),
                 default => throw new RuntimeException('未知图片处理任务类型：'.$job->type),
             };
 
@@ -120,6 +119,10 @@ class PhotoProcessingService
                 'status' => 'done',
                 'processed_at' => now(),
             ]);
+
+            if ($job->type === 'hash') {
+                $this->queueSimilarity($job->photo);
+            }
 
             $this->publishAfterProcessingIfReady($job->photo->refresh());
         } catch (Throwable $throwable) {

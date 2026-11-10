@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Album;
 use App\Models\Category;
 use App\Models\Photo;
-use App\Models\PhotoSimilarityCandidate;
 use App\Models\Setting;
 use App\Models\Tag;
 use App\Services\HomepageSettings;
@@ -19,28 +18,45 @@ class PublicPhotoDetailTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_visual_recommendations_are_ordered_and_only_expose_public_eligible_candidates(): void
+    public function test_tag_suggestions_match_any_tag_and_only_expose_other_public_photos(): void
     {
+        $a = Tag::create(['name' => '标签A']);
+        $b = Tag::create(['name' => '标签B']);
+        $other = Tag::create(['name' => '不相关']);
         $photo = $this->publicPhoto('当前图');
-        $closest = $this->publicPhoto('最接近');
-        $farther = $this->publicPhoto('较接近');
-        $hidden = $this->publicPhoto('草稿', ['status' => 'draft']);
-        $restricted = $this->publicPhoto('受限', ['copyright_status' => 'restricted']);
-        $ignored = $this->publicPhoto('忽略');
-        $separate = $this->publicPhoto('独立');
-        foreach ([[$closest, 1, 'pending_review'], [$farther, 8, 'confirmed_duplicate'], [$hidden, 0, 'pending_review'], [$restricted, 0, 'pending_review'], [$ignored, 0, 'ignored'], [$separate, 0, 'kept_separate']] as [$match, $distance, $status]) {
-            PhotoSimilarityCandidate::query()->create([
-                'photo_id' => $photo->id, 'candidate_photo_id' => $match->id,
-                'distance' => $distance, 'similarity_score' => 90, 'status' => $status,
-            ]);
+        $photo->tags()->sync([$a->id, $b->id]);
+        $expected = [];
+        foreach ([[$a->id], [$b->id], [$a->id, $b->id]] as $ids) {
+            $match = $this->publicPhoto('同标签图片', ['thumbnail_key' => 'thumb.webp']);
+            $match->tags()->sync($ids);
+            $expected[] = $match->id;
         }
-        $this->get('/photos/'.$photo->uuid)->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->has('photoDetail.similar.data', 2)
-            ->where('photoDetail.similar.data.0.id', $closest->id)
-            ->where('photoDetail.similar.data.1.id', $farther->id)
-            ->missing('photoDetail.similar.data.0.original_key'));
-        $this->get('/photos/'.$closest->uuid)->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->where('photoDetail.similar.data.0.id', $photo->id));
+        foreach ([['status' => 'draft'], ['status' => 'archived'], ['copyright_status' => 'restricted'], ['copyright_status' => 'remove_requested']] as $attributes) {
+            $this->publicPhoto('不可展示', $attributes)->tags()->sync([$a->id]);
+        }
+        $this->publicPhoto('无关图片')->tags()->sync([$other->id]);
+        $response = $this->get('/photos/'.$photo->uuid)->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->has('photoDetail.suggestions.data', 3)
+            ->where('photoDetail.suggestions.data', fn ($rows) => collect($rows)->pluck('id')->sort()->values()->all() === collect($expected)->sort()->values()->all())
+            ->missing('photoDetail.suggestions.data.0.original_key')
+            ->where('photoDetail.suggestions.data.0.image_url', fn ($url) => str_contains($url, 'thumb.webp'))
+            ->missing('photoDetail.similar'));
+    }
+
+    public function test_tag_suggestions_are_empty_without_tags_or_matching_photos_and_limited_to_eight(): void
+    {
+        $photo = $this->publicPhoto('无标签');
+        $this->get('/photos/'.$photo->uuid)->assertInertia(fn (Assert $page) => $page->has('photoDetail.suggestions.data', 0));
+        $tag = Tag::create(['name' => '仅自己']);
+        $photo->tags()->sync([$tag->id]);
+        $this->get('/photos/'.$photo->uuid)->assertInertia(fn (Assert $page) => $page->has('photoDetail.suggestions.data', 0));
+        for ($i = 0; $i < 12; $i++) {
+            $this->publicPhoto('推荐'.$i)->tags()->sync([$tag->id]);
+        }
+        $this->get('/photos/'.$photo->uuid)->assertInertia(fn (Assert $page) => $page
+            ->has('photoDetail.suggestions.data', 8)
+            ->where('photoDetail.suggestions.data', fn ($rows) => collect($rows)->pluck('id')->unique()->count() === 8));
     }
 
     public function test_guest_can_visit_public_photo_detail_with_metadata(): void

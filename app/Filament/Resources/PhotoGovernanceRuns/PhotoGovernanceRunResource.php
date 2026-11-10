@@ -48,12 +48,12 @@ class PhotoGovernanceRunResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table->columns([
+        return $table->extraAttributes(['class' => 'admin-content-table'])->columns([
             TextColumn::make('type')->label('任务')->formatStateUsing(fn ($state) => $state === 'groups' ? '分析与分组' : '精确重复图归档'),
             TextColumn::make('status')->label('状态')->badge()->formatStateUsing(fn ($state) => ['pending' => '排队中', 'running' => '处理中', 'done' => '已完成', 'failed' => '失败'][$state] ?? $state),
-            TextColumn::make('result_count')->label('处理结果')->formatStateUsing(fn ($state, $record): string => $record->status === 'done'
+            TextColumn::make('result_count')->alignEnd()->label('处理结果')->formatStateUsing(fn ($state, $record): string => $record->status === 'done'
                 ? ($record->type === 'groups' ? $state.' 个相似组' : $state.' 张重复图已归档') : '待完成'),
-            TextColumn::make('last_photo_id')->label('已分析至图片 ID'),
+            TextColumn::make('last_photo_id')->alignEnd()->label('已分析至图片 ID'),
             TextColumn::make('error_message')->label('失败原因')->wrap(),
             TextColumn::make('updated_at')->label('更新时间')->dateTime('Y-m-d H:i'),
         ])->defaultSort('id', 'desc')->poll('5s')->recordActions([

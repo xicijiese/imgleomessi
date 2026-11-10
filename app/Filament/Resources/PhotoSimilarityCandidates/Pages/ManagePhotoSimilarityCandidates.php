@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources\PhotoSimilarityCandidates\Pages;
 
+use App\Filament\Resources\PhotoDuplicates\PhotoDuplicateResource;
 use App\Filament\Resources\PhotoSimilarityCandidates\PhotoSimilarityCandidateResource;
-use App\Filament\Resources\PhotoSimilarityGroups\PhotoSimilarityGroupResource;
 use Filament\Resources\Pages\ManageRecords;
 
 class ManagePhotoSimilarityCandidates extends ManageRecords
@@ -12,9 +12,6 @@ class ManagePhotoSimilarityCandidates extends ManageRecords
 
     public function mount(): void
     {
-        $this->redirect(PhotoSimilarityGroupResource::getUrl(parameters: [
-            'tab' => 'candidates',
-            'filters' => request()->query('filters', request()->query('tableFilters', [])),
-        ]));
+        $this->redirect(PhotoDuplicateResource::getUrl());
     }
 }

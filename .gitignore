@@ -31,4 +31,5 @@ yarn-error.log
 /.scratch/messi-gallery/test-images/*
 !/.scratch/messi-gallery/test-images/.gitkeep
 /.scratch/messi-gallery/write-test.txt
+/.scratch/artifacts/database-before-scan-progress-*.sqlite
 /imgleomessi/

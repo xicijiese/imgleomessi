@@ -1,0 +1,827 @@
+/* 仅覆盖后台排版，保留 Filament 的颜色、控件状态与交互。 */
+.fi-panel-admin .fi-page-header-main-ctn {
+    gap: 1.5rem;
+    padding-block: 1.5rem;
+}
+
+.fi-panel-admin .fi-header-heading {
+    font-size: 1.5rem;
+    line-height: 1.4;
+}
+
+.fi-panel-admin .fi-sidebar-nav {
+    padding-inline: 0.75rem;
+}
+
+/* 登录页沿用后台原生表单，仅收紧面板并改善触控尺寸。 */
+.fi-panel-admin .fi-simple-main {
+    width: calc(100% - 2rem);
+    max-width: 28rem;
+    margin-block: 2rem;
+    border-radius: 0.75rem;
+    padding: 2rem;
+}
+
+.fi-panel-admin .fi-simple-main .fi-input,
+.fi-panel-admin .fi-simple-main .fi-btn {
+    min-height: 2.75rem;
+}
+
+.fi-panel-admin .fi-simple-main .fi-input-wrp-suffix .fi-icon-btn {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+}
+
+.fi-panel-admin
+    .fi-modal-has-sticky-header.fi-modal-has-sticky-footer
+    > .fi-modal-window-ctn
+    > .fi-modal-window {
+    overflow: hidden;
+}
+
+.fi-panel-admin
+    .fi-modal-has-sticky-header.fi-modal-has-sticky-footer
+    > .fi-modal-window-ctn
+    > .fi-modal-window
+    > .fi-modal-content {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.fi-panel-admin .fi-modal-has-sticky-header .fi-modal-header,
+.fi-panel-admin .fi-modal-has-sticky-footer .fi-modal-footer {
+    flex-shrink: 0;
+    padding-block: 1rem;
+}
+
+.admin-system-settings {
+    display: grid;
+    gap: 1.5rem;
+    min-width: 0;
+}
+
+.admin-settings-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    justify-content: flex-end;
+    border-top: 1px solid var(--gray-200);
+    background: white;
+    padding: 1rem;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.dark .admin-settings-actions {
+    border-color: var(--gray-700);
+    background: var(--gray-900);
+}
+
+.fi-panel-admin .fi-account-widget,
+.fi-panel-admin .fi-filament-info-widget {
+    grid-column: 1 / -1;
+}
+
+.fi-panel-admin .fi-filament-info-widget .fi-section-content {
+    padding-block: 1rem;
+}
+
+.fi-panel-admin .admin-content-table .fi-ta-cell {
+    vertical-align: middle;
+    font-variant-numeric: tabular-nums;
+}
+
+.fi-panel-admin .admin-content-table .fi-ta-header-cell {
+    white-space: nowrap;
+}
+
+.fi-panel-admin .admin-content-table .admin-object-cell {
+    min-width: 14rem;
+    max-width: 24rem;
+    overflow-wrap: anywhere;
+}
+
+.fi-panel-admin .admin-content-table .fi-ta-actions {
+    gap: 0.75rem;
+}
+
+.admin-comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 1.5rem;
+}
+
+.admin-comparison-card {
+    display: block;
+    min-width: 0;
+    border: 1px solid var(--gray-200);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+}
+
+.admin-comparison-media {
+    height: 240px;
+    overflow: hidden;
+    border-radius: 0.25rem;
+    background: var(--gray-50);
+}
+
+.admin-comparison-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.admin-comparison-title {
+    margin-top: 0.75rem;
+    overflow-wrap: anywhere;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.admin-comparison-status {
+    margin-top: 0.25rem;
+    font-size: 0.8125rem;
+    color: var(--gray-600);
+}
+
+.admin-comparison-card:focus-visible {
+    outline: 2px solid var(--primary-600);
+    outline-offset: 3px;
+}
+
+.dark .admin-comparison-card {
+    border-color: var(--gray-700);
+}
+
+.dark .admin-comparison-media {
+    background: var(--gray-950);
+}
+
+.dark .admin-comparison-status {
+    color: var(--gray-400);
+}
+
+.admin-share-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.admin-share-date-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 15rem));
+    gap: 1rem;
+}
+
+.admin-share-date-filters label {
+    display: grid;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.admin-share-date-filters input {
+    width: 100%;
+    min-width: 0;
+    min-height: 2.5rem;
+    border: 1px solid var(--gray-300);
+    border-radius: 0.5rem;
+    background: white;
+    padding: 0.5rem 0.75rem;
+    color: inherit;
+}
+
+.admin-share-date-filters input:focus-visible {
+    outline: 2px solid var(--primary-600);
+    outline-offset: 2px;
+}
+
+.admin-share-service {
+    margin-bottom: 1rem;
+}
+
+.admin-share-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+}
+
+.admin-share-metrics dt,
+.admin-submission-metadata dt {
+    font-size: 0.8125rem;
+    color: var(--gray-600);
+}
+
+.admin-share-metrics dd {
+    margin-top: 0.5rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-share-explanation {
+    margin-top: 1rem;
+    max-width: 90ch;
+    line-height: 1.7;
+}
+
+.admin-share-panels {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.admin-share-distribution {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-block: 0.5rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-detail-table-scroll {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    margin-top: 1rem;
+}
+
+.admin-detail-table {
+    width: 100%;
+    min-width: 40rem;
+    text-align: start;
+    font-size: 0.875rem;
+}
+
+.admin-detail-table th,
+.admin-detail-table td {
+    border-bottom: 1px solid var(--gray-200);
+    padding: 0.75rem;
+    vertical-align: top;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-submission-preview {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(15rem, 1fr);
+    align-items: start;
+    gap: 1.5rem;
+}
+
+.admin-submission-main,
+.admin-submission-metadata {
+    min-width: 0;
+}
+
+.admin-submission-image {
+    display: block;
+    width: 100%;
+    max-height: 60vh;
+    object-fit: contain;
+}
+
+.admin-submission-metadata dl {
+    display: grid;
+    gap: 1rem;
+}
+
+.admin-submission-metadata dd {
+    margin-top: 0.25rem;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    line-height: 1.7;
+}
+
+.admin-submission-wide {
+    grid-column: 1 / -1;
+    min-width: 0;
+}
+
+.admin-review-heading {
+    margin-bottom: 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.admin-review-source-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    margin-top: 1rem;
+    border: 1px solid var(--gray-300);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-weight: 500;
+}
+
+.admin-review-related {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, 150px);
+    gap: 0.75rem;
+}
+
+.admin-review-related img {
+    width: 150px;
+    height: 110px;
+    object-fit: contain;
+}
+
+.admin-review-related p {
+    margin-top: 0.5rem;
+    overflow-wrap: anywhere;
+    font-size: 0.875rem;
+}
+
+.admin-review-event {
+    display: grid;
+    grid-template-columns: 11rem minmax(0, 1fr);
+    gap: 1rem;
+    border-bottom: 1px solid var(--gray-200);
+    padding-block: 1rem;
+}
+
+.admin-review-event time {
+    font-size: 0.8125rem;
+    color: var(--gray-600);
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-review-event-action {
+    font-weight: 600;
+}
+
+.admin-review-note {
+    margin-top: 0.25rem;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    line-height: 1.7;
+}
+
+.dark .admin-share-date-filters input {
+    border-color: var(--gray-600);
+    background: var(--gray-900);
+}
+
+.dark .admin-share-metrics dt,
+.dark .admin-submission-metadata dt,
+.dark .admin-review-event time {
+    color: var(--gray-400);
+}
+
+.dark .admin-detail-table th,
+.dark .admin-detail-table td,
+.dark .admin-review-event,
+.dark .admin-review-source-link {
+    border-color: var(--gray-700);
+}
+
+@media (max-width: 767px) {
+    .admin-share-date-filters,
+    .admin-share-panels,
+    .admin-submission-preview,
+    .admin-review-event {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-share-metrics {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.75rem;
+    }
+
+    .admin-share-metrics > div {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .admin-share-metrics dd {
+        margin-top: 0;
+    }
+
+    .admin-share-date-filters input,
+    .admin-share-tabs .fi-btn {
+        min-height: 2.75rem;
+    }
+
+    .admin-review-event {
+        gap: 0.5rem;
+    }
+
+    .admin-comparison-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1rem;
+    }
+
+    .fi-panel-admin .fi-header-heading {
+        font-size: 1.25rem;
+    }
+
+    .fi-panel-admin
+        .fi-modal-has-sticky-header.fi-modal-has-sticky-footer
+        > .fi-modal-window-ctn {
+        padding: 0.5rem;
+    }
+
+    .fi-panel-admin
+        .fi-modal-has-sticky-header.fi-modal-has-sticky-footer
+        > .fi-modal-window-ctn
+        > .fi-modal-window {
+        max-height: calc(100dvh - 1rem);
+    }
+
+    .fi-panel-admin .fi-modal-has-sticky-header .fi-modal-header,
+    .fi-panel-admin .fi-modal-has-sticky-header .fi-modal-content,
+    .fi-panel-admin .fi-modal-has-sticky-footer .fi-modal-footer {
+        padding-inline: 1rem;
+    }
+
+    .fi-panel-admin
+        .fi-modal-has-sticky-footer
+        .fi-modal-footer-actions
+        .fi-btn,
+    .admin-settings-actions .fi-btn {
+        min-height: 2.75rem;
+    }
+
+    .admin-settings-actions {
+        padding-inline: 0.75rem;
+    }
+}
+
+.admin-dashboard {
+    display: grid;
+    gap: 1.5rem;
+    min-width: 0;
+}
+
+.admin-dashboard-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+}
+
+.admin-dashboard-heading h2 {
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.admin-dashboard-heading p,
+.admin-dashboard-note,
+.admin-dashboard-activity span,
+.admin-dashboard-activity time {
+    color: var(--gray-600);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+}
+
+.admin-dashboard-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.admin-dashboard-metric {
+    display: grid;
+    gap: 0.5rem;
+    padding: 1.25rem;
+    border: 1px solid var(--gray-200);
+    border-radius: 0.75rem;
+    background: white;
+}
+
+.admin-dashboard-metrics--three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-dashboard-metric > span:first-child {
+    color: var(--gray-600);
+    font-size: 0.875rem;
+}
+
+.admin-dashboard-metric strong {
+    font-size: 1.875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-dashboard-work {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 1.5rem;
+}
+
+.admin-dashboard-rows {
+    display: grid;
+}
+
+.admin-dashboard-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 1rem;
+    padding-block: 0.75rem;
+    font-size: 0.875rem;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.admin-dashboard-row strong {
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-dashboard-link,
+.admin-dashboard-all {
+    color: var(--primary-700);
+    font-size: 0.8125rem;
+}
+
+.admin-dashboard-all {
+    display: inline-block;
+    margin-top: 1rem;
+    padding-block: 0.5rem;
+}
+
+.admin-dashboard-note {
+    margin-top: 0.75rem;
+}
+
+.admin-dashboard-failure strong {
+    color: var(--danger-600);
+}
+
+.admin-dashboard-activity {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-block: 0.75rem;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.admin-dashboard-activity > div {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.admin-dashboard-activity strong {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.admin-dashboard-activity time {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-dashboard a:hover {
+    background-color: var(--gray-50);
+}
+
+.admin-dashboard a:focus-visible {
+    outline: 2px solid var(--primary-600);
+    outline-offset: 3px;
+}
+
+.dark .admin-dashboard-metric {
+    background: var(--gray-900);
+}
+
+.dark .admin-dashboard-metric,
+.dark .admin-dashboard-row,
+.dark .admin-dashboard-activity {
+    border-color: var(--gray-700);
+}
+
+.dark .admin-dashboard-heading p,
+.dark .admin-dashboard-note,
+.dark .admin-dashboard-activity span,
+.dark .admin-dashboard-activity time,
+.dark .admin-dashboard-metric > span:first-child {
+    color: var(--gray-400);
+}
+
+.dark .admin-dashboard-link,
+.dark .admin-dashboard-all {
+    color: var(--primary-400);
+}
+
+.dark .admin-dashboard-failure strong {
+    color: var(--danger-400);
+}
+
+.dark .admin-dashboard a:hover {
+    background-color: var(--gray-800);
+}
+
+@media (max-width: 1023px) {
+    .admin-dashboard-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admin-dashboard-work {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-dashboard-metrics--three .admin-dashboard-metric:last-child {
+        grid-column: 1 / -1;
+    }
+}
+
+.admin-scan-progress {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.admin-scan-progress-heading,
+.admin-scan-progress-counts {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-scan-progress-bar {
+    display: block;
+    width: 100%;
+    height: 0.625rem;
+    border: 0;
+    border-radius: 1rem;
+    overflow: hidden;
+    appearance: none;
+    background: var(--gray-200);
+    accent-color: var(--primary-600);
+}
+
+.admin-scan-progress-bar::-webkit-progress-bar {
+    background: var(--gray-200);
+}
+
+.admin-scan-progress-bar::-webkit-progress-value {
+    background: var(--primary-600);
+    border-radius: 1rem;
+}
+
+.admin-scan-progress-bar::-moz-progress-bar {
+    background: var(--primary-600);
+    border-radius: 1rem;
+}
+
+.admin-scan-progress-status {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background: var(--gray-50);
+    font-size: 0.875rem;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
+.admin-scan-progress-status p + p,
+.admin-scan-progress-status strong + p {
+    margin-top: 0.5rem;
+}
+
+.admin-scan-progress[data-state='failed'] .admin-scan-progress-heading,
+.admin-scan-progress[data-state='failed'] .admin-scan-progress-status strong {
+    color: var(--danger-600);
+}
+
+.admin-scan-progress-warning {
+    border-left: 3px solid var(--warning-500);
+    padding-left: 0.75rem;
+    color: var(--warning-700);
+    font-size: 0.875rem;
+    line-height: 1.7;
+}
+
+.admin-scan-progress-note {
+    font-size: 0.8125rem;
+    color: var(--gray-600);
+    line-height: 1.6;
+}
+
+.admin-scan-progress-summary {
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-scan-progress[data-errors='true'] .admin-scan-progress-heading {
+    color: var(--warning-700);
+}
+
+.admin-scan-errors h3 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.admin-scan-errors ol {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.admin-scan-errors li {
+    border: 1px solid var(--gray-200);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    font-size: 0.8125rem;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
+.admin-scan-error-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.admin-scan-error-heading strong {
+    font-size: 0.875rem;
+}
+
+.admin-scan-error-heading span {
+    color: var(--gray-600);
+}
+
+.admin-scan-error-reason {
+    margin-block: 0.5rem;
+}
+
+.admin-scan-error-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    border: 1px solid var(--gray-300);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    color: var(--primary-700);
+    font-weight: 500;
+}
+
+.admin-scan-error-link:hover {
+    background: var(--gray-50);
+}
+
+.admin-scan-error-link:focus-visible {
+    outline: 2px solid var(--primary-600);
+    outline-offset: 3px;
+}
+
+.dark .admin-scan-errors li,
+.dark .admin-scan-error-link {
+    border-color: var(--gray-700);
+}
+
+.dark .admin-scan-error-heading span {
+    color: var(--gray-400);
+}
+
+.dark .admin-scan-error-link {
+    color: var(--primary-400);
+}
+
+.dark .admin-scan-error-link:hover {
+    background: var(--gray-800);
+}
+
+.dark .admin-scan-progress[data-errors='true'] .admin-scan-progress-heading {
+    color: var(--warning-300);
+}
+
+.dark .admin-scan-progress-status {
+    background: var(--gray-800);
+}
+
+.dark .admin-scan-progress-bar,
+.dark .admin-scan-progress-bar::-webkit-progress-bar {
+    background: var(--gray-700);
+}
+
+.dark .admin-scan-progress-warning {
+    color: var(--warning-300);
+}
+
+.dark .admin-scan-progress-note {
+    color: var(--gray-400);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fi-panel-admin .fi-modal-window,
+    .fi-panel-admin .fi-modal-close-overlay {
+        transition-duration: 0.01ms;
+    }
+}

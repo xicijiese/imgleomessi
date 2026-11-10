@@ -63,11 +63,10 @@ interface SearchOperationItem {
     label: string;
     description: string | null;
     url: string;
-    source: 'recommendation' | 'hot';
+    source: 'hot';
 }
 
 interface SearchOperationsPayload {
-    recommendations: SearchOperationItem[];
     hot_terms: SearchOperationItem[];
 }
 
@@ -131,11 +130,7 @@ const browserRoot = ref<HTMLElement | null>(null);
 const isLoading = ref(false);
 useArchiveBrowserMotion(browserRoot);
 const hasPhotos = computed(() => props.search.photos.data.length > 0);
-const hasSearchIdeas = computed(
-    () =>
-        props.search_operations.recommendations.length > 0 ||
-        props.search_operations.hot_terms.length > 0,
-);
+const hasSearchIdeas = computed(() => props.search_operations.hot_terms.length > 0);
 const showSearchIdeas = computed(
     () =>
         hasSearchIdeas.value &&
@@ -209,18 +204,6 @@ const emptyDescription = computed(() =>
                     class="browser-search-ideas"
                     aria-label="搜索建议"
                 >
-                    <div v-if="search_operations.recommendations.length">
-                        <h2>推荐搜索</h2>
-                        <div>
-                            <Link
-                                v-for="item in search_operations.recommendations"
-                                :key="`recommendation-${item.term}`"
-                                :href="item.url"
-                                :title="item.description ?? undefined"
-                                >{{ item.label }}</Link
-                            >
-                        </div>
-                    </div>
                     <div v-if="search_operations.hot_terms.length">
                         <h2>热门搜索</h2>
                         <div>

@@ -41,12 +41,13 @@ class UserLoginHistoryResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
                 TextColumn::make('logged_in_at')->label('登录时间')->dateTime('Y-m-d H:i:s')->sortable(),
                 TextColumn::make('user.name')->label('用户')->searchable(),
-                TextColumn::make('user.email')->label('邮箱')->searchable(),
+                TextColumn::make('user.email')->extraCellAttributes(['class' => 'admin-object-cell'])->wrap()->label('邮箱')->searchable(),
                 TextColumn::make('ip_address')->label('IP')->placeholder('未知'),
-                TextColumn::make('user_agent')->label('客户端')->limit(80)->tooltip(fn (?string $state): ?string => $state),
+                TextColumn::make('user_agent')->extraCellAttributes(['class' => 'admin-object-cell'])->wrap()->label('客户端')->limit(80)->tooltip(fn (?string $state): ?string => $state),
             ])
             ->defaultSort('logged_in_at', 'desc');
     }

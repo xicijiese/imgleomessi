@@ -12,17 +12,15 @@ use App\Models\User;
 use App\Services\PhotoBatchOrganizer;
 use App\Services\PhotoUploadService;
 use Filament\Actions\Action;
-use Filament\Actions\CreateAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ManageRecords;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Arr;
 
 class ManagePhotos extends ManageRecords
 {
@@ -32,83 +30,85 @@ class ManagePhotos extends ManageRecords
     {
         return [
             Action::make('bulkUpload')
-                ->label('批量上传')
-                ->modalHeading('批量上传图片')
-                ->modalDescription('可选择上传后保留草稿，或在基础处理完成且满足发布条件后自动发布；OCR 默认关闭且不会阻塞发布。')
+                ->label('上传图片')
+                ->modalHeading('上传图片')
+                ->modalDescription('支持上传单张或多张图片。可选择保留草稿，或在基础处理完成且满足发布条件后自动发布。')
                 ->modalSubmitActionLabel('开始上传')
                 ->schema([
-                    FileUpload::make('files')
-                        ->label('图片文件')
-                        ->multiple()
-                        ->image()
-                        ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
-                        ->storeFiles(false)
-                        ->required(),
-                    TextInput::make('source_url')
-                        ->label('来源链接')
-                        ->url()
-                        ->maxLength(2048)
-                        ->helperText('可选；来源平台请在分类中选择。'),
-                    Select::make('tag_ids')
-                        ->label('标签')
-                        ->options(fn (): array => Tag::query()->orderBy('name')->pluck('name', 'id')->all())
-                        ->multiple()
-                        ->preload()
-                        ->searchable()
-                        ->createOptionForm([
-                            TextInput::make('name')
-                                ->label('标签名')
-                                ->required()
-                                ->maxLength(255)
-                                ->unique(table: 'tags', column: 'name'),
-                        ])
-                        ->createOptionUsing(fn (array $data): int => (int) Tag::query()->create($data)->getKey())
-                        ->helperText('可输入关键词搜索，输入不存在的标签后可直接创建。'),
-                    Select::make('copyright_status')
-                        ->label('版权状态')
-                        ->options(Photo::COPYRIGHT_STATUSES)
-                        ->default('unknown')
-                        ->required(),
-                    Select::make('publish_mode')
-                        ->label('上传后的发布状态')
-                        ->options([
-                            'draft' => '草稿（待整理）',
-                            'publish_after_processing' => '处理完成后自动发布',
-                        ])
-                        ->default('publish_after_processing')
-                        ->live()
-                        ->required()
-                        ->helperText('默认处理完成后自动发布；仍会检查标题、版权状态和必选主分类，不满足条件时会保留为草稿。'),
-                    Section::make('图片分类与相册')
-                        ->schema([
-                            ...self::categorySelectors(),
-                            Select::make('album_id')
-                                ->label('关联相册')
-                                ->options(fn (): array => Album::query()
-                                    ->orderBy('title')
-                                    ->pluck('title', 'id')
-                                    ->all())
-                                ->searchable()
-                                ->preload()
-                                ->live()
-                                ->columnSpanFull()
-                                ->helperText('可直接选择分类，也可以只选择相册；选择相册后图片自动继承相册分类。'),
-                        ])
-                        ->columns(2)
-                        ->columnSpanFull(),
-                    Toggle::make('auto_ocr')
-                        ->label('上传后自动识别 OCR')
-                        ->default(false)
-                        ->helperText('默认关闭。OCR 只适合截图、海报等含有文字的图片，失败不会阻塞图片上传或发布。'),
+                    Grid::make(2)->schema([
+                        FileUpload::make('files')
+                            ->columnSpanFull()
+                            ->label('图片文件')
+                            ->multiple()
+                            ->image()
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+                            ->storeFiles(false)
+                            ->required(),
+                        TextInput::make('source_url')
+                            ->columnSpanFull()
+                            ->label('来源链接')
+                            ->url()
+                            ->maxLength(2048)
+                            ->helperText('可选；来源平台请在分类中选择。'),
+                        Select::make('tag_ids')
+                            ->columnSpanFull()
+                            ->label('标签')
+                            ->options(fn (): array => Tag::query()->orderBy('name')->pluck('name', 'id')->all())
+                            ->multiple()
+                            ->preload()
+                            ->searchable()
+                            ->createOptionForm([
+                                TextInput::make('name')
+                                    ->label('标签名')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->unique(table: 'tags', column: 'name'),
+                            ])
+                            ->createOptionUsing(fn (array $data): int => (int) Tag::query()->create($data)->getKey())
+                            ->helperText('可输入关键词搜索，输入不存在的标签后可直接创建。'),
+                        Select::make('copyright_status')
+                            ->label('版权状态')
+                            ->options(Photo::COPYRIGHT_STATUSES)
+                            ->default('unknown')
+                            ->required(),
+                        Select::make('publish_mode')
+                            ->label('上传后的发布状态')
+                            ->options([
+                                'draft' => '草稿（待整理）',
+                                'publish_after_processing' => '处理完成后自动发布',
+                            ])
+                            ->default('publish_after_processing')
+                            ->live()
+                            ->required()
+                            ->helperText('默认处理完成后自动发布；仍会检查标题、版权状态和必选主分类，不满足条件时会保留为草稿。'),
+                        Section::make('图片分类与相册')
+                            ->schema([
+                                ...self::categorySelectors(),
+                                Select::make('album_id')
+                                    ->label('关联相册')
+                                    ->options(fn (): array => Album::query()
+                                        ->orderBy('title')
+                                        ->pluck('title', 'id')
+                                        ->all())
+                                    ->searchable()
+                                    ->preload()
+                                    ->live()
+                                    ->columnSpanFull()
+                                    ->helperText('可直接选择分类，也可以只选择相册；选择相册后图片自动继承相册分类。'),
+                            ])
+                            ->columns(2)
+                            ->columnSpanFull(),
+                    ])->columnSpanFull(),
                 ])
-                ->modalWidth('2xl')
+                ->modalWidth('5xl')
+                ->stickyModalHeader()
+                ->stickyModalFooter()
                 ->action(function (array $data, PhotoUploadService $photoUploadService): void {
                     $album = filled($data['album_id'] ?? null)
                         ? Album::query()->find($data['album_id'])
                         : null;
                     $publishAfterProcessing = ($data['publish_mode'] ?? 'publish_after_processing') === 'publish_after_processing';
                     $categoryIds = self::categoryIdsFromData($data);
-                    $autoOcr = (bool) ($data['auto_ocr'] ?? false);
 
                     if ($publishAfterProcessing
                         && $album === null
@@ -151,7 +151,6 @@ class ManagePhotos extends ManageRecords
                                 'copyright_status' => $data['copyright_status'] ?? 'unknown',
                                 'publish_after_processing' => $publishAfterProcessing,
                                 'category_ids' => $categoryIds,
-                                'auto_ocr' => $autoOcr,
                                 'tag_ids' => $data['tag_ids'] ?? [],
                             ]);
 
@@ -190,30 +189,6 @@ class ManagePhotos extends ManageRecords
 
                     $notification->send();
                 }),
-            CreateAction::make()
-                ->using(function (array $data): Photo {
-                    $albumIds = collect($data['albums'] ?? [])
-                        ->filter()
-                        ->map(fn (mixed $id): int => (int) $id)
-                        ->unique()
-                        ->values();
-                    $photo = Photo::create(Arr::except($data, [...self::categoryFieldNames(), 'albums', 'tags']));
-                    $photo->albums()->sync($albumIds);
-                    $categoryIds = $albumIds->isNotEmpty()
-                        ? Album::query()
-                            ->whereIn('id', $albumIds)
-                            ->with('categories')
-                            ->get()
-                            ->flatMap(fn (Album $album): array => $album->categories->pluck('id')->all())
-                            ->unique()
-                            ->values()
-                            ->all()
-                        : self::categoryIdsFromData($data);
-                    $photo->categories()->sync($categoryIds);
-                    $photo->tags()->sync($data['tags'] ?? []);
-
-                    return $photo;
-                }),
         ];
     }
 
@@ -241,15 +216,6 @@ class ManagePhotos extends ManageRecords
                     ->visible(fn (Get $get): bool => blank($get('album_id')))
                     ->helperText($root->required_for_publish ? '自动发布前必选。' : '可选分类。');
             })
-            ->all();
-    }
-
-    private static function categoryFieldNames(): array
-    {
-        return Category::query()
-            ->roots()
-            ->pluck('id')
-            ->map(fn (mixed $id): string => self::categoryFieldName((int) $id))
             ->all();
     }
 

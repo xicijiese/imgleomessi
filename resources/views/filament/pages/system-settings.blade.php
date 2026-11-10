@@ -1,8 +1,8 @@
 <x-filament-panels::page>
-    <form wire:submit="save" class="space-y-6">
+    <form wire:submit="save" class="admin-system-settings">
         {{ $this->form }}
 
-        <div>
+        <div class="admin-settings-actions">
             <x-filament::button type="submit">
                 保存设置
             </x-filament::button>

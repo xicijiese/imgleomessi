@@ -31,7 +31,7 @@ class ProcessingJobResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedQueueList;
 
-    protected static string|UnitEnum|null $navigationGroup = '系统与运维';
+    protected static string|UnitEnum|null $navigationGroup = '系统运维';
 
     protected static ?string $navigationLabel = '图片入库处理';
 
@@ -43,12 +43,12 @@ class ProcessingJobResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->where('type', '!=', 'labels');
+        return parent::getEloquentQuery()->whereNotIn('type', ['labels', 'ocr', 'ocr_placeholder']);
     }
 
     private static function activeTypeOptions(): array
     {
-        return array_diff_key(ProcessingJob::TYPES, ['labels' => true]);
+        return array_diff_key(ProcessingJob::TYPES, ['labels' => true, 'ocr' => true, 'ocr_placeholder' => true]);
     }
 
     public static function form(Schema $schema): Schema
@@ -100,6 +100,7 @@ class ProcessingJobResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
                 TextColumn::make('id')
                     ->label('ID')
@@ -120,14 +121,14 @@ class ProcessingJobResource extends Resource
                         default => 'gray',
                     })
                     ->sortable(),
-                TextColumn::make('photo.title')
+                TextColumn::make('photo.title')->extraCellAttributes(['class' => 'admin-object-cell'])->wrap()
                     ->label('图片')
                     ->limit(32)
                     ->searchable(),
-                TextColumn::make('attempts')
+                TextColumn::make('attempts')->alignEnd()
                     ->label('尝试')
                     ->sortable(),
-                TextColumn::make('error_message')
+                TextColumn::make('error_message')->extraCellAttributes(['class' => 'admin-object-cell'])->wrap()
                     ->label('错误')
                     ->limit(36)
                     ->placeholder('无'),
@@ -151,7 +152,7 @@ class ProcessingJobResource extends Resource
             ])
             ->defaultSort('updated_at', 'desc')
             ->recordActions([
-                Action::make('process')
+                Action::make('process')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('手动补处理')
                     ->color('success')
                     ->requiresConfirmation()
@@ -164,7 +165,7 @@ class ProcessingJobResource extends Resource
                             ->{$job->status === 'done' ? 'success' : 'danger'}()
                             ->send();
                     }),
-                Action::make('retry')
+                Action::make('retry')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('重试失败任务')
                     ->color('warning')
                     ->visible(fn (ProcessingJob $record): bool => $record->status === 'failed')
@@ -181,7 +182,7 @@ class ProcessingJobResource extends Resource
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    BulkAction::make('retryFailed')
+                    BulkAction::make('retryFailed')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()
                         ->label('批量重试失败任务')
                         ->color('warning')
                         ->requiresConfirmation()

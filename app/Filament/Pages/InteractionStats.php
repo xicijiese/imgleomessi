@@ -40,9 +40,10 @@ class InteractionStats extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->records(fn (?array $filters): array => $this->records($filters))
             ->columns([
-                TextColumn::make('rank')
+                TextColumn::make('rank')->alignEnd()
                     ->label('排名')
                     ->badge(),
                 TextColumn::make('title')
@@ -50,19 +51,19 @@ class InteractionStats extends Page implements HasTable
                     ->description(fn (array $record): string => $record['category_summary'])
                     ->searchable()
                     ->wrap(),
-                TextColumn::make('metrics.hot_score')
+                TextColumn::make('metrics.hot_score')->alignEnd()
                     ->label('热度')
                     ->sortable(),
-                TextColumn::make('metrics.likes')
+                TextColumn::make('metrics.likes')->alignEnd()
                     ->label('点赞')
                     ->sortable(),
-                TextColumn::make('metrics.favorites')
+                TextColumn::make('metrics.favorites')->alignEnd()
                     ->label('收藏')
                     ->sortable(),
-                TextColumn::make('metrics.comments')
+                TextColumn::make('metrics.comments')->alignEnd()
                     ->label('评论')
                     ->sortable(),
-                TextColumn::make('metrics.shares')
+                TextColumn::make('metrics.shares')->alignEnd()
                     ->label('分享')
                     ->sortable(),
             ])

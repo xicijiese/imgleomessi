@@ -42,8 +42,9 @@ class SponsorshipOrderResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(['default' => 1, 'sm' => 2])
             ->components([
-                TextInput::make('order_no')
+                TextInput::make('order_no')->columnSpanFull()
                     ->label('订单号')
                     ->disabled(),
                 Select::make('user_id')
@@ -66,7 +67,7 @@ class SponsorshipOrderResource extends Resource
                     ->label('状态')
                     ->options(SponsorshipOrder::STATUSES)
                     ->disabled(),
-                TextInput::make('transaction_id')
+                TextInput::make('transaction_id')->columnSpanFull()
                     ->label('交易号')
                     ->disabled(),
                 Textarea::make('admin_note')
@@ -79,8 +80,9 @@ class SponsorshipOrderResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
-                TextColumn::make('order_no')
+                TextColumn::make('order_no')->extraCellAttributes(['class' => 'admin-object-cell'])->wrap()
                     ->label('订单号')
                     ->searchable()
                     ->copyable(),
@@ -88,11 +90,11 @@ class SponsorshipOrderResource extends Resource
                     ->label('用户')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('plan.name')
+                TextColumn::make('plan.name')->extraCellAttributes(['class' => 'admin-object-cell'])->wrap()
                     ->label('方案')
                     ->placeholder('已删除')
                     ->sortable(),
-                TextColumn::make('amount_cents')
+                TextColumn::make('amount_cents')->alignEnd()
                     ->label('金额')
                     ->formatStateUsing(fn (int $state): string => '¥'.number_format($state / 100, 2))
                     ->sortable(),
@@ -127,7 +129,7 @@ class SponsorshipOrderResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->recordActions([
-                EditAction::make()
+                EditAction::make()->modalWidth('5xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('内部备注'),
                 Action::make('checkPayment')
                     ->label('向渠道核对')->icon(Heroicon::OutlinedArrowPath)
@@ -136,7 +138,7 @@ class SponsorshipOrderResource extends Resource
                         $order = app(RealSponsorshipService::class)->query($record, auth()->user());
                         Notification::make()->title($order->payment_issue ?: '渠道订单核对完成')->send();
                     }),
-                Action::make('refund')
+                Action::make('refund')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('整单原路退款')->icon(Heroicon::OutlinedArrowUturnLeft)->color('danger')
                     ->visible(fn (SponsorshipOrder $record): bool => $record->channel === 'xunhu' && $record->status === 'paid' && in_array($record->refund_state, [null, 'failed'], true))
                     ->requiresConfirmation()->modalDescription('将实际退还本订单全部款项，并在渠道确认后撤回该订单权益及对应赞助勋章。未知结果禁止重复提交。')

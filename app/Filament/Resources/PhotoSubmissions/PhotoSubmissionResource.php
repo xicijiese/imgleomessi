@@ -78,24 +78,24 @@ class PhotoSubmissionResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema->columns(2)->components([
             Hidden::make('revision')->required(),
             TextInput::make('metadata.title')->label('标题')->maxLength(255),
             TextInput::make('metadata.event_date')->label('图片日期')->type('date'),
-            TextInput::make('metadata.source_url')->label('来源链接')->url(),
-            Textarea::make('metadata.source_note')->label('来源说明')->required()->maxLength(2000),
-            Textarea::make('metadata.description')->label('投稿说明')->maxLength(5000),
-            Select::make('metadata.category_ids')->label('分类')->multiple()->searchable()->options(fn () => Category::query()->whereNotNull('parent_id')->where('visibility', 'public')->with('parent')->get()->mapWithKeys(fn ($item) => [$item->id => $item->parent->name.' / '.$item->name])->all()),
+            TextInput::make('metadata.source_url')->columnSpanFull()->label('来源链接')->url(),
+            Textarea::make('metadata.source_note')->columnSpanFull()->label('来源说明')->required()->maxLength(2000),
+            Textarea::make('metadata.description')->columnSpanFull()->label('投稿说明')->maxLength(5000),
+            Select::make('metadata.category_ids')->columnSpanFull()->label('分类')->multiple()->searchable()->options(fn () => Category::query()->whereNotNull('parent_id')->where('visibility', 'public')->with('parent')->get()->mapWithKeys(fn ($item) => [$item->id => $item->parent->name.' / '.$item->name])->all()),
             Select::make('metadata.album_id')->label('相册')->searchable()->options(fn () => Album::query()->published()->pluck('title', 'id')->all()),
-            Select::make('metadata.tag_ids')->label('标签')->multiple()->searchable()->options(fn () => Tag::query()->pluck('name', 'id')->all()),
-            Toggle::make('metadata.show_credit')->label('投稿人自愿署名（仅展示本人选择）')->disabled()->dehydrated(),
-            Textarea::make('internal_note')->label('内部备注（不对投稿人公开）'),
+            Select::make('metadata.tag_ids')->columnSpanFull()->label('标签')->multiple()->searchable()->options(fn () => Tag::query()->pluck('name', 'id')->all()),
+            Toggle::make('metadata.show_credit')->columnSpanFull()->label('投稿人自愿署名（仅展示本人选择）')->disabled()->dehydrated(),
+            Textarea::make('internal_note')->columnSpanFull()->label('内部备注（不对投稿人公开）'),
         ]);
     }
 
     private static function reviewAction(string $decision, string $label): Action
     {
-        return Action::make($decision)->label($label)->color($decision === 'accepted' ? 'success' : 'danger')
+        return Action::make($decision)->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()->label($label)->color($decision === 'accepted' ? 'success' : 'danger')
             ->visible(fn (PhotoSubmission $record) => $record->status === 'pending' || ($decision === 'rejected' && $record->status === 'failed'))
             ->form([
                 Hidden::make('revision')->default(fn (PhotoSubmission $record) => $record->revision),
@@ -109,18 +109,18 @@ class PhotoSubmissionResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table->columns([
+        return $table->extraAttributes(['class' => 'admin-content-table'])->columns([
             ImageColumn::make('preview')->label('私有预览')->state(fn (PhotoSubmission $record) => $record->cleaned_at ? null : '/me/submissions/'.$record->id.'/image')->imageSize(70),
-            TextColumn::make('original_filename')->label('原文件名')->searchable()->wrap(),
+            TextColumn::make('original_filename')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])->label('原文件名')->searchable()->wrap(),
             TextColumn::make('user.name')->label('投稿人')->searchable(),
             TextColumn::make('batch_id')->label('批次')->limit(8)->searchable(),
             TextColumn::make('status')->label('状态')->badge()->formatStateUsing(fn ($state) => PhotoSubmission::STATUSES[$state]),
             TextColumn::make('duplicates')->label('精确重复')->state(fn ($record) => PhotoAnalysisResult::query()->where('sha256_hash', $record->sha256)->count().' 张'),
             TextColumn::make('similar_photo_ids')->label('相似档案 ID')->formatStateUsing(fn ($state) => is_array($state) ? implode('、', $state) : $state)->placeholder('无候选或分析中'),
-            TextColumn::make('metadata.source_note')->label('来源说明')->limit(50),
+            TextColumn::make('metadata.source_note')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])->label('来源说明')->limit(50),
             TextColumn::make('photo_id')->label('入库档案')->url(fn ($record) => $record->photo_id ? '/admin/photos?'.http_build_query(['filters' => ['id' => ['value' => $record->photo_id]]]) : null),
             TextColumn::make('error_message')->label('处理异常')->wrap(),
-            TextColumn::make('review_note')->label('审核原因')->wrap(),
+            TextColumn::make('review_note')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])->label('审核原因')->wrap(),
             TextColumn::make('reviewer.name')->label('审核人'),
             TextColumn::make('created_at')->label('投稿时间')->dateTime('Y-m-d H:i')->timezone('Asia/Shanghai')->sortable(),
             TextColumn::make('cleaned_at')->label('文件清理')->dateTime('Y-m-d H:i')->timezone('Asia/Shanghai')->placeholder('尚未清理'),
@@ -129,14 +129,14 @@ class PhotoSubmissionResource extends Resource
             Filter::make('dates')->schema([TextInput::make('from')->label('起始日期')->type('date'), TextInput::make('until')->label('截止日期')->type('date')])
                 ->query(fn (Builder $query, array $data) => $query->when($data['from'] ?? null, fn ($q, $date) => $q->whereDate('created_at', '>=', $date))->when($data['until'] ?? null, fn ($q, $date) => $q->whereDate('created_at', '<=', $date))),
         ])->defaultSort('created_at', 'desc')->poll('10s')->recordActions([
-            Action::make('preview')->label('查看图片及记录')->modalSubmitAction(false)->modalCancelActionLabel('关闭')
+            Action::make('preview')->modalWidth('6xl')->stickyModalHeader()->stickyModalFooter()->label('查看图片及记录')->modalSubmitAction(false)->modalCancelActionLabel('关闭')
                 ->modalContent(fn (PhotoSubmission $record) => view('filament.submission-preview', ['submission' => $record, 'events' => SubmissionEvent::query()->where('submission_id', $record->id)->oldest()->get()])),
-            EditAction::make()->label('整理资料')->visible(fn ($record) => $record->status === 'pending')
+            EditAction::make()->modalWidth('5xl')->stickyModalHeader()->stickyModalFooter()->label('整理资料')->visible(fn ($record) => $record->status === 'pending')
                 ->using(fn (PhotoSubmission $record, array $data) => app(PhotoSubmissionService::class)->amend($record, auth()->user(), $data)),
             static::reviewAction('accepted', '采纳'), static::reviewAction('rejected', '不采纳'),
             Action::make('retry')->label('重试入库')->visible(fn ($record) => $record->status === 'failed')->requiresConfirmation()
                 ->action(fn ($record) => app(PhotoSubmissionService::class)->retry($record, auth()->user())),
-            Action::make('revokeContribution')->label('纠正贡献')->color('danger')->visible(fn ($record) => auth()->user()->isAdministrator() && $record->status === 'accepted' && ! $record->contribution_revoked_at)
+            Action::make('revokeContribution')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()->label('纠正贡献')->color('danger')->visible(fn ($record) => auth()->user()->isAdministrator() && $record->status === 'accepted' && ! $record->contribution_revoked_at)
                 ->form([Textarea::make('note')->label('纠正原因')->required()])->action(fn ($record, array $data) => app(PhotoSubmissionService::class)->revokeContribution($record, auth()->user(), $data['note'])),
         ])->toolbarActions([
             static::bulkReview('accepted', '批量采纳'), static::bulkReview('rejected', '批量不采纳'),
@@ -145,7 +145,7 @@ class PhotoSubmissionResource extends Resource
 
     private static function bulkReview(string $decision, string $label): BulkAction
     {
-        return BulkAction::make($decision)->label($label)->form([Hidden::make('revisions')->default(fn (Collection $records): string => json_encode($records->mapWithKeys(fn ($record) => [$record->id => $record->revision])->all())), Textarea::make('note')->label('统一审核原因')->required()->maxLength(2000)])
+        return BulkAction::make($decision)->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()->label($label)->form([Hidden::make('revisions')->default(fn (Collection $records): string => json_encode($records->mapWithKeys(fn ($record) => [$record->id => $record->revision])->all())), Textarea::make('note')->label('统一审核原因')->required()->maxLength(2000)])
             ->action(function (Collection $records, array $data) use ($decision): void {
                 $processed = 0;
                 $skipped = 0;

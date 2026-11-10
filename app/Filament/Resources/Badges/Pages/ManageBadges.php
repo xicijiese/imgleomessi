@@ -51,7 +51,7 @@ class ManageBadges extends ManageRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make()->visible(fn (): bool => $this->activeTab === null || $this->activeTab === 'badges'),
+            CreateAction::make()->modalWidth('4xl')->stickyModalHeader()->stickyModalFooter()->visible(fn (): bool => $this->activeTab === null || $this->activeTab === 'badges'),
         ];
     }
 }

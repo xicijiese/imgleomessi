@@ -13,7 +13,7 @@ class ManageSensitiveWords extends ManageRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            CreateAction::make()->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter(),
         ];
     }
 }

@@ -5,7 +5,7 @@ import CommentThreadList from '@/components/CommentThreadList.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import SharePanel from '@/components/SharePanel.vue';
-import SimilarPhotoGrid from '@/components/SimilarPhotoGrid.vue';
+import SuggestedPhotoGrid from '@/components/SuggestedPhotoGrid.vue';
 import type { SeoPayload } from '@/types';
 import type { ThreadComment } from '@/types/comments';
 import { Link, router } from '@inertiajs/vue3';
@@ -144,7 +144,7 @@ interface PhotoDetailPayload {
     related: {
         data: PhotoCard[];
     };
-    similar: { data: PhotoCard[] };
+    suggestions: { data: PhotoCard[] };
     comments: CommentsPayload;
 }
 
@@ -1101,7 +1101,12 @@ watch(
                     </div>
                 </aside>
             </div>
-            <div class="detail-discussion-layout">
+            <div
+                class="detail-discussion-layout"
+                :class="{
+                    'without-suggestions': !photoDetail.suggestions.data.length,
+                }"
+            >
                 <section
                     class="detail-comments detail-section"
                     aria-labelledby="photo-comments-heading"
@@ -1380,37 +1385,15 @@ watch(
                 </section>
 
                 <section
-                    class="detail-section detail-similar"
-                    aria-labelledby="similar-photos-heading"
+                    v-if="photoDetail.suggestions.data.length"
+                    class="detail-section detail-suggestions"
+                    aria-labelledby="suggested-photos-heading"
                 >
-                    <h2 id="similar-photos-heading">相似图片</h2>
-                    <p>按画面相似程度推荐，可帮助查找同一瞬间的其他版本。</p>
-                    <SimilarPhotoGrid
-                        v-if="photoDetail.similar.data.length"
-                        :photos="photoDetail.similar.data"
+                    <h2 id="suggested-photos-heading">你可能还喜欢</h2>
+                    <p>发现更多拥有相同标签的图片。</p>
+                    <SuggestedPhotoGrid
+                        :photos="photoDetail.suggestions.data"
                     />
-                    <template v-else>
-                        <div
-                            class="detail-similar-placeholders"
-                            aria-hidden="true"
-                        >
-                            <div
-                                v-for="index in 4"
-                                :key="index"
-                                class="detail-similar-placeholder"
-                            >
-                                <div
-                                    class="detail-similar-placeholder-image"
-                                ></div>
-                                <div
-                                    class="detail-similar-placeholder-caption"
-                                ></div>
-                            </div>
-                        </div>
-                        <p class="detail-similar-placeholder-note">
-                            暂无相似图片，灰色卡片为布局占位。
-                        </p>
-                    </template>
                 </section>
             </div>
             <section

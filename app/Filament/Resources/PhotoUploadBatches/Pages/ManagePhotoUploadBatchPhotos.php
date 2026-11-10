@@ -42,6 +42,7 @@ class ManagePhotoUploadBatchPhotos extends ManageRelatedRecords
         $batch = $this->getOwnerRecord();
 
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
                 ImageColumn::make('thumbnail_url')
                     ->label('缩略图')
@@ -49,7 +50,7 @@ class ManagePhotoUploadBatchPhotos extends ManageRelatedRecords
                     ->imageSize(64)
                     ->square()
                     ->checkFileExistence(false),
-                TextColumn::make('title')
+                TextColumn::make('title')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])
                     ->label('已创建图片')
                     ->searchable(),
                 TextColumn::make('status')
@@ -66,7 +67,7 @@ class ManagePhotoUploadBatchPhotos extends ManageRelatedRecords
                     ->label('事件日期')
                     ->date('Y-m-d')
                     ->placeholder('未填写'),
-                TextColumn::make('categories_count')
+                TextColumn::make('categories_count')->alignEnd()
                     ->label('分类数')
                     ->counts('categories'),
             ])

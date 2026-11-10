@@ -42,13 +42,16 @@ class AdminAuditLogResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
                 TextColumn::make('created_at')->label('时间')->dateTime('Y-m-d H:i:s')->sortable(),
                 TextColumn::make('actor.name')->label('操作者')->placeholder('系统'),
                 TextColumn::make('target.name')->label('目标用户')->placeholder('无'),
                 TextColumn::make('action')->label('动作')->badge()->searchable(),
                 TextColumn::make('ip_address')->label('IP')->placeholder('未知'),
-                TextColumn::make('after_state')->label('结果')->formatStateUsing(fn (?array $state): string => $state ? json_encode($state, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : '—')->wrap(),
+                TextColumn::make('after_state')->extraCellAttributes(['class' => 'admin-object-cell'])->label('结果')
+                    ->state(fn (AdminAuditLog $record): string => $record->after_state ? json_encode($record->after_state, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : '—')
+                    ->wrap(),
             ])
             ->filters([
                 SelectFilter::make('action')->label('动作')->options(fn (): array => AdminAuditLog::query()->distinct()->orderBy('action')->pluck('action', 'action')->all()),

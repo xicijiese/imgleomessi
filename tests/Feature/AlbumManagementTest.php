@@ -3,18 +3,57 @@
 namespace Tests\Feature;
 
 use App\Filament\Resources\Albums\AlbumResource;
+use App\Filament\Resources\Albums\Pages\ManageAlbums;
 use App\Models\Album;
 use App\Models\Category;
 use App\Models\User;
 use Database\Seeders\GalleryTaxonomySeeder;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class AlbumManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_admin_can_create_and_edit_album_details_and_categories(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $root = Category::create(['name' => '生涯阶段', 'slug' => 'career-stage', 'required_for_publish' => true]);
+        $first = Category::create(['name' => '阶段一', 'slug' => 'first-stage', 'parent_id' => $root->id]);
+        $second = Category::create(['name' => '阶段二', 'slug' => 'second-stage', 'parent_id' => $root->id]);
+
+        Livewire::test(ManageAlbums::class)
+            ->callAction('create', [
+                'title' => '相册资料测试',
+                'slug' => 'album-details-test',
+                'description' => '相册说明',
+                'status' => 'draft',
+                'sort_order' => 3,
+                'category_root_'.$root->id => $first->id,
+            ])
+            ->assertHasNoActionErrors();
+
+        $album = Album::query()->sole();
+        $this->assertSame('相册说明', $album->description);
+        $this->assertEquals([$first->id], $album->categories()->pluck('categories.id')->all());
+
+        Livewire::test(ManageAlbums::class)
+            ->callAction(TestAction::make('edit')->table($album), [
+                'title' => '更新后的相册资料',
+                'sort_order' => 9,
+                'category_root_'.$root->id => $second->id,
+            ])
+            ->assertHasNoActionErrors();
+
+        $this->assertSame('更新后的相册资料', $album->fresh()->title);
+        $this->assertSame('draft', $album->fresh()->status);
+        $this->assertSame(9, $album->fresh()->sort_order);
+        $this->assertEquals([$second->id], $album->categories()->pluck('categories.id')->all());
+    }
 
     public function test_album_tables_are_created_with_expected_columns(): void
     {

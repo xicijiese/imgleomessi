@@ -24,6 +24,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
@@ -78,74 +79,84 @@ class BadgeResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(2)
             ->components([
-                TextInput::make('name')
-                    ->label('勋章名称')
-                    ->required()
-                    ->maxLength(255),
-                TextInput::make('slug')
-                    ->label('标识')
-                    ->required()
-                    ->maxLength(255)
-                    ->unique(ignoreRecord: true),
-                Textarea::make('description')
-                    ->label('说明')
-                    ->rows(3)
-                    ->columnSpanFull(),
-                FileUpload::make('image_path')->label('勋章图片')->image()
-                    ->acceptedFileTypes(['image/png', 'image/webp', 'image/gif'])
-                    ->maxSize(2048)->disk('public')->visibility('public')->directory('badges')
-                    ->fetchFileInformation(false)
-                    ->helperText('支持 PNG、WebP、GIF，最大 2MB。GIF 原样保存，不裁剪、不压缩。未上传时沿用图标。')
-                    ->saveUploadedFileUsing(function (BaseFileUpload $component, TemporaryUploadedFile $file): string {
-                        return app(PhotoStorage::class)->diskForKey()->putFileAs('badges', $file, $component->getUploadedFileNameForStorage($file), ['visibility' => 'public']);
-                    })
-                    ->getUploadedFileUsing(fn (string $file): array => ['name' => basename($file), 'size' => 0, 'type' => null, 'url' => app(PhotoStorage::class)->url($file)]),
-                TextInput::make('icon_key')
-                    ->label('图标标识')
-                    ->maxLength(255),
-                TextInput::make('color')
-                    ->label('颜色')
-                    ->default('#3da9fc')
-                    ->maxLength(24),
-                Select::make('rule_type')
-                    ->label('获得规则')
-                    ->options(Badge::RULE_TYPES)
-                    ->default('manual')
-                    ->live()
-                    ->required(),
-                DatePicker::make('starts_on')->label('开始日期（北京时间）')->native(false)
-                    ->visible(fn (Get $get): bool => $get('rule_type') === 'anniversary')
-                    ->required(fn (Get $get): bool => $get('rule_type') === 'anniversary'),
-                DatePicker::make('ends_on')->label('结束日期（含当天）')->native(false)->afterOrEqual('starts_on')
-                    ->visible(fn (Get $get): bool => $get('rule_type') === 'anniversary')
-                    ->required(fn (Get $get): bool => $get('rule_type') === 'anniversary'),
-                TextInput::make('rule_threshold')
-                    ->label('规则阈值')
-                    ->integer()->minValue(1)
-                    ->visible(fn (Get $get): bool => in_array($get('rule_type'), ['favorites_count', 'comments_count'], true))
-                    ->required(fn (Get $get): bool => in_array($get('rule_type'), ['favorites_count', 'comments_count'], true))
-                    ->helperText('仅沿用已有基础规则；投稿、推广固定为 50，待对应功能开放后接通。'),
-                TextInput::make('sort_order')
-                    ->label('排序')
-                    ->numeric()
-                    ->default(0),
-                Toggle::make('is_active')
-                    ->label('启用')
-                    ->default(true),
-                Textarea::make('internal_note')
-                    ->label('内部备注')
-                    ->rows(3)
-                    ->columnSpanFull(),
+                Section::make('勋章资料')->schema([
+                    TextInput::make('name')
+                        ->label('勋章名称')
+                        ->required()
+                        ->maxLength(255),
+                    TextInput::make('slug')
+                        ->label('标识')
+                        ->required()
+                        ->maxLength(255)
+                        ->unique(ignoreRecord: true),
+                    Textarea::make('description')
+                        ->label('说明')
+                        ->rows(3)
+                        ->columnSpanFull(),
+                    FileUpload::make('image_path')->columnSpanFull()->imagePreviewHeight('120')->label('勋章图片')->image()
+                        ->acceptedFileTypes(['image/png', 'image/webp', 'image/gif'])
+                        ->maxSize(2048)->disk('public')->visibility('public')->directory('badges')
+                        ->fetchFileInformation(false)
+                        ->helperText('支持 PNG、WebP、GIF，最大 2MB。GIF 原样保存，不裁剪、不压缩。未上传时沿用图标。')
+                        ->saveUploadedFileUsing(function (BaseFileUpload $component, TemporaryUploadedFile $file): string {
+                            return app(PhotoStorage::class)->diskForKey()->putFileAs('badges', $file, $component->getUploadedFileNameForStorage($file), ['visibility' => 'public']);
+                        })
+                        ->getUploadedFileUsing(fn (string $file): array => ['name' => basename($file), 'size' => 0, 'type' => null, 'url' => app(PhotoStorage::class)->url($file)]),
+                    TextInput::make('icon_key')
+                        ->label('图标标识')
+                        ->maxLength(255),
+                    TextInput::make('color')
+                        ->label('颜色')
+                        ->default('#3da9fc')
+                        ->maxLength(24),
+                ])->columns(2)->columnSpanFull(),
+                Section::make('获得规则')->schema([
+                    Select::make('rule_type')
+                        ->columnSpanFull()
+                        ->label('获得规则')
+                        ->options(Badge::RULE_TYPES)
+                        ->default('manual')
+                        ->live()
+                        ->required(),
+                    DatePicker::make('starts_on')->label('开始日期（北京时间）')->native(false)
+                        ->visible(fn (Get $get): bool => $get('rule_type') === 'anniversary')
+                        ->required(fn (Get $get): bool => $get('rule_type') === 'anniversary'),
+                    DatePicker::make('ends_on')->label('结束日期（含当天）')->native(false)->afterOrEqual('starts_on')
+                        ->visible(fn (Get $get): bool => $get('rule_type') === 'anniversary')
+                        ->required(fn (Get $get): bool => $get('rule_type') === 'anniversary'),
+                    TextInput::make('rule_threshold')
+                        ->columnSpanFull()
+                        ->label('规则阈值')
+                        ->integer()->minValue(1)
+                        ->visible(fn (Get $get): bool => in_array($get('rule_type'), ['favorites_count', 'comments_count'], true))
+                        ->required(fn (Get $get): bool => in_array($get('rule_type'), ['favorites_count', 'comments_count'], true))
+                        ->helperText('仅沿用已有基础规则；投稿、推广固定为 50，待对应功能开放后接通。'),
+                ])->columns(2)->columnSpanFull(),
+                Section::make('展示设置')->schema([
+                    TextInput::make('sort_order')
+                        ->label('排序')
+                        ->numeric()
+                        ->default(0),
+                    Toggle::make('is_active')
+                        ->label('启用')
+                        ->default(true),
+                    Textarea::make('internal_note')
+                        ->label('内部备注')
+                        ->rows(3)
+                        ->columnSpanFull(),
+                ])->columns(2)->columnSpanFull(),
             ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
                 ImageColumn::make('image_url')->label('图片')->square()->imageSize(48),
-                TextColumn::make('name')
+                TextColumn::make('name')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])
                     ->label('勋章名称')
                     ->searchable()
                     ->sortable(),
@@ -154,11 +165,11 @@ class BadgeResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => Badge::RULE_TYPES[$state] ?? $state)
                     ->sortable(),
-                TextColumn::make('rule_threshold')
+                TextColumn::make('rule_threshold')->alignEnd()
                     ->label('阈值')
                     ->placeholder('无')
                     ->sortable(),
-                TextColumn::make('user_badges_count')
+                TextColumn::make('user_badges_count')->alignEnd()
                     ->label('获得人数')
                     ->counts(['userBadges' => fn ($query) => $query->where('status', 'earned')])
                     ->sortable(),
@@ -166,7 +177,7 @@ class BadgeResource extends Resource
                     ->label('启用')
                     ->boolean()
                     ->sortable(),
-                TextColumn::make('sort_order')
+                TextColumn::make('sort_order')->alignEnd()
                     ->label('排序')
                     ->sortable(),
                 TextColumn::make('updated_at')
@@ -186,8 +197,8 @@ class BadgeResource extends Resource
             ])
             ->defaultSort('sort_order')
             ->recordActions([
-                EditAction::make(),
-                Action::make('grant')->label('批量发放')->color('success')
+                EditAction::make()->modalWidth('4xl')->stickyModalHeader()->stickyModalFooter(),
+                Action::make('grant')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()->label('批量发放')->color('success')
                     ->visible(fn (Badge $record): bool => $record->is_active)
                     ->modalHeading('确认发放勋章')
                     ->modalDescription('将为本次提交时状态正常的用户创建发放任务。已获得或已撤销的勋章会跳过；不会自动佩戴，不影响用户权限。')
@@ -206,7 +217,7 @@ class BadgeResource extends Resource
                         app(BadgeGrantService::class)->create($record, auth()->user(), $data['audience'], $data['user_ids'] ?? [], $data['note']);
                         Notification::make()->title('任务已提交，请查看发放进度')->success()->send();
                     }),
-                Action::make('revoke')
+                Action::make('revoke')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()
                     ->label('撤销')
                     ->color('danger')
                     ->form([
@@ -239,7 +250,7 @@ class BadgeResource extends Resource
                             ->success()
                             ->send();
                     }),
-                Action::make('restore')->label('恢复')->color('warning')
+                Action::make('restore')->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()->label('恢复')->color('warning')
                     ->visible(fn (Badge $record): bool => $record->userBadges()->where('status', 'revoked')->exists())
                     ->form([
                         Select::make('user_badge_id')->label('已撤销记录')->searchable()->required()
@@ -256,19 +267,19 @@ class BadgeResource extends Resource
 
     public static function batchesTable(Table $table): Table
     {
-        return $table->query(BadgeGrantBatch::query()->with(['badge', 'operator'])->withCount([
+        return $table->extraAttributes(['class' => 'admin-content-table'])->query(BadgeGrantBatch::query()->with(['badge', 'operator'])->withCount([
             'recipients', 'recipients as awarded_count' => fn ($query) => $query->where('status', 'awarded'),
             'recipients as skipped_count' => fn ($query) => $query->where('status', 'skipped'),
         ]))->columns([
-            TextColumn::make('id')->label('批次'),
-            TextColumn::make('badge.name')->label('勋章'),
+            TextColumn::make('id')->alignEnd()->label('批次'),
+            TextColumn::make('badge.name')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])->label('勋章'),
             TextColumn::make('audience')->label('范围')->formatStateUsing(fn ($state) => $state === 'all' ? '全体正常用户' : '指定用户'),
             TextColumn::make('status')->label('状态')->badge()->formatStateUsing(fn ($state) => BadgeGrantBatch::STATUSES[$state] ?? $state),
-            TextColumn::make('recipients_count')->label('快照人数'),
-            TextColumn::make('awarded_count')->label('已发放'),
-            TextColumn::make('skipped_count')->label('已跳过'),
+            TextColumn::make('recipients_count')->alignEnd()->label('快照人数'),
+            TextColumn::make('awarded_count')->alignEnd()->label('已发放'),
+            TextColumn::make('skipped_count')->alignEnd()->label('已跳过'),
             TextColumn::make('operator.name')->label('提交人'),
-            TextColumn::make('note')->label('说明')->wrap(),
+            TextColumn::make('note')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])->label('说明')->wrap(),
             TextColumn::make('error')->label('错误')->wrap(),
             TextColumn::make('created_at')->label('提交时间')->dateTime('Y-m-d H:i'),
         ])->filters([])->defaultSort('id', 'desc')->poll('5s')->recordActions([
@@ -279,12 +290,12 @@ class BadgeResource extends Resource
 
     public static function eventsTable(Table $table): Table
     {
-        return $table->query(BadgeEvent::query()->with(['userBadge.user', 'userBadge.badge', 'operator']))->columns([
+        return $table->extraAttributes(['class' => 'admin-content-table'])->query(BadgeEvent::query()->with(['userBadge.user', 'userBadge.badge', 'operator']))->columns([
             TextColumn::make('userBadge.user.name')->label('用户')->searchable(),
-            TextColumn::make('userBadge.badge.name')->label('勋章')->searchable(),
+            TextColumn::make('userBadge.badge.name')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])->label('勋章')->searchable(),
             TextColumn::make('action')->label('操作')->formatStateUsing(fn ($state) => BadgeEvent::ACTIONS[$state] ?? $state),
             TextColumn::make('operator.name')->label('操作者')->placeholder('自动规则'),
-            TextColumn::make('note')->label('原因')->wrap(),
+            TextColumn::make('note')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])->label('原因')->wrap(),
             TextColumn::make('created_at')->label('时间')->dateTime('Y-m-d H:i:s'),
         ])->filters([])->defaultSort('id', 'desc')->recordActions([])->emptyStateHeading('暂无勋章操作记录');
     }

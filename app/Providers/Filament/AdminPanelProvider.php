@@ -7,7 +7,7 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages\Dashboard;
+use App\Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -32,6 +32,8 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->renderHook(PanelsRenderHook::STYLES_AFTER, fn () => view('partials.page-transitions'))
+            ->renderHook(PanelsRenderHook::STYLES_AFTER, fn () => view('partials.admin-layout'))
+            ->sidebarWidth('16rem')
             ->maxContentWidth(Width::Full)
             ->colors([
                 'primary' => Color::Amber,

@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Filament\Resources\PhotoDeduplicationLogs\PhotoDeduplicationLogResource;
+use App\Filament\Resources\PhotoDuplicates\Pages\ManagePhotoDuplicates;
+use App\Filament\Resources\PhotoDuplicates\PhotoDuplicateResource;
 use App\Filament\Resources\PhotoGovernanceRuns\PhotoGovernanceRunResource;
-use App\Filament\Resources\PhotoSimilarityGroups\Pages\ManagePhotoSimilarityGroups;
-use App\Filament\Resources\PhotoSimilarityGroups\PhotoSimilarityGroupResource;
 use App\Jobs\ProcessPhotoGovernance;
 use App\Models\Photo;
 use App\Models\PhotoAnalysisResult;
@@ -31,32 +31,24 @@ class PhotoSimilarityGovernanceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_similarity_management_switches_between_groups_candidates_runs_and_logs(): void
+    public function test_duplicate_management_lists_pairs_and_has_no_recommendation_controls(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
-        $a = $this->photo(['title' => '审核图片 A']);
-        $b = $this->photo(['title' => '审核图片 B']);
-        $this->pair($a, $b);
-        app(PhotoSimilarityGovernance::class)->rebuildGroups();
-        $page = Livewire::test(ManagePhotoSimilarityGroups::class)
-            ->assertSee('图片分组')->assertSee('逐对审核')->assertSee('处理进度')->assertSee('归档记录');
-        $page->set('activeTab', 'candidates')->assertCanSeeTableRecords(PhotoSimilarityCandidate::all())
-            ->callAction(TestAction::make('keepSeparate')->table(PhotoSimilarityCandidate::firstOrFail()));
-        $this->assertDatabaseHas('photo_similarity_candidates', ['status' => 'kept_separate']);
-        $this->assertDatabaseCount('photo_similarity_groups', 0);
-        $page->set('activeTab', 'runs')->assertSee('处理结果');
-        $page->set('activeTab', 'logs')->assertSee('归档图片');
-        $page->set('activeTab', 'groups')->assertSee('组号');
-        $this->assertFalse(PhotoGovernanceRunResource::shouldRegisterNavigation());
-        $this->assertFalse(PhotoDeduplicationLogResource::shouldRegisterNavigation());
+        $this->pair($this->photo(), $this->photo());
+        Livewire::test(ManagePhotoDuplicates::class)
+            ->assertCanSeeTableRecords(PhotoSimilarityCandidate::all())
+            ->assertSee('开始检查')
+            ->assertDontSee('更新推荐')
+            ->assertDontSee('逐对审核')
+            ->assertActionDoesNotExist('deduplicate');
     }
 
     public function test_offline_worker_is_reported_and_duplicate_submissions_are_not_enqueued(): void
     {
         Queue::fake();
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
-        $page = Livewire::test(ManagePhotoSimilarityGroups::class)->assertSee('后台处理服务未连接');
-        $page->callAction('groups')->callAction('groups');
+        $page = Livewire::test(ManagePhotoDuplicates::class);
+        $page->callAction('groups')->assertMountedActionModalSee('暂未检测到后台处理服务')->call('unmountAction')->callAction('groups');
         Queue::assertPushed(ProcessPhotoGovernance::class, 1);
         $this->assertDatabaseCount('photo_governance_runs', 1);
     }
@@ -68,7 +60,7 @@ class PhotoSimilarityGovernanceTest extends TestCase
         Storage::disk('public')->put('source.jpg', file_get_contents($file->getRealPath()));
         $this->photo(['original_key' => 'source.jpg']);
         $this->photo(['original_key' => 'source.jpg']);
-        $run = PhotoGovernanceRun::query()->create(['type' => 'groups', 'operated_by' => User::factory()->create(['role' => 'admin', 'status' => 'active'])->id]);
+        $run = PhotoGovernanceRun::query()->create(['type' => 'duplicates', 'operated_by' => User::factory()->create(['role' => 'admin', 'status' => 'active'])->id]);
         ProcessPhotoGovernance::dispatch($run->id);
         $this->assertSame('pending', $run->fresh()->status);
         $this->artisan('queue:work', ['connection' => 'database', '--stop-when-empty' => true, '--sleep' => 0, '--tries' => 1, '--timeout' => 120])->assertExitCode(0);
@@ -177,7 +169,7 @@ class PhotoSimilarityGovernanceTest extends TestCase
         app(PhotoSimilarityGovernance::class)->rebuildGroups();
         PhotoGovernanceRun::query()->create(['type' => 'groups']);
         PhotoDeduplicationLog::query()->create(['photo_id' => $b->id, 'retained_photo_id' => $a->id, 'sha256_hash' => hash('sha256', 'same'), 'previous_status' => 'published']);
-        $resources = [PhotoSimilarityGroupResource::class, PhotoDeduplicationLogResource::class, PhotoGovernanceRunResource::class];
+        $resources = [PhotoDuplicateResource::class, PhotoDeduplicationLogResource::class, PhotoGovernanceRunResource::class];
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
         foreach ($resources as $resource) {
             $this->followingRedirects()->get($resource::getUrl())->assertOk();
@@ -194,13 +186,13 @@ class PhotoSimilarityGovernanceTest extends TestCase
     {
         Queue::fake();
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
-        Livewire::test(ManagePhotoSimilarityGroups::class)
+        Livewire::test(ManagePhotoDuplicates::class)
             ->callAction('groups');
         Queue::assertPushed(ProcessPhotoGovernance::class);
-        $this->assertDatabaseHas('photo_governance_runs', ['type' => 'groups', 'status' => 'pending']);
+        $this->assertDatabaseHas('photo_governance_runs', ['type' => 'duplicates', 'status' => 'pending']);
     }
 
-    public function test_background_analysis_builds_candidates_and_groups(): void
+    public function test_duplicate_analysis_builds_candidates_without_groups(): void
     {
         Storage::fake('public');
         $file = UploadedFile::fake()->image('source.jpg', 30, 20);
@@ -208,12 +200,12 @@ class PhotoSimilarityGovernanceTest extends TestCase
         Storage::disk('public')->put('b.jpg', file_get_contents($file->getRealPath()));
         $this->photo(['original_key' => 'a.jpg']);
         $this->photo(['original_key' => 'b.jpg']);
-        $run = PhotoGovernanceRun::query()->create(['type' => 'groups', 'operated_by' => User::factory()->create(['role' => 'admin', 'status' => 'active'])->id]);
+        $run = PhotoGovernanceRun::query()->create(['type' => 'duplicates', 'operated_by' => User::factory()->create(['role' => 'admin', 'status' => 'active'])->id]);
         $job = new ProcessPhotoGovernance($run->id);
         $job->handle(app(PhotoSimilarityGovernance::class), app(PhotoSimilarityService::class));
         $this->assertSame('done', $run->fresh()->status);
         $this->assertSame(1, $run->fresh()->result_count);
-        $this->assertDatabaseCount('photo_similarity_groups', 1);
+        $this->assertDatabaseCount('photo_similarity_groups', 0);
     }
 
     public function test_large_analysis_resumes_from_saved_cursor(): void
@@ -225,7 +217,7 @@ class PhotoSimilarityGovernanceTest extends TestCase
         for ($i = 0; $i < 11; $i++) {
             $this->photo(['original_key' => 'source.jpg']);
         }
-        $run = PhotoGovernanceRun::query()->create(['type' => 'groups', 'operated_by' => User::factory()->create(['role' => 'admin', 'status' => 'active'])->id]);
+        $run = PhotoGovernanceRun::query()->create(['type' => 'duplicates', 'operated_by' => User::factory()->create(['role' => 'admin', 'status' => 'active'])->id]);
         $job = new ProcessPhotoGovernance($run->id);
         $job->handle(app(PhotoSimilarityGovernance::class), app(PhotoSimilarityService::class));
         $this->assertSame('running', $run->fresh()->status);
@@ -233,7 +225,7 @@ class PhotoSimilarityGovernanceTest extends TestCase
         Queue::assertPushed(ProcessPhotoGovernance::class);
         $job->handle(app(PhotoSimilarityGovernance::class), app(PhotoSimilarityService::class));
         $this->assertSame('done', $run->fresh()->status);
-        $this->assertDatabaseCount('photo_similarity_group_members', 11);
+        $this->assertDatabaseCount('photo_similarity_group_members', 0);
     }
 
     public function test_worker_rechecks_operator_permissions_before_archiving(): void
@@ -245,20 +237,34 @@ class PhotoSimilarityGovernanceTest extends TestCase
         $this->assertDatabaseCount('photo_deduplication_logs', 0);
     }
 
-    public function test_admin_can_compare_and_split_group_from_table(): void
+    public function test_recommendation_manager_is_removed_and_duplicate_comparison_remains_available(): void
     {
-        [$a, $b] = [$this->photo(), $this->photo()];
-        $this->pair($a, $b);
-        app(PhotoSimilarityGovernance::class)->rebuildGroups();
-        $group = PhotoSimilarityGroup::query()->firstOrFail();
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
-        Livewire::test(ManagePhotoSimilarityGroups::class)
-            ->mountAction(TestAction::make('compare')->table($group))
-            ->assertActionMounted(TestAction::make('compare')->table($group));
-        Livewire::test(ManagePhotoSimilarityGroups::class)
-            ->callAction(TestAction::make('separate')->table($group), ['photo_id' => $a->id]);
+        $this->get('/admin/photo-similarity-groups')->assertNotFound();
+        $this->pair($this->photo(), $this->photo());
+        $pair = PhotoSimilarityCandidate::firstOrFail();
+        Livewire::test(ManagePhotoDuplicates::class)
+            ->mountAction(TestAction::make('compare')->table($pair))
+            ->assertActionMounted(TestAction::make('compare')->table($pair))
+            ->assertActionDoesNotExist(TestAction::make('exclude')->table($pair))
+            ->assertActionDoesNotExist(TestAction::make('restoreRecommendation')->table($pair));
+        $this->assertDatabaseCount('photos', 2);
+    }
+
+    public function test_queued_legacy_recommendation_and_group_tasks_end_without_processing_photos(): void
+    {
+        Queue::fake();
+        $this->photo();
+        foreach (['recommendations', 'groups'] as $type) {
+            $run = PhotoGovernanceRun::create(['type' => $type]);
+            (new ProcessPhotoGovernance($run->id))->handle(app(PhotoSimilarityGovernance::class), app(PhotoSimilarityService::class));
+            $this->assertSame('done', $run->fresh()->status);
+            $this->assertSame(0, $run->fresh()->processed_count);
+            $this->assertStringContainsString('已停用', $run->fresh()->error_message);
+        }
+        $this->assertDatabaseCount('photo_similarity_candidates', 0);
         $this->assertDatabaseCount('photo_similarity_groups', 0);
-        $this->assertDatabaseHas('photo_similarity_candidates', ['photo_id' => $a->id, 'candidate_photo_id' => $b->id, 'status' => 'kept_separate']);
+        Queue::assertNothingPushed();
     }
 
     private function photo(array $attributes = []): Photo

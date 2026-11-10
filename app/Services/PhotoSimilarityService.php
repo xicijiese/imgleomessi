@@ -6,22 +6,39 @@ use App\Models\Photo;
 use App\Models\PhotoAnalysisResult;
 use App\Models\PhotoSimilarityCandidate;
 use App\Models\User;
+use Illuminate\Database\DetectsConcurrencyErrors;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
+use Throwable;
 
 class PhotoSimilarityService
 {
+    use DetectsConcurrencyErrors;
+
     public const DISTANCE_THRESHOLD = 12;
 
     public function __construct(private readonly PhotoStorage $storage) {}
 
     public function generateCandidates(Photo $photo): int
     {
-        $perceptualHash = $this->updatePerceptualHash($photo);
+        $perceptualHash = $photo->analysisResult?->perceptual_hash;
+        if (! preg_match('/^[a-f0-9]{16}$/i', (string) $perceptualHash)) {
+            $perceptualHash = $this->updatePerceptualHash($photo);
+        }
+
+        // 锁冲突时回滚本张图片的匹配写入，再短暂退避重试；不重复读取原图。
+        return retry(3, fn () => DB::transaction(fn () => $this->saveCandidates($photo, $perceptualHash)),
+            fn (int $attempt) => $attempt === 1 ? 100 : 300,
+            fn (Throwable $exception) => $this->causedByConcurrencyError($exception));
+    }
+
+    private function saveCandidates(Photo $photo, string $perceptualHash): int
+    {
 
         $results = PhotoAnalysisResult::query()
             ->where('photo_id', '!=', $photo->id)
             ->whereNotNull('perceptual_hash')
-            ->cursor();
+            ->lazyById(200);
 
         $count = 0;
 

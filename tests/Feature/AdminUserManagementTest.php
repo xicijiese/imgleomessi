@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Filament\Resources\AdminAuditLogs\AdminAuditLogResource;
 use App\Filament\Resources\UserLoginHistories\UserLoginHistoryResource;
+use App\Models\AdminAuditLog;
 use App\Models\User;
 use App\Services\AdminUserManagementService;
 use App\Services\UserAvatarService;
@@ -17,6 +18,29 @@ use Tests\TestCase;
 class AdminUserManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_admin_audit_page_displays_complete_result_snapshots_without_splitting_values(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $this->actingAs($admin);
+        $snapshot = ['id' => $admin->id, 'name' => '审核员', 'enabled' => false, 'details' => ['role' => 'editor'], 'note' => null];
+        $log = AdminAuditLog::create([
+            'actor_user_id' => $admin->id,
+            'action' => 'user.profile_updated',
+            'after_state' => $snapshot,
+        ]);
+        AdminAuditLog::create(['action' => 'empty.result', 'after_state' => null]);
+        AdminAuditLog::create(['action' => 'empty.array', 'after_state' => []]);
+
+        $this->get(AdminAuditLogResource::getUrl())
+            ->assertOk()
+            ->assertSee(json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES))
+            ->assertSee('empty.result')
+            ->assertSee('empty.array');
+
+        $this->assertSame($snapshot, $log->fresh()->after_state);
+        $this->assertDatabaseCount('admin_audit_logs', 3);
+    }
 
     public function test_user_can_upload_and_remove_a_public_avatar(): void
     {
@@ -98,6 +122,7 @@ class AdminUserManagementTest extends TestCase
             'action' => 'user.password_reset_by_admin',
         ]);
     }
+
     public function test_role_change_is_blocked_while_contributor_profile_is_active(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);

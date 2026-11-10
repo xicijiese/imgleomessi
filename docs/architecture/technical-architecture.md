@@ -359,3 +359,48 @@ CommentModeration先读取后台规则；完成标记为true后完全以数据�
 PhotoProcessingService将metadata与hash分开匹配，hash通过processHash调用analyze和PhotoSimilarityService.updatePerceptualHash；后者从原图计算64位dHash并写perceptual_hash，与查询端hashForContents算法一致。此前同图漏检源于该字段缺失而不是匹配阈值，故不放宽阈值或查询权限。上传处理进程需重启加载新代码，PHP GD为当前视觉指纹算法依赖；候选生成/分组/归档仍是独立维护流程。
 
 新增media:repair-search-index：缺失指纹公开图片按lazyById(100)遍历，只生成索引；默认盘点、--apply写入、--local-only限制存储模式。不新增库表、队列或自动批量归档。异常逐项记录，继续其他条目并以失败退出码报告，原始文件和图片状态不变。
+
+
+## 后台仪表板统计快照（2026-11-10）
+
+自定义Filament Dashboard仅展示GalleryOverview和原账号组件，替换原框架介绍区域。Widget每次渲染检查canManageGalleryContent，再按有效管理员/编辑员分隔缓存admin.dashboard.v1.admin与editor，缓存60秒；不将管理员数据混入编辑员响应，直接Livewire请求同样检查权限。数据库仅count/groupBy和最近5条元数据，不读取图片文件、不执行图片处理、外部请求或队列操作。时间展示统一Asia/Shanghai；统计无自动轮询，刷新页面读取缓存，超过60秒后重算。列表沿用Filament v5 filters查询参数，不新增列表接口或权限。功能与缓存/角色隔离测试使用隔离数据库。
+
+
+## 相似推荐及查重简化决策（2026-11-10，覆盖2026-10-19的四标签交互）
+
+保留现有候选关系、哈希字段、历史分组/归档数据及旧路由，避免破坏已有数据；不新增迁移。PhotoSimilarityGroupResource沿用URL，改为候选关系的推荐管理；PhotoDuplicateResource提供独立查重视图，共享匹配数据但操作职责分离。推荐排除仅变更候选状态，不影响查重列表；完全相同文件由两个非空SHA-256相等确定，其他阈值内关系只称画面相似。
+
+PhotoProcessingService哈希完成后自动创建/调度similarity任务；ProcessPhotoAnalysisJob显式选异步连接，sync时使用database。匹配优先读取已存感知哈希，缺失时才读源文件生成，保留人工排除状态。异步全库recommendations/duplicates任务每批10图，补齐缺失SHA/感知特征后生成候选，不生成新分组、不改变发布状态；原groups类型仅为旧排队任务兼容保留。旧自动deduplicate任务更新后安全结束，不再自动归档。原数据库记录及底层历史恢复代码保留但无日常界面入口。
+
+前台相似推荐与后台推荐列表共享publicPair/notExactFile筛选，前台进一步只选pending_review。排除ignored/kept_separate、旧confirmed_duplicate、文件完全相同、草稿/归档、受限版权及超阈值记录。无候选仍允许空推荐，匹配算法不保证每张图片都能找到相似图。
+
+查重人工删除在事务内重读候选并按ID顺序锁定两图，保证保留图片存在且未归档；沿用Photo删除事件的投稿保护，并检查受保护历史记录。删除不清理存储文件，避免改变既有文件策略或误删共享Key；明确告知相册关联及互动不会合并。OCR停止新增（保留旧参数兼容但忽略），旧OCR任务标为完成但不调用供应商、不擦除历史文字；入库列表及计数排除停用OCR类型。
+
+
+## 图片检查进度持久化（2026-11-10）
+
+photo_governance_runs新增nullable total_count与默认0的processed_count。提交时固定max_photo_id和非归档计划数量；Worker按原每批10图扫描，每成功一图原子保存游标与累计计数，重试从上次游标继续，旧任务首次运行补齐计数。不能用图片ID比例估计进度；未完成最多99%，完成才100%。扫描期间删除/归档导致实际处理数与提交计划数不一致时，完成说明明确提示跳过，不虚增已处理数。
+
+Filament原确认动作提交后replaceMountedAction为progress，runId明确绑定，不读取“最新任务”替代当前弹窗目标；已选任务ID通过Locked属性保留关闭重开上下文。管理权限每次查看检查，后台角色权限不变。Blade在pending/running时wire:poll.2s，terminal状态去掉轮询；原生progress元素表达百分比，未用前端假进度或动画填充。结果计数按任务ID上界范围和对应页面可见规则生成，推荐排除已排除/重复/非公开关系，查重按非归档阈值关系计算，单位为对数。后续批次保留原连接与队列。
+
+入队失败记录failed并显示弹窗，Worker业务异常保留已处理位置和安全错误信息；Worker心跳只用于说明可用性，不把未连接算作任务失败。页头改为静态用途说明，实时状态集中在任务弹窗，避免Filament局部刷新后旧页头与弹窗状态冲突。新增迁移仅进度字段，无图库数据删除或修复。
+
+### 检查任务的单图容错（2026-11-10）
+
+PhotoGovernanceRun新增failed_count和failures JSON（迁移2026_11_10_000002），processed_count代表已检查总数，successfulCount=processed_count-failed_count。ProcessPhotoGovernance在单图异常时记录标题/文件名快照和安全原因，与游标/计数一次写入后继续；每10张异步接续，已完成任务重复投递及过期失败回调不会覆盖完成状态。最终匹配统计排除本次失败图片两端的旧关系。供应商异常、路径及凭据原文不返回界面，完整异常留后台日志。数据库写入等任务级错误仍由队列重试/失败处理，不能吞掉。
+
+异常档案入口使用Filament原生tableAction=edit及tableActionRecord参数，按ID定位；展示前一次性核查档案存在，Blade转义所有文本。本地真实任务#4从44/45续跑后完成45/45，成功44异常1；档案51标题“测试图123”没有原图文件，未编辑或删除。428项测试6860断言及构建通过。
+
+### 相似匹配数据库锁冲突修复（2026-11-10）
+
+本地任务#6的档案1“测试图：队友同框 #20”原图正常，失败原因是SQLite写入photo_similarity_candidates时database is locked。修复PhotoSimilarityService：候选读取从持续cursor改lazyById(200)分批读取，单张图片的匹配写入置于事务内；只对框架识别的数据库并发冲突最多尝试3次，两次重试前分别等待100/300毫秒，失败回滚本张匹配写入，不重复读取原图。推荐更新、查重和上传自动匹配共用此处理。重试耗尽的检查明细显示“保存匹配结果失败：数据库暂时繁忙”，明确原图无需修改；文件错误仍按原规则跳过，不盲目重试。
+
+新增回归覆盖临时锁恢复且关系不重复、持续锁3次后回滚，以及检查任务记录保存异常后继续后续图片。全量431项6875断言通过。真实本地单图复查任务#8成功1张、异常0，档案1文件信息和状态未改；历史任务#6保留。本地Worker已平滑重启。无新迁移、无前端依赖/样式变化，未部署生产。
+
+### 同标签推荐实现与查重解耦（2026-11-10）
+
+PublicPhotoDetail移除PhotoSimilarityCandidate依赖，similar返回字段替换为suggestions。suggestions方法先读当前tags ID，空则直接返回[]；publicPhotosQuery排除不可公开状态，whereHas(tags, whereIn(tags.id,...))表达任意标签匹配，外层图片查询天然避免多标签命中造成重复，再inRandomOrder/limit(8)及photoCard输出缩略图和普通详情URL。相册当前图片复用同服务，因此切图后自动更新。Vue使用SuggestedPhotoGrid，标题“你可能还喜欢”，v-if无数据不渲染；without-suggestions将评论布局改为单列，删除旧灰色占位CSS。
+
+PhotoDuplicateResource/ManagePhotoDuplicates改为独立Filament资源与页面，移除对PhotoSimilarityGroupResource/ManagePhotoSimilarityGroups的继承及删除这两个旧类；迁移共享查重实现时保留原删除事务、资料保护、权限与进度功能。旧recommendations/groups任务在处理入口明确安全结束；历史查询关系及相似分组底层代码只为历史资料/查重兼容保留，没有前台推荐读写入口。ProcessPhotoAnalysisJob的similarity类型为兼容不改存储标识，仅显示“计算查重候选”。不为前台随机推荐发起任何图片分析任务。
+
+验证：全量433项6886断言通过、前端构建成功；后续补强旧候选状态不影响标签推荐、弹窗模板精简后相关49项690断言再次通过。新增/更新测试覆盖任意标签而非全部、无标签/无结果、8张上限/去重、缩略图/隐私、相册切图同步、旧地址404、旧任务停止及查重功能保持。真实浏览器检查图41推荐4张共同标签图片；图37无标签隐藏模块，1440评论单列1280px；相册654从图45切图44时推荐相应变化且无自身；桌面/390手机截图已查看，推荐点击进入普通图片详情，后台旧入口404、查重200且有开始检查按钮。普通截图两次超时后使用同一标签CDP截图验收。没有为验收新增标签或改动图片资料，未提交删除/检查动作，生产未部署。

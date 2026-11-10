@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\ProcessingJob;
 use App\Services\PhotoProcessingService;
+use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -14,6 +15,7 @@ class ProcessPhotoAnalysisJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
+    use Queueable;
     use SerializesModels;
 
     public int $tries = 3;
@@ -25,7 +27,10 @@ class ProcessPhotoAnalysisJob implements ShouldQueue
         return [30, 120];
     }
 
-    public function __construct(public readonly int $processingJobId) {}
+    public function __construct(public readonly int $processingJobId)
+    {
+        $this->onConnection(config('queue.default') === 'sync' ? 'database' : config('queue.default'));
+    }
 
     public function handle(PhotoProcessingService $service): void
     {

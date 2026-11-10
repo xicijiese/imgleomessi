@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\SearchQuery;
-use App\Models\SearchRecommendation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -46,7 +45,6 @@ class PublicSearchOperations
     public function pagePayload(): array
     {
         return [
-            'recommendations' => $this->recommendations()->all(),
             'hot_terms' => $this->hotTerms()->all(),
         ];
     }
@@ -57,49 +55,10 @@ class PublicSearchOperations
     public function suggestions(Request $request): array
     {
         $keyword = $this->normalizeKeyword((string) $request->query('q', ''));
-        $recommendations = $this->recommendations($keyword);
-        $hotTerms = $this->isValidKeyword($keyword) ? $this->hotTerms($keyword) : collect();
 
         return [
-            'items' => collect($recommendations->all())
-                ->merge($hotTerms->all())
-                ->unique(fn (array $item): string => $this->normalizeKeyword($item['term']))
-                ->take(self::LIMIT)
-                ->values()
-                ->all(),
+            'items' => $this->hotTerms($keyword)->all(),
         ];
-    }
-
-    /**
-     * @return Collection<int, array<string, mixed>>
-     */
-    private function recommendations(string $keyword = ''): Collection
-    {
-        $query = SearchRecommendation::query()
-            ->active()
-            ->orderBy('sort_order')
-            ->orderByDesc('updated_at')
-            ->orderBy('id');
-
-        if ($this->isValidKeyword($keyword)) {
-            $like = $this->likeKeyword($keyword);
-            $query->where(function ($query) use ($like): void {
-                $query->where('keyword', 'like', "%{$like}%")
-                    ->orWhere('title', 'like', "%{$like}%");
-            });
-        }
-
-        return $query
-            ->limit(self::LIMIT)
-            ->get(['keyword', 'title', 'description', 'url'])
-            ->map(fn (SearchRecommendation $recommendation): array => [
-                'term' => $recommendation->keyword,
-                'label' => $recommendation->title,
-                'description' => $recommendation->description,
-                'url' => $this->safeUrl($recommendation->url, $recommendation->keyword),
-                'source' => 'recommendation',
-            ])
-            ->values();
     }
 
     /**
@@ -168,15 +127,6 @@ class PublicSearchOperations
         return mb_strlen($keyword) >= 2
             && mb_strlen($keyword) <= 120
             && preg_match('/[\pL\pN]/u', $keyword) === 1;
-    }
-
-    private function safeUrl(?string $url, string $keyword): string
-    {
-        if (is_string($url) && str_starts_with($url, '/') && ! str_starts_with($url, '//') && ! str_contains($url, '..')) {
-            return $url;
-        }
-
-        return $this->searchUrl($keyword);
     }
 
     private function searchUrl(string $keyword): string

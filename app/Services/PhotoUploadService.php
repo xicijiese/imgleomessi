@@ -27,7 +27,6 @@ class PhotoUploadService
 
         $this->storage->diskForKey()->putFileAs("photos/originals/{$directory}", $file, $storedFilename);
 
-        $autoOcr = (bool) ($attributes['auto_ocr'] ?? false);
         $tagIds = collect($attributes['tag_ids'] ?? [])
             ->filter()
             ->map(fn (mixed $id): int => (int) $id)
@@ -79,7 +78,7 @@ class PhotoUploadService
 
         $photo->tags()->sync($tagIds);
 
-        app(PhotoProcessingService::class)->createDefaultJobs($photo, $autoOcr);
+        app(PhotoProcessingService::class)->createDefaultJobs($photo);
 
         return $photo;
     }

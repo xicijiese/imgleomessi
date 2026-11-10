@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\Photos\Pages\ManagePhotos;
 use App\Filament\Resources\Photos\PhotoResource;
 use App\Models\Album;
 use App\Models\Category;
@@ -10,13 +11,229 @@ use App\Models\PhotoUploadBatch;
 use App\Models\Tag;
 use App\Models\User;
 use Database\Seeders\GalleryTaxonomySeeder;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class PhotoManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_admin_can_update_album_and_tag_selections_and_inherit_album_categories(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $root = Category::create(['name' => '生涯阶段', 'slug' => 'career-stage']);
+        $oldCategory = Category::create(['name' => '旧阶段', 'slug' => 'old-stage', 'parent_id' => $root->id]);
+        $newCategory = Category::create(['name' => '新阶段', 'slug' => 'new-stage', 'parent_id' => $root->id]);
+        $oldAlbum = Album::create(['title' => '旧相册', 'slug' => 'old-album']);
+        $newAlbum = Album::create(['title' => '新相册', 'slug' => 'new-album']);
+        $newAlbum->categories()->sync([$newCategory->id]);
+        $yearRoot = Category::create(['name' => '年份', 'slug' => 'year']);
+        $year = Category::create(['name' => '2024年', 'slug' => 'year-2024', 'parent_id' => $yearRoot->id]);
+        $secondAlbum = Album::create(['title' => '另一个相册', 'slug' => 'second-album']);
+        $secondAlbum->categories()->sync([$year->id]);
+        $oldTag = Tag::create(['name' => '旧标签']);
+        $newTag = Tag::create(['name' => '新标签']);
+        $photo = Photo::create(['title' => '关联编辑测试']);
+        $photo->albums()->sync([$oldAlbum->id]);
+        $photo->tags()->sync([$oldTag->id]);
+        $photo->categories()->sync([$oldCategory->id]);
+
+        Livewire::test(ManagePhotos::class)
+            ->callAction(TestAction::make('edit')->table($photo), [
+                'albums' => [$newAlbum->id, $secondAlbum->id],
+                'tags' => [$newTag->id],
+            ])
+            ->assertHasNoActionErrors();
+
+        $this->assertEqualsCanonicalizing([$newAlbum->id, $secondAlbum->id], $photo->albums()->pluck('albums.id')->all());
+        $this->assertEquals([$newTag->id], $photo->tags()->pluck('tags.id')->all());
+        $this->assertEqualsCanonicalizing([$newCategory->id, $year->id], $photo->categories()->pluck('categories.id')->all());
+    }
+
+    public function test_editing_only_a_title_preserves_existing_album_and_tag_selections(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $album = Album::create(['title' => '保留相册', 'slug' => 'retained-album']);
+        $tag = Tag::create(['name' => '保留标签']);
+        $photo = Photo::create(['title' => '原标题']);
+        $photo->albums()->sync([$album->id]);
+        $photo->tags()->sync([$tag->id]);
+
+        Livewire::test(ManagePhotos::class)
+            ->callAction(TestAction::make('edit')->table($photo), ['title' => '新标题'])
+            ->assertHasNoActionErrors();
+
+        $this->assertEquals([$album->id], $photo->albums()->pluck('albums.id')->all());
+        $this->assertEquals([$tag->id], $photo->tags()->pluck('tags.id')->all());
+        $this->assertSame('新标题', $photo->fresh()->title);
+    }
+
+    public function test_admin_can_explicitly_clear_album_and_tag_selections(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $album = Album::create(['title' => '移除相册', 'slug' => 'removed-album']);
+        $tag = Tag::create(['name' => '移除标签']);
+        $root = Category::create(['name' => '生涯阶段', 'slug' => 'career-stage']);
+        $category = Category::create(['name' => '手动分类', 'slug' => 'manual-stage', 'parent_id' => $root->id]);
+        $photo = Photo::create(['title' => '主动清空测试']);
+        $photo->albums()->sync([$album->id]);
+        $photo->tags()->sync([$tag->id]);
+
+        Livewire::test(ManagePhotos::class)
+            ->callAction(TestAction::make('edit')->table($photo), [
+                'albums' => [],
+                'tags' => [],
+                'category_root_'.$root->id => $category->id,
+            ])
+            ->assertHasNoActionErrors();
+
+        $this->assertCount(0, $photo->albums()->get());
+        $this->assertCount(0, $photo->tags()->get());
+        $this->assertEquals([$category->id], $photo->categories()->pluck('categories.id')->all());
+    }
+
+    public function test_photo_management_only_offers_the_real_upload_entry(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+
+        Livewire::test(ManagePhotos::class)
+            ->assertSee('上传图片')
+            ->assertActionExists('bulkUpload')
+            ->assertActionDoesNotExist('create');
+
+        $this->assertDatabaseCount('photos', 0);
+    }
+
+    public function test_admin_can_edit_photo_metadata_without_changing_file_keys_or_publication_status(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $photo = Photo::create([
+            'title' => '原图片标题',
+            'original_key' => 'photos/original.jpg',
+            'display_key' => 'photos/display.webp',
+            'thumbnail_key' => 'photos/thumbnail.webp',
+            'original_filename' => 'original.jpg',
+            'stored_filename' => 'stored.jpg',
+            'mime_type' => 'image/jpeg',
+            'file_size' => 1024,
+            'width' => 640,
+            'height' => 480,
+        ]);
+
+        Livewire::test(ManagePhotos::class)
+            ->callAction(TestAction::make('edit')->table($photo), [
+                'title' => '修改后的图片标题',
+                'description' => '保留完整资料和关联关系',
+                'source_url' => 'https://example.com/photo',
+                'original_key' => 'tampered/original.jpg',
+                'display_key' => 'tampered/display.webp',
+                'thumbnail_key' => 'tampered/thumbnail.webp',
+                'original_filename' => 'tampered.jpg',
+                'stored_filename' => 'tampered-stored.jpg',
+                'mime_type' => 'image/png',
+                'file_size' => 9999,
+                'width' => 1200,
+                'height' => 800,
+            ])
+            ->assertHasNoActionErrors();
+
+        $photo->refresh();
+        $this->assertSame('修改后的图片标题', $photo->title);
+        $this->assertSame('https://example.com/photo', $photo->source_url);
+        $this->assertSame('photos/original.jpg', $photo->original_key);
+        $this->assertSame('photos/display.webp', $photo->display_key);
+        $this->assertSame('photos/thumbnail.webp', $photo->thumbnail_key);
+        $this->assertSame('draft', $photo->status);
+        $this->assertSame('original.jpg', $photo->original_filename);
+        $this->assertSame('stored.jpg', $photo->stored_filename);
+        $this->assertSame('image/jpeg', $photo->mime_type);
+        $this->assertSame(1024, $photo->file_size);
+        $this->assertSame(640, $photo->width);
+        $this->assertSame(480, $photo->height);
+    }
+
+    public function test_admin_can_upload_a_draft_with_album_and_tags(): void
+    {
+        Storage::fake('public');
+        Queue::fake();
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $album = Album::create(['title' => '上传测试相册', 'slug' => 'upload-layout-album']);
+        $tag = Tag::create(['name' => '上传测试标签']);
+
+        Livewire::test(ManagePhotos::class)
+            ->callAction('bulkUpload', [
+                'files' => [UploadedFile::fake()->image('layout-upload.jpg', 120, 80)],
+                'source_url' => 'https://example.com/source',
+                'publish_mode' => 'draft',
+                'copyright_status' => 'unknown',
+                'album_id' => $album->id,
+                'tag_ids' => [$tag->id],
+                'auto_ocr' => false,
+            ])
+            ->assertHasNoActionErrors();
+
+        $photo = Photo::query()->sole();
+        $this->assertSame('draft', $photo->status);
+        $this->assertFalse($photo->publish_after_processing);
+        $this->assertSame('https://example.com/source', $photo->source_url);
+        $this->assertEquals([$album->id], $photo->albums()->pluck('albums.id')->all());
+        $this->assertEquals([$tag->id], $photo->tags()->pluck('tags.id')->all());
+        Storage::disk('public')->assertExists($photo->original_key);
+    }
+
+    public function test_upload_entry_stores_multiple_real_files_and_queues_their_processing(): void
+    {
+        Storage::fake('public');
+        Queue::fake();
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+
+        Livewire::test(ManagePhotos::class)
+            ->callAction('bulkUpload', [
+                'files' => [
+                    UploadedFile::fake()->image('first.jpg', 120, 80),
+                    UploadedFile::fake()->image('second.png', 60, 90),
+                ],
+                'publish_mode' => 'draft',
+                'copyright_status' => 'unknown',
+                'auto_ocr' => false,
+            ])
+            ->assertHasNoActionErrors();
+
+        $this->assertDatabaseCount('photos', 2);
+        $batch = PhotoUploadBatch::query()->sole();
+        $this->assertSame(2, $batch->total_count);
+        $this->assertSame(2, $batch->success_count);
+        foreach (Photo::all() as $photo) {
+            Storage::disk('public')->assertExists($photo->original_key);
+            $this->assertSame('draft', $photo->status);
+            $this->assertSame($batch->id, $photo->photo_upload_batch_id);
+            $this->assertEqualsCanonicalizing(['metadata', 'hash', 'datawanxiang_derivatives'], $photo->processingJobs()->pluck('type')->all());
+        }
+        Queue::assertPushed(\App\Jobs\ProcessPhotoAnalysisJob::class, 6);
+    }
+
+    public function test_upload_entry_requires_a_file_and_does_not_create_an_empty_archive(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+
+        Livewire::test(ManagePhotos::class)
+            ->callAction('bulkUpload', [
+                'files' => [],
+                'publish_mode' => 'draft',
+                'copyright_status' => 'unknown',
+            ])
+            ->assertHasActionErrors(['files' => 'required']);
+
+        $this->assertDatabaseCount('photos', 0);
+        $this->assertDatabaseCount('photo_upload_batches', 0);
+        $this->assertDatabaseCount('processing_jobs', 0);
+    }
 
     public function test_photo_tables_are_created_with_expected_columns(): void
     {

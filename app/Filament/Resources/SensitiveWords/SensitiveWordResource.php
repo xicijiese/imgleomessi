@@ -40,8 +40,10 @@ class SensitiveWordResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(2)
             ->components([
                 TextInput::make('word')
+                    ->columnSpanFull()
                     ->label('词条')
                     ->required()
                     ->maxLength(255)
@@ -66,8 +68,9 @@ class SensitiveWordResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
-                TextColumn::make('word')
+                TextColumn::make('word')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])
                     ->label('词条')
                     ->searchable()
                     ->sortable(),
@@ -98,7 +101,7 @@ class SensitiveWordResource extends Resource
             ])
             ->defaultSort('updated_at', 'desc')
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter(),
                 DeleteAction::make(),
             ])
             ->toolbarActions([

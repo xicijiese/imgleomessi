@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources\PhotoGovernanceRuns\Pages;
 
+use App\Filament\Resources\PhotoDuplicates\PhotoDuplicateResource;
 use App\Filament\Resources\PhotoGovernanceRuns\PhotoGovernanceRunResource;
-use App\Filament\Resources\PhotoSimilarityGroups\PhotoSimilarityGroupResource;
 use Filament\Resources\Pages\ManageRecords;
 
 class ManagePhotoGovernanceRuns extends ManageRecords
@@ -12,6 +12,6 @@ class ManagePhotoGovernanceRuns extends ManageRecords
 
     public function mount(): void
     {
-        $this->redirect(PhotoSimilarityGroupResource::getUrl(parameters: ['tab' => 'runs']));
+        $this->redirect(PhotoDuplicateResource::getUrl());
     }
 }

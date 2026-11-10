@@ -42,8 +42,10 @@ class CategoryResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(2)
             ->components([
                 Select::make('parent_id')
+                    ->columnSpanFull()
                     ->label('所属主分类')
                     ->options(fn (): array => Category::query()
                         ->roots()
@@ -84,12 +86,13 @@ class CategoryResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'admin-content-table'])
             ->columns([
                 TextColumn::make('parent.name')
                     ->label('主分类')
                     ->sortable()
                     ->searchable(),
-                TextColumn::make('name')
+                TextColumn::make('name')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])
                     ->label('子分类')
                     ->sortable()
                     ->searchable(),
@@ -100,7 +103,7 @@ class CategoryResource extends Resource
                     ->label('可见性')
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => Category::VISIBILITIES[$state] ?? $state),
-                TextColumn::make('sort_order')
+                TextColumn::make('sort_order')->alignEnd()
                     ->label('排序')
                     ->sortable(),
                 TextColumn::make('updated_at')
@@ -123,7 +126,7 @@ class CategoryResource extends Resource
             ], layout: FiltersLayout::AboveContent)
             ->defaultSort('sort_order')
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter(),
                 DeleteAction::make()
                     ->hidden(fn (Category $record): bool => $record->is_system)
                     ->before(function (DeleteAction $action, Category $record): void {

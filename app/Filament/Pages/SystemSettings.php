@@ -25,6 +25,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\ViewField;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -80,15 +81,12 @@ class SystemSettings extends Page
                         Tab::make('站点基础')
                             ->schema([
                                 Section::make('站点基础信息')
+                                    ->aside()
                                     ->schema([
                                         TextInput::make('site.name')
                                             ->label('站点名称')
                                             ->required()
                                             ->maxLength(255),
-                                        self::settingImageUpload('site.logo_path', '白底导航 LOGO（深色／默认）', 'settings/logo')
-                                            ->helperText('用于滚动后的白底导航和其他页面。建议使用透明背景，与浅色版保持相同画布尺寸。'),
-                                        self::settingImageUpload('site.logo_light_path', '透明导航 LOGO（浅色／白色）', 'settings/logo')
-                                            ->helperText('用于首页顶部的透明导航；未上传时沿用默认 LOGO。建议使用透明背景。'),
                                         TextInput::make('site.search_placeholder')
                                             ->label('首页搜索占位文案')
                                             ->required()
@@ -97,15 +95,32 @@ class SystemSettings extends Page
                                             ->label('联系邮箱')
                                             ->email()
                                             ->maxLength(255),
-                                        TextInput::make('site.icp_text')
-                                            ->label('备案信息')
-                                            ->helperText('保存后显示在前台页脚的站点信息中。')
-                                            ->maxLength(255),
+                                    ])
+                                    ->columns(2),
+                                Section::make('导航 LOGO')
+                                    ->aside()
+                                    ->schema([
+                                        self::settingImageUpload('site.logo_path', '白底导航 LOGO（深色／默认）', 'settings/logo')
+                                            ->imagePreviewHeight('120')
+                                            ->helperText('用于滚动后的白底导航和其他页面。建议使用透明背景，与浅色版保持相同画布尺寸。'),
+                                        self::settingImageUpload('site.logo_light_path', '透明导航 LOGO（浅色／白色）', 'settings/logo')
+                                            ->imagePreviewHeight('120')
+                                            ->helperText('用于首页顶部的透明导航；未上传时沿用默认 LOGO。建议使用透明背景。'),
+                                    ])
+                                    ->columns(2),
+                                Section::make('版权与备案')
+                                    ->aside()
+                                    ->schema([
                                         TextInput::make('site.copyright_text')
                                             ->label('版权文字')
                                             ->helperText('保存后显示在前台页脚的站点信息中。')
                                             ->maxLength(255),
+                                        TextInput::make('site.icp_text')
+                                            ->label('备案信息')
+                                            ->helperText('保存后显示在前台页脚的站点信息中。')
+                                            ->maxLength(255),
                                         TextInput::make('site.icp_url')
+                                            ->columnSpanFull()
                                             ->label('备案信息链接')
                                             ->helperText('填写完整的 HTTP 或 HTTPS 地址；留空时备案信息显示为普通文字。')
                                             ->rules(['nullable', 'url:http,https'])
@@ -147,10 +162,14 @@ class SystemSettings extends Page
                                             ->label('启用')
                                             ->default(true)
                                             ->columnSpanFull(),
-                                        self::settingImageUpload('desktop_image_path', '桌面端图片', 'settings/hero')->live(),
-                                        self::settingImageUpload('mobile_image_path', '移动端图片', 'settings/hero')->live(),
-                                        self::heroFocusField('desktop', '桌面端焦点'),
-                                        self::heroFocusField('mobile', '手机端焦点'),
+                                        Group::make([
+                                            self::settingImageUpload('desktop_image_path', '桌面端图片', 'settings/hero')->live(),
+                                            self::heroFocusField('desktop', '桌面端焦点'),
+                                        ]),
+                                        Group::make([
+                                            self::settingImageUpload('mobile_image_path', '移动端图片', 'settings/hero')->live(),
+                                            self::heroFocusField('mobile', '手机端焦点'),
+                                        ]),
                                         TextInput::make('title')
                                             ->label('标题')
                                             ->maxLength(255),
@@ -168,6 +187,9 @@ class SystemSettings extends Page
                                     ->reorderable()
                                     ->minItems(0)
                                     ->maxItems(5)
+                                    ->collapsible()
+                                    ->collapsed()
+                                    ->itemLabel(fn (array $state): string => filled($state['title'] ?? null) ? $state['title'] : '未命名头图')
                                     ->addActionLabel('添加头图'),
                             ]),
                         Tab::make('精选相册')
