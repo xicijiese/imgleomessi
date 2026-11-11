@@ -192,7 +192,9 @@ const reportReason = ref<ReportReason>('spam');
 const reportDetails = ref('');
 const reportPending = ref(false);
 const reportStatus = ref<string | null>(null);
-const activeComposer = ref<ComposerMode>(null);
+const activeComposer = ref<ComposerMode>(
+    props.photoDetail.comments.can_submit ? 'discussion' : null,
+);
 const commentContent = ref('');
 const correctionField = ref('other');
 const correctionSuggestedValue = ref('');
@@ -542,7 +544,7 @@ const openComposer = (mode: Exclude<ComposerMode, null>) => {
         return;
     }
 
-    activeComposer.value = activeComposer.value === mode ? null : mode;
+    activeComposer.value = activeComposer.value === mode ? 'discussion' : mode;
 };
 
 const openReport = (commentId: number) => {
@@ -595,7 +597,9 @@ const submitDiscussion = async () => {
             only: ['photoDetail', 'albumDetail'],
         });
         commentContent.value = '';
-        activeComposer.value = null;
+        activeComposer.value = props.photoDetail.comments.can_submit
+            ? 'discussion'
+            : null;
         commentStatus.value = result.message;
     } catch (error) {
         commentStatus.value =
@@ -669,7 +673,9 @@ const submitCorrection = async () => {
         correctionSuggestedValue.value = '';
         correctionEvidenceUrl.value = '';
         correctionContent.value = '';
-        activeComposer.value = null;
+        activeComposer.value = props.photoDetail.comments.can_submit
+            ? 'discussion'
+            : null;
         correctionStatus.value = result.message;
     } catch {
         correctionStatus.value = '补充 / 纠错提交失败，请稍后重试。';
@@ -771,7 +777,9 @@ watch(
         metadataExpanded.value = false;
         imageFailed.value = false;
         relatedImageFailures.value = {};
-        activeComposer.value = null;
+        activeComposer.value = props.photoDetail.comments.can_submit
+            ? 'discussion'
+            : null;
         commentContent.value = '';
         correctionContent.value = '';
         correctionField.value = 'other';
@@ -1214,9 +1222,9 @@ watch(
                             <button
                                 type="button"
                                 class="h-10 rounded-sm border border-[#cbd8e2]/60 px-3 text-sm font-semibold"
-                                @click="activeComposer = null"
+                                @click="commentContent = ''"
                             >
-                                取消
+                                清空
                             </button>
                             <button
                                 type="submit"
@@ -1286,7 +1294,7 @@ watch(
                             <button
                                 type="button"
                                 class="h-10 rounded-sm border border-[#cbd8e2]/60 px-3 text-sm font-semibold"
-                                @click="activeComposer = null"
+                                @click="activeComposer = 'discussion'"
                             >
                                 取消
                             </button>
