@@ -19,6 +19,21 @@ class AlbumManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_create_defaults_to_published_and_generates_unique_pinyin_slug_without_changing_existing_links(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $component = Livewire::test(ManageAlbums::class)->mountAction('create');
+        $component->assertSet('mountedActions.0.data.status', 'published');
+        $component->set('mountedActions.0.data.title', '梅西 世界杯 2022')->callMountedAction()->assertHasNoActionErrors();
+        $album = Album::sole();
+        $this->assertSame('published', $album->status);
+        $this->assertSame('mei-xi-shi-jie-bei-2022', $album->slug);
+        Livewire::test(ManageAlbums::class)->callAction('create', ['title' => '梅西 世界杯 2022'])->assertHasNoActionErrors();
+        $this->assertDatabaseHas('albums', ['slug' => 'mei-xi-shi-jie-bei-2022-2']);
+        Livewire::test(ManageAlbums::class)->callAction(TestAction::make('edit')->table($album), ['title' => '改名后的相册'])->assertHasNoActionErrors();
+        $this->assertSame('mei-xi-shi-jie-bei-2022', $album->fresh()->slug);
+    }
+
     public function test_admin_can_create_and_edit_album_details_and_categories(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));

@@ -3,18 +3,40 @@
 namespace Tests\Feature;
 
 use App\Filament\Resources\Categories\CategoryResource;
+use App\Filament\Resources\Categories\Pages\ManageCategories;
 use App\Filament\Resources\Tags\TagResource;
 use App\Models\Album;
 use App\Models\Category;
 use App\Models\Photo;
 use App\Models\User;
 use Database\Seeders\GalleryTaxonomySeeder;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class GalleryTaxonomyTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_admin_can_delete_a_system_child_with_photo_and_album_links_without_deleting_media(): void
+    {
+        $this->seed(GalleryTaxonomySeeder::class);
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $child = Category::where('slug', 'pending-career-stage')->firstOrFail();
+        $photo = Photo::create(['title' => '保留图片']);
+        $album = Album::create(['title' => '保留相册', 'slug' => 'keep-album']);
+        $child->photos()->attach($photo);
+        $child->albums()->attach($album);
+        Livewire::test(ManageCategories::class)
+            ->callAction(TestAction::make('delete')->table($child));
+        $this->assertDatabaseMissing('categories', ['id' => $child->id]);
+        $this->assertDatabaseHas('photos', ['id' => $photo->id]);
+        $this->assertDatabaseHas('albums', ['id' => $album->id]);
+        $this->assertDatabaseMissing('photo_category', ['category_id' => $child->id]);
+        $this->assertDatabaseMissing('album_category', ['category_id' => $child->id]);
+        $this->assertNotNull(Category::where('slug', 'career-stage')->firstOrFail()->deletionBlockReason());
+    }
 
     public function test_gallery_taxonomy_seeder_creates_fixed_root_categories_with_pending_children(): void
     {
@@ -76,7 +98,7 @@ class GalleryTaxonomyTest extends TestCase
         $this->assertDatabaseMissing('categories', ['id' => $category->id]);
     }
 
-    public function test_category_with_photo_reference_cannot_be_deleted(): void
+    public function test_child_with_photo_reference_is_deletable(): void
     {
         $this->seed(GalleryTaxonomySeeder::class);
 
@@ -91,10 +113,10 @@ class GalleryTaxonomyTest extends TestCase
         $photo = Photo::query()->create(['title' => '关联图片']);
         $category->photos()->attach($photo);
 
-        $this->assertSame('该分类已关联 1 张图片，请先移除关联或将其设置为隐藏。', $category->deletionBlockReason());
+        $this->assertNull($category->deletionBlockReason());
     }
 
-    public function test_category_with_album_reference_cannot_be_deleted(): void
+    public function test_child_with_album_reference_is_deletable(): void
     {
         $this->seed(GalleryTaxonomySeeder::class);
 
@@ -112,17 +134,18 @@ class GalleryTaxonomyTest extends TestCase
         ]);
         $category->albums()->attach($album);
 
-        $this->assertSame('该分类已关联 1 个相册，请先移除关联或将其设置为隐藏。', $category->deletionBlockReason());
+        $this->assertNull($category->deletionBlockReason());
     }
 
-    public function test_system_category_cannot_be_deleted(): void
+    public function test_system_child_is_deletable(): void
     {
         $this->seed(GalleryTaxonomySeeder::class);
 
         $category = Category::query()->where('slug', 'pending-career-stage')->firstOrFail();
 
-        $this->assertSame('系统分类不可删除。', $category->deletionBlockReason());
+        $this->assertNull($category->deletionBlockReason());
     }
+
     public function test_admin_can_visit_category_and_tag_resources(): void
     {
         $this->seed(GalleryTaxonomySeeder::class);

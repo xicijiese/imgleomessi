@@ -176,7 +176,9 @@ class Photo extends Model
         $selectedByParent = $categories->groupBy('parent_id');
 
         foreach ($requiredRootIds as $rootId) {
-            if ($selectedByParent->get($rootId, collect())->count() !== 1) {
+            if (($selectedByParent->get($rootId, collect())->isEmpty()
+                || ($selectedByParent->get($rootId, collect())->count() > 1
+                    && ! in_array(Category::find($rootId)?->slug, Category::MULTI_SELECT_ROOT_SLUGS, true)))) {
                 return false;
             }
         }

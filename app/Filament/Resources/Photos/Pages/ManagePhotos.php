@@ -44,43 +44,6 @@ class ManagePhotos extends ManageRecords
                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
                             ->storeFiles(false)
                             ->required(),
-                        TextInput::make('source_url')
-                            ->columnSpanFull()
-                            ->label('来源链接')
-                            ->url()
-                            ->maxLength(2048)
-                            ->helperText('可选；来源平台请在分类中选择。'),
-                        Select::make('tag_ids')
-                            ->columnSpanFull()
-                            ->label('标签')
-                            ->options(fn (): array => Tag::query()->orderBy('name')->pluck('name', 'id')->all())
-                            ->multiple()
-                            ->preload()
-                            ->searchable()
-                            ->createOptionForm([
-                                TextInput::make('name')
-                                    ->label('标签名')
-                                    ->required()
-                                    ->maxLength(255)
-                                    ->unique(table: 'tags', column: 'name'),
-                            ])
-                            ->createOptionUsing(fn (array $data): int => (int) Tag::query()->create($data)->getKey())
-                            ->helperText('可输入关键词搜索，输入不存在的标签后可直接创建。'),
-                        Select::make('copyright_status')
-                            ->label('版权状态')
-                            ->options(Photo::COPYRIGHT_STATUSES)
-                            ->default('unknown')
-                            ->required(),
-                        Select::make('publish_mode')
-                            ->label('上传后的发布状态')
-                            ->options([
-                                'draft' => '草稿（待整理）',
-                                'publish_after_processing' => '处理完成后自动发布',
-                            ])
-                            ->default('publish_after_processing')
-                            ->live()
-                            ->required()
-                            ->helperText('默认处理完成后自动发布；仍会检查标题、版权状态和必选主分类，不满足条件时会保留为草稿。'),
                         Section::make('图片分类与相册')
                             ->schema([
                                 ...self::categorySelectors(),
@@ -95,9 +58,48 @@ class ManagePhotos extends ManageRecords
                                     ->live()
                                     ->columnSpanFull()
                                     ->helperText('可直接选择分类，也可以只选择相册；选择相册后图片自动继承相册分类。'),
+                                Select::make('tag_ids')
+                                    ->columnSpanFull()
+                                    ->label('标签')
+                                    ->options(fn (): array => Tag::query()->orderBy('name')->pluck('name', 'id')->all())
+                                    ->multiple()
+                                    ->preload()
+                                    ->searchable()
+                                    ->createOptionForm([
+                                        TextInput::make('name')
+                                            ->label('标签名')
+                                            ->required()
+                                            ->maxLength(255)
+                                            ->unique(table: 'tags', column: 'name'),
+                                    ])
+                                    ->createOptionUsing(fn (array $data): int => (int) Tag::query()->create($data)->getKey())
+                                    ->helperText('可输入关键词搜索，输入不存在的标签后可直接创建。'),
                             ])
                             ->columns(2)
                             ->columnSpanFull(),
+                        Section::make('来源与发布')->schema([
+                            TextInput::make('source_url')
+                                ->columnSpanFull()
+                                ->label('来源链接')
+                                ->url()
+                                ->maxLength(2048)
+                                ->helperText('可选；来源平台请在分类中选择。'),
+                            Select::make('copyright_status')
+                                ->label('版权状态')
+                                ->options(Photo::COPYRIGHT_STATUSES)
+                                ->default('unknown')
+                                ->required(),
+                            Select::make('publish_mode')
+                                ->label('上传后的发布状态')
+                                ->options([
+                                    'draft' => '草稿（待整理）',
+                                    'publish_after_processing' => '处理完成后自动发布',
+                                ])
+                                ->default('publish_after_processing')
+                                ->live()
+                                ->required()
+                                ->helperText('默认处理完成后自动发布；仍会检查标题、版权状态和必选主分类，不满足条件时会保留为草稿。'),
+                        ])->columns(2)->columnSpanFull(),
                     ])->columnSpanFull(),
                 ])
                 ->modalWidth('5xl')
@@ -206,6 +208,7 @@ class ManagePhotos extends ManageRecords
             ->map(function (Category $root): Select {
                 return Select::make(self::categoryFieldName((int) $root->id))
                     ->label($root->name)
+                    ->multiple(in_array($root->slug, Category::MULTI_SELECT_ROOT_SLUGS, true))
                     ->options($root->children
                         ->where('visibility', 'public')
                         ->mapWithKeys(fn (Category $child): array => [$child->id => $child->name])
@@ -214,7 +217,9 @@ class ManagePhotos extends ManageRecords
                     ->preload()
                     ->markAsRequired($root->required_for_publish)
                     ->visible(fn (Get $get): bool => blank($get('album_id')))
-                    ->helperText($root->required_for_publish ? '自动发布前必选。' : '可选分类。');
+                    ->helperText(in_array($root->slug, Category::MULTI_SELECT_ROOT_SLUGS, true)
+                        ? ($root->required_for_publish ? '自动发布前至少选择一项，可多选。' : '可选，支持多选。')
+                        : ($root->required_for_publish ? '自动发布前必选。' : '可选分类。'));
             })
             ->all();
     }
@@ -233,7 +238,7 @@ class ManagePhotos extends ManageRecords
             ->roots()
             ->pluck('id')
             ->map(fn (mixed $id): string => self::categoryFieldName((int) $id))
-            ->map(fn (string $field): mixed => $data[$field] ?? null)
+            ->flatMap(fn (string $field): array => (array) ($data[$field] ?? []))
             ->filter()
             ->map(fn (mixed $id): int => (int) $id)
             ->unique()

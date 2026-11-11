@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Filament\Resources\Photos\Pages\ManagePhotos;
 use App\Filament\Resources\Photos\PhotoResource;
+use App\Jobs\ProcessPhotoAnalysisJob;
 use App\Models\Album;
 use App\Models\Category;
 use App\Models\Photo;
@@ -23,6 +24,32 @@ use Tests\TestCase;
 class PhotoManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_upload_saves_multiple_values_for_the_four_supported_category_roots(): void
+    {
+        Storage::fake('public');
+        Queue::fake();
+        $this->seed(GalleryTaxonomySeeder::class);
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $data = ['files' => [UploadedFile::fake()->image('multiple.jpg')], 'publish_mode' => 'publish_after_processing', 'copyright_status' => 'credited'];
+        $expected = [];
+        foreach (Category::roots()->get() as $root) {
+            $ids = $root->children()->pluck('id')->take(1)->all();
+            if (in_array($root->slug, Category::MULTI_SELECT_ROOT_SLUGS, true)) {
+                $ids[] = Category::create(['parent_id' => $root->id, 'name' => '额外分类', 'slug' => 'extra-'.$root->slug])->id;
+                $data['category_root_'.$root->id] = $ids;
+            } else {
+                $data['category_root_'.$root->id] = $ids[0] ?? null;
+            }
+            $expected = array_merge($expected, $ids);
+        }
+        Livewire::test(ManagePhotos::class)->callAction('bulkUpload', $data)->assertHasNoActionErrors();
+        $photo = Photo::sole();
+        $this->assertEqualsCanonicalizing($expected, $photo->categories()->pluck('categories.id')->all());
+        $this->assertTrue($photo->hasCompleteCategorySet());
+        Livewire::test(ManagePhotos::class)->callAction(TestAction::make('edit')->table($photo), ['title' => '只改标题']);
+        $this->assertEqualsCanonicalizing($expected, $photo->categories()->pluck('categories.id')->all());
+    }
 
     public function test_admin_can_update_album_and_tag_selections_and_inherit_album_categories(): void
     {
@@ -215,7 +242,7 @@ class PhotoManagementTest extends TestCase
             $this->assertSame($batch->id, $photo->photo_upload_batch_id);
             $this->assertEqualsCanonicalizing(['metadata', 'hash', 'datawanxiang_derivatives'], $photo->processingJobs()->pluck('type')->all());
         }
-        Queue::assertPushed(\App\Jobs\ProcessPhotoAnalysisJob::class, 6);
+        Queue::assertPushed(ProcessPhotoAnalysisJob::class, 6);
     }
 
     public function test_upload_entry_requires_a_file_and_does_not_create_an_empty_archive(): void

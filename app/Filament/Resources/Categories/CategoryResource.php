@@ -20,6 +20,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use UnitEnum;
 
@@ -128,7 +129,7 @@ class CategoryResource extends Resource
             ->recordActions([
                 EditAction::make()->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter(),
                 DeleteAction::make()
-                    ->hidden(fn (Category $record): bool => $record->is_system)
+                    ->modalDescription('删除后将移除该子分类及图片、相册的分类关联，不会删除图片或相册；相关资料可能需要重新补充分类。')
                     ->before(function (DeleteAction $action, Category $record): void {
                         if ($reason = $record->deletionBlockReason()) {
                             Notification::make()
@@ -142,7 +143,11 @@ class CategoryResource extends Resource
                     })
                     ->action(function (DeleteAction $action, Category $record): void {
                         try {
-                            $record->delete();
+                            DB::transaction(function () use ($record): void {
+                                $record->photos()->detach();
+                                $record->albums()->detach();
+                                $record->delete();
+                            });
                         } catch (QueryException $exception) {
                             report($exception);
 

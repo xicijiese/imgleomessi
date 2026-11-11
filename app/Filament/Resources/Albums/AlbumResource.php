@@ -16,6 +16,8 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -48,14 +50,21 @@ class AlbumResource extends Resource
                 Section::make('基础资料')->schema([
                     TextInput::make('title')
                         ->label('相册名')
+                        ->live(onBlur: true)
+                        ->afterStateUpdated(function (?Album $record, ?string $state, Set $set): void {
+                            if ($record === null) {
+                                $set('slug', self::suggestSlug($state));
+                            }
+                        })
                         ->required()
                         ->maxLength(255),
                     TextInput::make('slug')
                         ->label('URL 标识')
-                        ->required()
+                        ->helperText('新建时根据相册名自动生成无声调拼音，可手动调整；编辑名称不会改变已有链接。')
+                        ->required(fn (?Album $record): bool => $record !== null)
                         ->maxLength(255)
                         ->unique(ignoreRecord: true)
-                        ->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? Str::slug($state) : null),
+                        ->dehydrateStateUsing(fn (?string $state, Get $get): string => filled($state) ? Str::slug($state) : self::suggestSlug($get('title'))),
                 ])->columns(2)->columnSpanFull(),
                 Section::make('相册分类')
                     ->schema(self::categorySelectors())
@@ -65,7 +74,7 @@ class AlbumResource extends Resource
                     Select::make('status')
                         ->label('状态')
                         ->options(Album::STATUSES)
-                        ->default('draft')
+                        ->default('published')
                         ->required(),
                     TextInput::make('sort_order')
                         ->label('排序')
@@ -81,6 +90,19 @@ class AlbumResource extends Resource
                     ->rows(4)
                     ->columnSpanFull(),
             ]);
+    }
+
+    public static function suggestSlug(?string $title): string
+    {
+        $base = Str::slug(Str::transliterate($title ?? ''));
+        $base = $base === '' ? 'album-'.Str::lower(Str::random(8)) : rtrim(substr($base, 0, 240), '-');
+        $slug = $base;
+        $suffix = 2;
+        while (Album::query()->where('slug', $slug)->exists()) {
+            $slug = $base.'-'.$suffix++;
+        }
+
+        return $slug;
     }
 
     public static function table(Table $table): Table

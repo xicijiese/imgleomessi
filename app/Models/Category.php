@@ -24,6 +24,8 @@ class Category extends Model
     /**
      * 发布图片时必须填写的主分类。其他主分类保留为可选资料维度。
      */
+    public const MULTI_SELECT_ROOT_SLUGS = ['scene', 'image-type', 'person-relation', 'source-platform'];
+
     public const REQUIRED_ROOT_SLUGS = [
         'career-stage',
         'year',
@@ -109,6 +111,9 @@ class Category extends Model
 
     public function deletionBlockReason(): ?string
     {
+        if (! $this->isRoot()) {
+            return null;
+        }
         if ($this->is_system) {
             return '系统分类不可删除。';
         }
@@ -137,6 +142,7 @@ class Category extends Model
 
         return '该分类已关联 '.implode('、', $references).'，请先移除关联或将其设置为隐藏。';
     }
+
     public function isRoot(): bool
     {
         return $this->parent_id === null;

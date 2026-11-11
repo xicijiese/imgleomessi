@@ -34,6 +34,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -266,9 +267,9 @@ class PhotoResource extends Resource
                     ->sortable(),
             ])
             ->filters([
-                \Filament\Tables\Filters\Filter::make('id')->label('图片 ID')
+                Filter::make('id')->label('图片 ID')
                     ->schema([TextInput::make('value')->label('图片 ID')->integer()->minValue(1)])
-                    ->query(fn (\Illuminate\Database\Eloquent\Builder $query, array $data) => $query->when($data['value'] ?? null, fn ($query, $id) => $query->whereKey($id))),
+                    ->query(fn (Builder $query, array $data) => $query->when($data['value'] ?? null, fn ($query, $id) => $query->whereKey($id))),
                 SelectFilter::make('status')
                     ->label('发布状态')
                     ->options(Photo::STATUSES),
@@ -408,9 +409,8 @@ class PhotoResource extends Resource
                     ->mutateRecordDataUsing(function (array $data): array {
                         $photo = Photo::query()->findOrFail((int) $data['id']);
                         foreach (Category::query()->roots()->orderBy('sort_order')->orderBy('id')->get() as $root) {
-                            $data[self::categoryFieldName((int) $root->id)] = $photo->categories()
-                                ->where('parent_id', $root->id)
-                                ->value('categories.id');
+                            $selected = $photo->categories()->where('parent_id', $root->id)->pluck('categories.id')->all();
+                            $data[self::categoryFieldName((int) $root->id)] = in_array($root->slug, Category::MULTI_SELECT_ROOT_SLUGS, true) ? $selected : ($selected[0] ?? null);
                         }
 
                         $data['tags'] = $photo->tags()->pluck('tags.id')->all();
@@ -504,6 +504,7 @@ class PhotoResource extends Resource
 
                 return Select::make(self::categoryFieldName((int) $root->id))
                     ->label($root->name)
+                    ->multiple(in_array($root->slug, Category::MULTI_SELECT_ROOT_SLUGS, true))
                     ->options($root->children
                         ->where('visibility', 'public')
                         ->mapWithKeys(fn (Category $child): array => [$child->id => $child->name])
@@ -512,7 +513,9 @@ class PhotoResource extends Resource
                     ->preload()
                     ->markAsRequired($root->required_for_publish)
                     ->visible(fn (Get $get): bool => blank($get('albums')))
-                    ->helperText($root->required_for_publish ? '发布前必选一个子分类。' : '可选；有可靠资料时再补充。');
+                    ->helperText(in_array($root->slug, Category::MULTI_SELECT_ROOT_SLUGS, true)
+                        ? ($root->required_for_publish ? '发布前至少选择一项，可多选。' : '可选，支持多选。')
+                        : ($root->required_for_publish ? '发布前必选一个子分类。' : '可选；有可靠资料时再补充。'));
             })
             ->all();
     }
@@ -540,7 +543,7 @@ class PhotoResource extends Resource
     private static function categoryIdsFromFormData(array $data): array
     {
         return collect(self::categoryFieldNames())
-            ->map(fn (string $field): mixed => $data[$field] ?? null)
+            ->flatMap(fn (string $field): array => (array) ($data[$field] ?? []))
             ->filter()
             ->map(fn (mixed $id): int => (int) $id)
             ->unique()
@@ -571,15 +574,18 @@ class PhotoResource extends Resource
             $selectedByParent = $categories->groupBy('parent_id');
 
             foreach (Category::requiredRootIds() as $rootId) {
-                if ($selectedByParent->get($rootId, collect())->count() !== 1) {
-                    $fail('发布前必须选择生涯阶段、年份和场景各一个子分类。');
+                if (($selectedByParent->get($rootId, collect())->isEmpty()
+                || ($selectedByParent->get($rootId, collect())->count() > 1
+                    && ! in_array(Category::find($rootId)?->slug, Category::MULTI_SELECT_ROOT_SLUGS, true)))) {
+                    $fail('发布前必须选择生涯阶段、年份各一个子分类，并至少选择一个场景。');
 
                     return;
                 }
             }
 
-            if ($selectedByParent->contains(fn ($selected): bool => $selected->count() > 1)) {
-                $fail('每个主分类最多选择一个子分类。');
+            if ($selectedByParent->contains(fn ($selected, $rootId): bool => $selected->count() > 1
+                && ! in_array(Category::find($rootId)?->slug, Category::MULTI_SELECT_ROOT_SLUGS, true))) {
+                $fail('生涯阶段、赛事、赛季和年份最多选择一个子分类。');
             }
         };
     }
