@@ -404,3 +404,10 @@ PublicPhotoDetail移除PhotoSimilarityCandidate依赖，similar返回字段替�
 PhotoDuplicateResource/ManagePhotoDuplicates改为独立Filament资源与页面，移除对PhotoSimilarityGroupResource/ManagePhotoSimilarityGroups的继承及删除这两个旧类；迁移共享查重实现时保留原删除事务、资料保护、权限与进度功能。旧recommendations/groups任务在处理入口明确安全结束；历史查询关系及相似分组底层代码只为历史资料/查重兼容保留，没有前台推荐读写入口。ProcessPhotoAnalysisJob的similarity类型为兼容不改存储标识，仅显示“计算查重候选”。不为前台随机推荐发起任何图片分析任务。
 
 验证：全量433项6886断言通过、前端构建成功；后续补强旧候选状态不影响标签推荐、弹窗模板精简后相关49项690断言再次通过。新增/更新测试覆盖任意标签而非全部、无标签/无结果、8张上限/去重、缩略图/隐私、相册切图同步、旧地址404、旧任务停止及查重功能保持。真实浏览器检查图41推荐4张共同标签图片；图37无标签隐藏模块，1440评论单列1280px；相册654从图45切图44时推荐相应变化且无自身；桌面/390手机截图已查看，推荐点击进入普通图片详情，后台旧入口404、查重200且有开始检查按钮。普通截图两次超时后使用同一标签CDP截图验收。没有为验收新增标签或改动图片资料，未提交删除/检查动作，生产未部署。
+# WordPress 相册引用接口（2026-11-11）
+
+用户确认图库统一保存比赛组图，WordPress仅保存文章编排。`/api/wordpress/v1/health`、`resolve?url=...`、`albums/{id}?page=...&per_page=...`使用独立无会话API中间件、Bearer令牌SHA-256常量时间比较、每IP每分钟120次限流；响应private/no-store，默认无哈希即关闭。resolve只接受APP_URL同源相册路径或已有分享码，不请求任意URL、不记录分享访问及收益；分享停用和分享者状态沿用原规则，解析后以稳定相册ID读取。
+
+图片仅published且版权非restricted/remove_requested，派生Key非空且不同于原图及彼此；公开地址通过现有存储服务生成，再转完整URL。每页最多100张，按ID排序；revision以相册更新时间和公开图片ID/更新时间摘要计算，插件拒绝跨页版本不同或数量不完整的数据。无原图Key或存储凭据输出，无迁移、文件写入或COS操作。
+
+插件在chajian/messi-album，PHP7.4语法、官方HTTP/Settings/Shortcode/Meta Box接口；当前文章私有meta保存选图ID/说明/列数，页面只输出公开派生图。管理员配置服务端令牌；编辑AJAX校验nonce和edit_post权限，不创建附件、不下载或上传图片。正常缓存5分钟，故障重试间隔60秒，旧公开数据最长15分钟；401/403/404/410立即丢弃旧缓存。缓存键绑定域名及令牌；整页/CDN缓存必须另设期限、下架清缓存。单册最多100页/10000张，超限报错。默认防盗链沿用现有配置，禁止未核验即修改共享桶。远程主题、Galleria及云端仍需生产草稿联调。

@@ -2488,3 +2488,18 @@ CDN只在确认存在旧缓存时定向刷新相关资源，不用全站清缓�
 本次不需要重复敏感词导入、media:repair-variants --apply、media:repair-search-index --apply或全库图片扫描来让新标签推荐生效，不清空历史失败任务。标签推荐不需要相似度回填；若另有索引/缩略图缺失证据，另行处理。
 
 验收：前台图片/相册当前图片的推荐任意同标签、排除自身、不超过8张，点击进入正常详情、无结果无占位/空白侧栏；搜索正常且无人工推荐；后台布局/统计、审计200、图片关联保存、上传入口正常，相似图/搜索运营旧入口404；查重入口及任务进度正常。COS派生和上传异步链路用授权测试文件验收，不以实际删除生产图片检查按钮。本地最近全量433项6886断言、最终相关49项690断言及构建通过，不能替代生产验收。数据库迁移均为新增列，需回退代码时优先恢复配套旧源码/build并保留新增列，不盲目回滚整个迁移批次。
+# WordPress 相册引用增量部署（2026-11-11，待生产联调）
+
+本轮无需迁移、图片搬迁、历史文章替换或COS配置调整。先部署图库接口代码，再安装插件；未部署接口时插件不能读取相册。图库APP_URL应为`https://img.leomessi.cn`，反向代理需正确识别HTTPS。
+
+代码统一通过Git发布，不手动逐文件上传：本地提交并推送本次接口、插件及安装包；服务器进入`/www/wwwroot/img.leomessi.cn`，先执行`git status --short`确认没有待保护的本地改动，再执行`git pull --ff-only`。如拉取提示冲突或本地修改，先处理原因，不使用强制覆盖。已有生产`.env`保留，令牌只在服务器生成配置，不进入Git。插件ZIP随仓库更新，WordPress后台安装该ZIP即可。
+
+1. 在图库服务器执行`php artisan wordpress:album-token`，生成明文令牌及`WORDPRESS_ALBUM_TOKEN_HASH`。只把哈希填入图库`.env`，明文只交给WordPress插件设置；不要提交代码、粘贴聊天或截图分享。该命令不自动改配置，不访问COS。
+2. 执行`php artisan config:cache`和`php artisan route:cache`。哈希留空时接口拒绝访问，替换并重建配置缓存可撤销旧令牌。若服务器反向代理移除了Authorization头，应修正转发设置，不把令牌改放URL。
+3. WordPress后台→插件→安装插件→上传`chajian/messi-album-1.0.0.zip`→启用。设置→梅西图库相册，填写图库域名和明文令牌并测试连接。亦可在服务器wp-config.php中配置MESSI_ALBUM_TOKEN，勿在浏览器输入或公开文件保存。
+4. 使用一篇草稿测试真实分享链接读取、分页总数、选图排序、列数/说明、再次编辑、手机及灯箱；区块编辑器使用图库相册面板生成短代码并粘贴到短代码区块。短代码绑定本篇文章，不能直接跨文章复制引用。
+5. 确认WordPress未新增媒体附件且WPCOS未收到新上传；测试Galleria/B2不会重复接管。图片直接走图库现有地址，应覆盖实际图片域名的Referer防盗链。现有白名单包含*.leomessi.cn及sozl.cc，是否移除后者另行核实；不直接修改共享桶。
+6. WordPress仅Redis Object Cache不等于整页缓存。若主题、服务器或CDN缓存HTML，必须设置合理期限并验证图片下架后的清缓存流程。缩略图及展示图皆需可从WordPress加载；拒绝空Referer可能影响直接开图和第三方预览。
+7. 回退：停用WordPress插件会停止渲染其短代码，已有原生相册不变，重新启用恢复；图库清空哈希并重建配置缓存可关闭接口。不删除图片或文章meta。
+
+独立测试仅证明WordPress核心及插件行为，不代表B2 PRO 5.8.0/Galleria/WPCOS生产兼容或防盗链已完成。未来升级WordPress先复跑chajian/tests蓝图和HTTP检查；明确preferredVersions，不能只依赖Playground CLI --wp/--php显示值。

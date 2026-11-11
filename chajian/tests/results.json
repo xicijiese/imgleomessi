@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-11",
+  "laravel": {
+    "tests": 437,
+    "assertions": 6925,
+    "build": "passed"
+  },
+  "wordpress": [
+    {
+      "version": "6.4.3",
+      "php": "7.4.33",
+      "behavior_checks": 13,
+      "http_checks": 10
+    },
+    {
+      "version": "7.1.4",
+      "php": "8.3.36",
+      "behavior_checks": 13,
+      "http_checks": 10
+    }
+  ],
+  "browser": [
+    "经典编辑器首次插入及重新编辑",
+    "区块编辑器面板读取保存",
+    "前台放大及下一张"
+  ],
+  "pending": [
+    "B2 PRO/Galleria/WPCOS生产草稿联调",
+    "真实分享链接及COS/CDN防盗链核验"
+  ],
+  "production_modified": false
+}

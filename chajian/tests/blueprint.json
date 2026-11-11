@@ -1,0 +1,8 @@
+{
+  "preferredVersions": {"php": "8.3", "wp": "7.1.4"},
+  "steps": [
+    {"step": "activatePlugin", "pluginPath": "/wordpress/wp-content/plugins/messi-album/messi-album.php"},
+    {"step": "runPHP", "code": "<?php try { require '/wordpress/wp-content/ma-tests/integration.php'; } catch (Throwable $e) { echo get_class($e).': '.$e->getMessage().' at '.$e->getFile().':'.$e->getLine(); throw $e; }"},
+    {"step": "login", "username": "admin", "password": "password"}
+  ]
+}
