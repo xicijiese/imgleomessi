@@ -23,6 +23,14 @@ class AlbumManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_new_album_rejects_negative_sort_values_before_database_write(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        Livewire::test(ManageAlbums::class)->mountAction('create')->assertSet('mountedActions.0.data.sort_order', 0);
+        Livewire::test(ManageAlbums::class)->callAction('create', ['title' => '非法负数排序', 'sort_order' => -1])->assertHasActionErrors(['sort_order']);
+        $this->assertDatabaseCount('albums', 0);
+    }
+
     public function test_album_reorder_persists_across_pages_and_new_album_goes_first(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
@@ -36,8 +44,12 @@ class AlbumManagementTest extends TestCase
         Livewire::test(ManageAlbums::class)->assertCanSeeTableRecords($albums->take(20), inOrder: true);
         Livewire::test(ManageAlbums::class)->callAction('create', ['title' => '最新相册', 'slug' => 'new-first'])->assertHasNoActionErrors();
         $latest = Album::where('slug', 'new-first')->sole();
-        $this->assertLessThan(1, $latest->sort_order);
+        $this->assertSame(0, $latest->sort_order);
         Livewire::test(ManageAlbums::class)->assertCanSeeTableRecords(collect([$latest])->merge($albums->take(19)), inOrder: true);
+        Livewire::test(ManageAlbums::class)->callAction('create', ['title' => '再建相册', 'slug' => 'newer-first'])->assertHasNoActionErrors();
+        $newer = Album::where('slug', 'newer-first')->sole();
+        $this->assertSame(0, $newer->sort_order);
+        Livewire::test(ManageAlbums::class)->assertCanSeeTableRecords(collect([$newer, $latest])->merge($albums->take(18)), inOrder: true);
     }
 
     public function test_album_and_upload_time_options_are_sorted_newest_first(): void

@@ -79,7 +79,7 @@ class AlbumResource extends Resource
                         ->options(Album::STATUSES)
                         ->default('published')
                         ->required(),
-                    Hidden::make('sort_order')->default(fn () => min(0, (int) Album::min('sort_order')) - 1),
+                    Hidden::make('sort_order')->default(0)->rules(['integer', 'min:0']),
                     DateTimePicker::make('published_at')
                         ->label('发布时间')
                         ->seconds(false),
