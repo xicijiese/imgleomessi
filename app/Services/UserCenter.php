@@ -253,6 +253,7 @@ class UserCenter
         return [
             'id' => $user->id,
             'name' => $user->name,
+            'avatar' => $user->avatar,
             'email' => $user->email,
             'status' => $user->status ?? 'active',
             'status_label' => User::STATUSES[$user->status ?? 'active'] ?? '正常',

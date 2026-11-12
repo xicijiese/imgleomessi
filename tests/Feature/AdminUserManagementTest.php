@@ -42,6 +42,29 @@ class AdminUserManagementTest extends TestCase
         $this->assertDatabaseCount('admin_audit_logs', 3);
     }
 
+    public function test_admin_avatar_is_shared_by_profile_navigation_and_filament_for_local_and_cos(): void
+    {
+        Storage::fake('public');
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $this->actingAs($admin)->patch(route('profile.update'), ['name' => $admin->name, 'email' => $admin->email,
+            'avatar' => UploadedFile::fake()->image('admin-avatar.png', 256, 256)])->assertRedirect(route('profile.edit'));
+        $admin = $admin->fresh();
+        $url = '/storage/'.$admin->avatar_url;
+        $this->assertSame($url, $admin->getFilamentAvatarUrl());
+        $this->get('/settings/profile')->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+            ->where('settingsCenter.user.avatar', $url)->where('auth.user.avatar', $url));
+        $this->get('/me')->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page->where('me.user.avatar', $url));
+        $this->get('/admin')->assertOk()->assertSee($url);
+        app(\App\Services\StorageSettings::class)->save(['mode' => 'cos', 'cos' => [
+            'secret_id' => 'test-id', 'secret_key' => 'test-key', 'region' => 'ap-guangzhou',
+            'bucket' => 'test-1250000000', 'cdn_url' => 'https://cdn.example.com',
+        ]]);
+        $admin->forceFill(['avatar_url' => 'avatars/admin/cos-avatar.png'])->save();
+        $this->assertSame('https://cdn.example.com/avatars/admin/cos-avatar.png', $admin->getFilamentAvatarUrl());
+        $admin->forceFill(['avatar_url' => null])->save();
+        $this->assertNull($admin->getFilamentAvatarUrl());
+    }
+
     public function test_user_can_upload_and_remove_a_public_avatar(): void
     {
         Storage::fake('public');

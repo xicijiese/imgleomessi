@@ -5231,3 +5231,16 @@ Filament后台表格统一默认20条、可选20/50/100，图片/上传任务/�
 网站放大浏览共两个实现：Photos/Show.vue（各图片详情入口共用）及Albums/Show.vue（相册幻灯片）。原img width100%/flex1使object-fit留白也被图片元素占据，修正为按比例约束的真实图片盒子，留白成为dialog背景；共用useLightboxBackdrop，只有按下和点击均在背景且移动<6px才关闭，防图片拖动/滑动误关，图片/标题/切换按钮不触发背景关闭；原关闭按钮及Esc保留。不改图片链接/加载、相册切图、模块尺寸或内容权限。
 
 排序与相册/图片详情相关32项694断言通过，新增25个相册跨20条分页排序、刷新持久化及新建置前测试。前端构建通过；实际浏览器单图与相册点图保持、点留白关闭、相册下一张仍开通过，后台调整/完成入口已查，不在真实数据执行拖动排序。普通截图和CDP截图均超时，按指引恢复只读任务继续交互核对，未取得本次有效截图，不声称视觉截图验收通过。无迁移/新依赖，部署需npm run build，生产未更新。
+## 2026-11-12统一错误页面与Inertia上游错误兜底
+
+新增resources/views/errors/archive.blade.php，蓝白金、中文说明、清楚返回首页/图库入口，401/419另提供登录。覆盖401/403/404/405/410/419/429/500/502/503/504；不加载Vite、数据库、COS图片或第三方字体，noindex/nofollow，保留HTTP错误状态及Retry-After等原有响应头。bootstrap/app.php exceptions respond接入，JSON/API与Livewire JSON保持原有格式，debug=true时5xx保留开发诊断；不回显生产异常细节。
+
+Inertia错误GET使用location同址整页加载，避免HTML被弹为默认错误对话框；非GET错误转静态错误页，禁止自动重放表单。app.ts捕获invalid已知HTTP错误，Nginx等上游HTML错误也跳转/errors/{status}.html，不解析/回显原始HTML。此路径为静态兜底，直接访问HTTP200但noindex，原请求已是对应错误状态；真正Laravel普通错误返回对应HTTP状态，不把错误统一重定向首页。新增errors:build命令由统一Blade生成public/errors下11个静态页，已生成并须提交，日后改模板需重新运行此命令；不依赖PHP正常运行即可访问静态页。
+
+图片所示nginx404是上游服务器响应，尚无生产Nginx配置或失败URL，无法断言是路由重写缺失/资源不存在/拦截所致；本批解决错误展示，不宣称修复所有无效链接或生产路由根因。生产如需直接导航的Nginx错误也用新版，应在宝塔检查既有error_page并指向/errors/{status}.html，确认root为项目public，PHP的fastcgi_intercept_errors关闭以保留应用JSON/页面错误；不得覆盖未知的整份站点配置。先nginx -t再重载，保留原配置备份。
+
+验收：全量459项7281断言、构建通过；新增5项76断言验证404状态、Inertia整页定位、JSON不替换、生产错误不泄漏细节及Retry-After、静态页独立资源。实际浏览器普通404、模拟Nginx404跳静态页/无iframe弹层通过，390宽度390且主要按钮48px；截图原标签/独立预览均超时，未取得有效截图，不声称视觉截图验收通过。静态404预览/errors/404.html；500/503等同路径。无迁移/新依赖，生产需提交静态页及PHP/JS修改、重新npm run build并刷新PHP/视图缓存；生产未部署。
+2026-11-12生产新建相册500的兼容性修复：发现此前Hidden sort_order默认min(0,min)-1，而albums.sort_order自创建迁移起为unsignedInteger，生产MySQL严格模式拒绝负值，本地SQLite不执行unsigned约束而掩盖缺陷。修复为默认0并加integer/min:0服务端校验，无迁移；拖动后的已有排序从1开始，新增0优先，连续新增同值用created_at/id倒序，保持新建置前及人工顺序。18项284断言通过，新增负数拒绝且不写库、连续新建非负置前。未直接读取生产日志，截图为500，具体异常仍以生产最新SQLSTATE确认；此修复针对已证实的代码/字段冲突，不宣称已在生产MySQL运行。仅本地修改，部署只需AlbumResource.php及测试（无需前端构建或迁移），刷新PHP代码缓存，关闭旧新建窗口重新打开以清除之前隐藏负值。不能通过修改MySQL字段为有符号数或关闭严格模式掩盖问题。
+2026-11-12头像显示修复：个人中心UserCenter::profile原先未提供avatar，UserCenterNav头像仅固定姓名首字；现增加解析后的avatar并渲染裁切圆形图片，缺头像/加载失败回退姓名首字，头像URL改变后可重新加载。User模型实现Filament HasAvatar接口，getFilamentAvatarUrl复用现有avatar展示URL，避免Filament将存储key直接拼成站点根路径。保持avatar_url隐藏、local/COS解析和原上传/删除逻辑，不改身份权限或已有头像数据，无迁移。头像为空时后台沿用Filament默认回退。
+
+头像/资料/用户中心相关21项213断言通过，新增管理员上传后settingsCenter.user.avatar/auth.user.avatar/me.user.avatar一致、后台HTML正确URL及COS CDN地址、移除后null验证（不调用真实COS）。构建通过。实际本地管理员导航与资料页头像同为/storage/avatars/1下同一资源且naturalWidth>0，后台右上角解析为http://127.0.0.1:8000/storage/avatars/1/...且加载成功；未重新上传/修改用户头像。代码本地完成，生产未部署；需提交User/UserCenter/Nav组件CSS及测试、前端重新构建并刷新PHP代码缓存。

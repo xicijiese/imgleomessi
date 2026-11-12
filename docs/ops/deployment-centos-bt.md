@@ -2535,3 +2535,11 @@ CDN只在确认存在旧缓存时定向刷新相关资源，不用全站清缓�
 本批无数据库迁移/依赖变化，必须重新npm run build。按清单提交AlbumResource/ManageAlbums/PublicAlbumIndex、Photos/Show.vue和Show.css、Albums/Show.vue、新增useLightboxBackdrop.ts及测试/现有文档；不要混入独立WordPress插件改动和本地截图。生产先备份并确认git工作区干净，以www执行artisan down，git pull --ff-only origin main，npm run build，检查manifest含app.ts/page-transitions.css/admin-layout.css及文件存在；构建失败保持维护状态。public/build目录755、文件644，缓存命令以www执行optimize:clear/config:cache/route:cache/view:cache；宝塔重启网站PHP服务刷新OPcache后artisan up。无需执行本批不存在的新迁移或历史图片修复。
 
 Ctrl+F5后验收后台调整/完成排序入口，新相册置前及前台默认顺序；只选测试相册验证拖动，因为顺序影响前台。图片详情和相册放大页点图不关、点留白关闭、箭头仍可切换，手机亦核对。前一批事件年份迁移若尚未上线，仍须先按前一批教程执行，不能以本批无迁移替代。此处仅教程，未实际部署生产。
+## 2026-11-12错误页部署补充
+
+提交bootstrap/app.php、resources/js/app.ts、resources/views/errors/archive.blade.php、app/Console/Commands/BuildErrorPages.php、public/errors目录及测试/文档。无迁移；必须npm run build，静态页已生成，若修改模板先本地php artisan errors:build重新生成再提交。生产以www清视图缓存并刷新PHP代码缓存。不要把APP_DEBUG=true用于生产错误页展示。
+
+截图中的Nginx原始404不一定经过Laravel。若生产普通地址的404仍为Nginx白页，先备份宝塔站点配置，检查并替换既有error_page（不要重复定义404）；可配置error_page 404 /errors/404.html;，error_page 500 502 504 /errors/500.html;，error_page 503 /errors/503.html;，并保证location ^~ /errors/ { try_files $uri =404; }在本站public根目录读取静态文件。PHP location的fastcgi_intercept_errors应为off，避免替换Laravel或API JSON错误。还需核对应用路径是否通过try_files $uri $uri/ /index.php?$query_string;到Laravel，不能用错误页设计代替修复路由。具体配置须与现有宝塔PHP include/重写文件核对，本文未直接读取或修改生产配置。先nginx -t成功，再宝塔重载Nginx；验证不存在URL返回404、API仍JSON、正常页面和静态资源不受影响。
+## 2026-11-12头像同步修复增量部署
+
+本批仅发布User.php、UserCenter.php、UserCenterNav.vue/UserCenterNav.css及头像回归测试/相关文档；错误页及WordPress修改属于其他未提交批次，不用git add .混入。无迁移/依赖，原头像保留，无需重新上传。生产备份、确认工作区干净，以www执行artisan down后拉取main，npm run build并检查manifest入口/生成文件；构建失败不开放网站。public/build目录755文件644，以www重建optimize/config/route/view缓存，宝塔重启网站PHP服务后artisan up。Ctrl+F5核对个人中心导航、资料页及Filament右上角同一头像，图片URL应为/storage/avatars/...或配置CDN地址，不是站点根/avatars/...。无须修改存储模式、COS权限或重新生成头像；实际生产尚未部署。

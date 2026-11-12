@@ -27,6 +27,7 @@ interface SummaryPayload {
 
 interface UserPayload {
     name: string;
+    avatar?: string | null;
     email: string;
     status_label: string;
     is_banned: boolean;
@@ -59,6 +60,7 @@ const props = withDefaults(
 );
 
 const navigationOpen = ref(false);
+const failedAvatar = ref<string | null>(null);
 const settingsOpen = ref(true);
 let desktop: MediaQueryList | undefined;
 const syncNavigation = () => {
@@ -121,9 +123,17 @@ const settingsItems = [
 <template>
     <aside v-if="variant === 'archive'" class="center-sidebar">
         <div class="identity">
-            <span class="avatar" aria-hidden="true">{{
-                user.name.slice(0, 1).toUpperCase()
-            }}</span>
+            <span class="avatar" aria-hidden="true">
+                <img
+                    v-if="user.avatar && failedAvatar !== user.avatar"
+                    :src="user.avatar"
+                    alt=""
+                    @error="failedAvatar = user.avatar ?? null"
+                />
+                <template v-else>{{
+                    user.name.slice(0, 1).toUpperCase()
+                }}</template>
+            </span>
             <div>
                 <strong>{{ user.name }}</strong
                 ><span>{{ user.email }}</span>
