@@ -289,7 +289,8 @@ class SystemSettings extends Page
                                             ->required()
                                             ->maxLength(120),
                                         TextInput::make('topic_module.display_count')
-                                            ->label('显示数量')
+                                            ->label('首页显示数量')
+                                            ->helperText('仅限制首页专题模块；专题页面展示全部已启用且链接有效的专题。')
                                             ->numeric()
                                             ->minValue(1)
                                             ->maxValue(12)
@@ -298,13 +299,15 @@ class SystemSettings extends Page
                                     ->columns(3),
                                 Repeater::make('topic_module.items')
                                     ->label('专题展示项')
-                                    ->helperText('专题模型尚未落地前，先保留首页专题展示配置；后续专题切片会升级为专题选择器。')
+                                    ->helperText('在此管理全部专题；首页按显示数量选取，专题页面展示全部已启用且链接有效的专题。')
+                                    ->itemLabel(fn (array $state): string => trim((string) ($state['title'] ?? '')) ?: '未命名专题')
                                     ->schema([
                                         Toggle::make('enabled')
                                             ->label('启用')
                                             ->default(true),
                                         TextInput::make('title')
                                             ->label('专题名称')
+                                            ->live(onBlur: true)
                                             ->required()
                                             ->maxLength(120),
                                         TextInput::make('url')

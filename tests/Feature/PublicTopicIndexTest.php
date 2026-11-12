@@ -12,6 +12,20 @@ class PublicTopicIndexTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_homepage_limit_does_not_limit_topic_index_even_above_homepage_maximum(): void
+    {
+        $items = [];
+        for ($i = 1; $i <= 15; $i++) {
+            $items[] = ['enabled' => true, 'title' => '专题'.$i, 'url' => '/topics/topic-'.$i];
+        }
+        $items[] = ['enabled' => false, 'title' => '停用专题', 'url' => '/topics/disabled'];
+        $this->saveTopicModule(['display_count' => 1, 'items' => $items]);
+        $this->get('/')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('home.topic_module.items', 1)->where('home.topic_module.items.0.title', '专题1'));
+        $this->get('/topics')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('topicIndex.topics.data', 15)->where('topicIndex.topics.data.14.title', '专题15'));
+    }
+
     public function test_guest_can_visit_topic_index_with_configured_topics(): void
     {
         $this->saveTopicModule([
