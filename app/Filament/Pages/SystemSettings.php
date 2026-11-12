@@ -269,7 +269,10 @@ class SystemSettings extends Page
                                             ->required(),
                                         Select::make('latest_photos.pinned_photo_ids')
                                             ->label('指定置顶图片')
-                                            ->options(fn (): array => self::publishedPhotoOptions())
+                                            ->options(fn (Select $component): array => self::publishedPhotoOptions((array) $component->getRawState()))
+                                            ->getSearchResultsUsing(fn (string $search): array => self::searchPublishedPhotos($search))
+                                            ->getOptionLabelsUsing(fn (array $values): array => Photo::query()->published()->whereNotIn('copyright_status', ['restricted', 'remove_requested'])->whereIn('id', $values)->pluck('title', 'id')->all())
+                                            ->validationMessages(['in' => '所选图片已不存在、未发布或不允许公开，请移除后重新选择。'])
                                             ->multiple()
                                             ->searchable()
                                             ->preload()
@@ -327,7 +330,10 @@ class SystemSettings extends Page
                                             ->preload(),
                                         Select::make('photo_ids')
                                             ->label('精选图片')
-                                            ->options(fn (): array => self::publishedPhotoOptions())
+                                            ->options(fn (Select $component): array => self::publishedPhotoOptions((array) $component->getRawState()))
+                                            ->getSearchResultsUsing(fn (string $search): array => self::searchPublishedPhotos($search))
+                                            ->getOptionLabelsUsing(fn (array $values): array => Photo::query()->published()->whereNotIn('copyright_status', ['restricted', 'remove_requested'])->whereIn('id', $values)->pluck('title', 'id')->all())
+                                            ->validationMessages(['in' => '所选图片已不存在、未发布或不允许公开，请移除后重新选择。'])
                                             ->multiple()
                                             ->searchable()
                                             ->preload(),
@@ -509,18 +515,10 @@ class SystemSettings extends Page
             })
             ->getUploadedFileUsing(function (BaseFileUpload $component, string $file, string|array|null $storedFileNames): ?array {
                 $storage = app(PhotoStorage::class);
-                $disk = $storage->diskForKey($file);
-
-                try {
-                    if (! $disk->exists($file)) {
-                        return null;
-                    }
-
-                    $size = (int) $disk->size($file);
-                    $type = $disk->mimeType($file);
-                } catch (Throwable) {
-                    return null;
-                }
+                // 已存图片只返回轻量信息；不在设置页对COS逐张请求文件元数据。
+                $size = 0;
+                $extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+                $type = 'image/'.($extension === 'jpg' ? 'jpeg' : $extension);
 
                 $name = is_array($storedFileNames)
                     ? ($storedFileNames[$file] ?? null)
@@ -533,12 +531,13 @@ class SystemSettings extends Page
                     'url' => Str::sanitizeUrl($storage->url($file)),
                 ];
             })
-            ->deleteUploadedFileUsing(function (string|TemporaryUploadedFile $file): void {
-                if ($file instanceof TemporaryUploadedFile) {
-                    return;
-                }
+            ->previewable(false)
+            ->belowContent(function (BaseFileUpload $component) {
+                $file = collect((array) $component->getRawState())->first();
+                $url = $file instanceof TemporaryUploadedFile ? $file->temporaryUrl()
+                    : (is_string($file) && filled($file) ? app(PhotoStorage::class)->url($file) : null);
 
-                app(PhotoStorage::class)->diskForKey($file)->delete($file);
+                return $url ? view('filament.forms.setting-image-preview', ['url' => Str::sanitizeUrl($url)]) : null;
             });
     }
 
@@ -685,13 +684,14 @@ class SystemSettings extends Page
     /**
      * @return array<int, string>
      */
-    private static function publishedPhotoOptions(): array
+    private static function publishedPhotoOptions(array $selected): array
     {
         return Photo::query()
             ->published()
             ->whereNotIn('copyright_status', ['restricted', 'remove_requested'])
+            ->whereIn('id', collect(Photo::query()->published()->whereNotIn('copyright_status', ['restricted', 'remove_requested'])->latest('published_at')->limit(100)->pluck('id'))
+                ->merge($selected))
             ->latest('published_at')
-            ->limit(100)
             ->get()
             ->mapWithKeys(fn (Photo $photo): array => [
                 $photo->id => $photo->title,
@@ -702,6 +702,13 @@ class SystemSettings extends Page
     /**
      * @return array<int, string>
      */
+    private static function searchPublishedPhotos(string $search): array
+    {
+        return Photo::query()->published()->whereNotIn('copyright_status', ['restricted', 'remove_requested'])
+            ->where(fn ($query) => $query->where('title', 'like', '%'.$search.'%')->orWhere('id', $search))
+            ->latest('published_at')->limit(50)->pluck('title', 'id')->all();
+    }
+
     private static function publishedAlbumOptions(): array
     {
         return Album::query()

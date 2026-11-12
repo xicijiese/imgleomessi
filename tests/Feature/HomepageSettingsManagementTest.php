@@ -11,6 +11,8 @@ use App\Models\User;
 use App\Services\HomepageSettings;
 use App\Services\PublicHomepage;
 use Database\Seeders\GalleryTaxonomySeeder;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Schema;
@@ -23,6 +25,32 @@ use Tests\TestCase;
 class HomepageSettingsManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_old_public_topic_selection_remains_valid_and_missing_cover_can_be_removed(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $old = Photo::create(['title' => '历史精选图片', 'status' => 'published', 'published_at' => now()->subYears(2)]);
+        for ($i = 0; $i < 101; $i++) {
+            Photo::create(['title' => '新图片'.$i, 'status' => 'published', 'published_at' => now()]);
+        }
+        Setting::setValue('home', 'topic_module', ['enabled' => true, 'title' => '专题', 'display_count' => 1, 'items' => [
+            ['title' => '旧专题', 'url' => '/topics/old', 'enabled' => true, 'photo_ids' => [$old->id], 'cover_image_path' => 'settings/topics/missing.webp'],
+        ]]);
+        $page = Livewire::test(SystemSettings::class);
+        $key = array_key_first($page->get('data.topic_module.items'));
+        $page->assertFormFieldExists('topic_module.items.'.$key.'.photo_ids', fn (Select $field): bool => isset($field->getOptions()[$old->id]));
+        $page->assertFormFieldExists('topic_module.items.'.$key.'.cover_image_path', function (FileUpload $field): bool {
+            $files = $field->getUploadedFiles();
+            $this->assertCount(1, $files);
+            $this->assertFalse($field->isPreviewable());
+            $field->removeUploadedFile(array_key_first($field->getRawState()));
+            $this->assertEmpty($field->getRawState());
+
+            return true;
+        });
+        $page->set('data.topic_module.items.'.$key.'.cover_image_path', [])->call('save')->assertHasNoErrors();
+        $this->assertSame([$old->id], Setting::value('home', 'topic_module')['items'][0]['photo_ids']);
+    }
 
     public function test_settings_table_is_created_with_expected_columns(): void
     {
