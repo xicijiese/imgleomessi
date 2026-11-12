@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\User;
 use App\Models\UserLoginHistory;
 use App\Services\QueueWorkerStatus;
+use Filament\Tables\Table;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Queue\Events\Looping;
 use Illuminate\Support\Facades\Event;
@@ -20,6 +21,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Table::configureUsing(fn (Table $table) => $table
+            ->paginationPageOptions([20, 50, 100])
+            ->defaultPaginationPageOption(20));
+
         Event::listen(Looping::class, fn (Looping $event) => app(QueueWorkerStatus::class)->heartbeat($event));
 
         Event::listen(Login::class, function (Login $event): void {

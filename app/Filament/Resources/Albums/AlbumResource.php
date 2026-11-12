@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Albums;
 
+use App\Filament\Forms\CategoryOption;
 use App\Filament\Resources\Albums\Pages\ManageAlbums;
 use App\Models\Album;
 use App\Models\Category;
@@ -219,17 +220,15 @@ class AlbumResource extends Resource
             ->orderBy('id')
             ->get()
             ->map(function (Category $root): Select {
-                return Select::make(self::categoryFieldName((int) $root->id))
+                return CategoryOption::allowCreation(Select::make(self::categoryFieldName((int) $root->id)), $root)
                     ->label($root->name)
-                    ->options($root->children
-                        ->where('visibility', 'public')
-                        ->mapWithKeys(fn (Category $child): array => [$child->id => $child->name])
-                        ->all())
+                    ->multiple(in_array($root->slug, Category::MULTI_SELECT_ROOT_SLUGS, true))
+                    ->options(fn (): array => CategoryOption::options($root))
                     ->searchable()
                     ->preload()
                     ->required($root->required_for_publish)
                     ->markAsRequired($root->required_for_publish)
-                    ->helperText($root->required_for_publish ? '发布前必须选择一个子分类。' : '可选；有可靠资料时再补充。');
+                    ->helperText($root->required_for_publish ? '至少选择一项，支持多选。' : '可选，支持多选。');
             })
             ->all();
     }
@@ -267,7 +266,7 @@ class AlbumResource extends Resource
     public static function categoryIdsFromFormData(array $data): array
     {
         return collect(self::categoryFieldNames())
-            ->map(fn (string $field): mixed => $data[$field] ?? null)
+            ->flatMap(fn (string $field): array => (array) ($data[$field] ?? []))
             ->filter()
             ->map(fn (mixed $id): int => (int) $id)
             ->unique()
@@ -276,19 +275,22 @@ class AlbumResource extends Resource
     }
 
     /**
-     * @return array<string, int|null>
+     * @return array<string, array<int, int>|int|null>
      */
     private static function categoryFormDataFromRecord(Album $record): array
     {
         $selectedByRoot = $record->categories()
             ->children()
-            ->pluck('categories.id', 'parent_id');
+            ->get(['categories.id', 'parent_id'])
+            ->groupBy('parent_id');
 
         return Category::query()
             ->roots()
-            ->pluck('id')
-            ->mapWithKeys(fn (mixed $rootId): array => [
-                self::categoryFieldName((int) $rootId) => $selectedByRoot->get((int) $rootId),
+            ->get(['id', 'slug'])
+            ->mapWithKeys(fn (Category $root): array => [
+                self::categoryFieldName((int) $root->id) => in_array($root->slug, Category::MULTI_SELECT_ROOT_SLUGS, true)
+                    ? $selectedByRoot->get($root->id, collect())->pluck('id')->all()
+                    : $selectedByRoot->get($root->id, collect())->first()?->id,
             ])
             ->all();
     }

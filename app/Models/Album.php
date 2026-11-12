@@ -68,7 +68,7 @@ class Album extends Model
         $selectedByParent = $categories->groupBy('parent_id');
 
         foreach ($requiredRootIds as $rootId) {
-            if ($selectedByParent->get($rootId, collect())->count() !== 1) {
+            if ($selectedByParent->get($rootId, collect())->isEmpty()) {
                 return false;
             }
         }

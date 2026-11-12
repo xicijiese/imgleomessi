@@ -16,11 +16,11 @@ use UnitEnum;
 
 class InteractionStats extends Page implements HasTable
 {
-
     public static function canAccess(): bool
     {
         return auth()->user()?->isAdministrator() ?? false;
     }
+
     use InteractsWithTable;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChartBar;
@@ -88,7 +88,7 @@ class InteractionStats extends Page implements HasTable
             ])
             ->emptyStateHeading('暂无互动数据')
             ->emptyStateDescription('产生点赞、收藏、已发布普通评论或分享记录后，这里会自动展示图片互动排行。')
-            ->paginated([10, 25, 50]);
+            ->paginated([20, 50, 100]);
     }
 
     /**

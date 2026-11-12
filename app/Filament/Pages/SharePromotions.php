@@ -114,7 +114,7 @@ class SharePromotions extends Page implements HasTable
             'visits' => '访问归因','events' => '操作记录', default => '分享链接'
         })->emptyStateHeading(match ($this->tab) {
             'visits' => '暂无有效归因记录','events' => '暂无操作记录', default => '暂无分享链接'
-        })->query($this->dates($query))->columns($columns)->filters([SelectFilter::make('status')->label('归因状态')->options(['valid' => '有效', 'revoked' => '已纠正排除', 'merged' => '身份合并'])->visible($this->tab === 'visits')])->recordActions($actions)->defaultSort('created_at', 'desc')->paginated([15, 30, 50]);
+        })->query($this->dates($query))->columns($columns)->filters([SelectFilter::make('status')->label('归因状态')->options(['valid' => '有效', 'revoked' => '已纠正排除', 'merged' => '身份合并'])->visible($this->tab === 'visits')])->recordActions($actions)->defaultSort('created_at', 'desc')->paginated([20, 50, 100]);
     }
 
     public function visits(): array

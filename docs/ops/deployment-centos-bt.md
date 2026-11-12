@@ -2503,3 +2503,23 @@ CDN只在确认存在旧缓存时定向刷新相关资源，不用全站清缓�
 7. 回退：停用WordPress插件会停止渲染其短代码，已有原生相册不变，重新启用恢复；图库清空哈希并重建配置缓存可关闭接口。不删除图片或文章meta。
 
 独立测试仅证明WordPress核心及插件行为，不代表B2 PRO 5.8.0/Galleria/WPCOS生产兼容或防盗链已完成。未来升级WordPress先复跑chajian/tests蓝图和HTTP检查；明确preferredVersions，不能只依赖Playground CLI --wp/--php显示值。
+
+## WordPress连接401的诊断（1.0.1）
+
+相册样式1.1.0更新：在WordPress后台上传chajian/messi-album-1.1.0.zip，选择替换当前同名插件；原设置、令牌和文章引用保留，旧文章自动切换为大图幻灯片，无需重新插入。清理主题/整页/CDN页面缓存后预览原测试文章，核对大图、前后箭头、底部缩略图、展开及手机效果。本次展示变更不要求图库迁移、重新生成令牌或改COS，兼容原有相册接口；诊断接口更新可按独立需求通过Git发布。禁止上传chajian/tests到WordPress插件目录。
+
+先在图库目录以www执行`/www/server/php/83/bin/php artisan config:cache`后重测，不重新生成令牌。如果仍失败，用户自行Git提交/推送和生产拉取本次诊断更新，并用chajian/messi-album-1.0.1.zip覆盖更新原插件，保留设置与文章引用。新提示区分：wordpress_not_configured为运行配置未加载有效哈希，wordpress_token_missing为未收到Bearer身份头，wordpress_token_mismatch为收到的令牌与运行配置不一致。仅实际缺头后再检查反向代理及PHP请求头转发，不修改COS防盗链、不把令牌放进URL。
+
+执行`/www/server/php/83/bin/php artisan wordpress:album-check`只输出配置格式、缓存状态、环境文件与运行值是否一致，可安全反馈输出；不要发送.env、令牌、哈希或带Authorization的完整请求。WordPress中MESSI_ALBUM_TOKEN常量会覆盖后台填写值。密码框保存后显示空白是正常隐藏行为，留空保存会保留已存令牌；不据此判断保存失败。
+
+## 2026-11-12本批生产更新流程
+
+发布范围：已确认的支持本站/致谢墙正式页，后台八维分类多选与三类快捷新增、时间选项降序、列表20/50/100、上传逐张/批量标题及默认折叠。此批无新增迁移/依赖，无需执行migrate、Seeder或历史图片补生成。前台页面有变化，必须重新npm run build；本地Worker恢复不属于生产代码变更。
+
+本地先按文件选择提交并推送main，确保新文件app/Filament/Forms/CategoryOption.php入库；支持页/致谢墙及其预览路由若一并提交，应包含对应Preview.vue。不要把.scratch/artifacts、.finesse、.taste-skill、.env、SQLite或本地上传图加入提交；工作区另有WordPress插件修改，按其独立发布范围处理，不自动混入图库页面发布。
+
+生产先宝塔备份数据库/网站，进入/www/wwwroot/img.leomessi.cn，umask 022，git status --short确认无待保护改动，git rev-parse HEAD记录旧版本。暂停现有队列守护进程，以www执行PHP8.3 artisan down；git pull --ff-only origin main，确认新分类表单文件存在；npm run build，检查public/build/manifest.json同时含resources/js/app.ts、resources/css/page-transitions.css、resources/css/admin-layout.css及对应构建文件。构建失败不继续开放网站，不用清缓存代替构建。
+
+修复限定目录权限：storage/bootstrap/cache归www:www，目录775、文件664；public/build目录755、文件644。随后以runuser -u www -- /www/server/php/83/bin/php artisan依次执行optimize:clear、config:cache、route:cache、view:cache。宝塔重启现有PHP服务刷新OPcache；artisan up后启动原有队列守护进程。无需修改守护命令、.env存储或COS配置。
+
+验收前台支持页/致谢墙桌面及手机、后台新建/编辑相册多选回填与时间排序、列表默认20、上传命名默认折叠；用少量真实图片验证命名、处理任务和自动发布（仍受分类/版权/派生图条件约束）。若500，获取最新时间对应的日志而非旧堆栈；tail -n 100 storage/logs/laravel.log，检查manifest或权限实际报错后处理，不强制覆盖服务器文件。此文仅为更新教程，尚未连接或部署生产。

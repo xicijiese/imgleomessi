@@ -35,7 +35,7 @@ class PhotoUploadService
             ->all();
 
         $photo = Photo::query()->create(array_merge([
-            'title' => $storedFilename,
+            'title' => filled($attributes['title'] ?? null) ? trim($attributes['title']) : $storedFilename,
             'original_filename' => $file->getClientOriginalName(),
             'stored_filename' => $storedFilename,
             'source_url' => null,
@@ -53,7 +53,7 @@ class PhotoUploadService
             'copyright_status',
             'publish_after_processing',
         ]), [
-            'title' => $storedFilename,
+            'title' => filled($attributes['title'] ?? null) ? trim($attributes['title']) : $storedFilename,
             'status' => 'draft',
             'original_filename' => $file->getClientOriginalName(),
             'stored_filename' => $storedFilename,

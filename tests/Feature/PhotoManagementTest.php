@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\Albums\Pages\ManageAlbums;
 use App\Filament\Resources\Photos\Pages\ManagePhotos;
 use App\Filament\Resources\Photos\PhotoResource;
+use App\Filament\Resources\PhotoUploadBatches\Pages\ManagePhotoUploadBatches;
 use App\Jobs\ProcessPhotoAnalysisJob;
 use App\Models\Album;
 use App\Models\Category;
@@ -25,7 +27,74 @@ class PhotoManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_upload_saves_multiple_values_for_the_four_supported_category_roots(): void
+    public function test_batch_names_can_be_applied_and_overridden_per_picture(): void
+    {
+        Storage::fake('public');
+        Queue::fake();
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $component = Livewire::test(ManagePhotos::class)->mountAction('bulkUpload')
+            ->fillForm(['files' => [UploadedFile::fake()->image('one.jpg'), UploadedFile::fake()->image('two.jpg')], 'publish_mode' => 'draft', 'batch_title' => '庆祝']);
+        $component->callAction(TestAction::make('applyBatchNames')->schemaComponent())->assertHasNoActionErrors();
+        $files = array_values($component->get('mountedActions.0.data.files'));
+        $key = hash('sha256', $files[0]->getPathname());
+        $component->assertSet('mountedActions.0.data.file_titles.'.$key, '庆祝 01');
+        $component->set('mountedActions.0.data.file_titles.'.$key, '单独命名')->callMountedAction()->assertHasNoActionErrors();
+        $this->assertSame(['单独命名', '庆祝 02'], Photo::orderBy('id')->pluck('title')->all());
+    }
+
+    public function test_upload_titles_follow_files_after_reordering_and_removing_files(): void
+    {
+        Storage::fake('public');
+        Queue::fake();
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $component = Livewire::test(ManagePhotos::class)->mountAction('bulkUpload')
+            ->fillForm(['files' => [UploadedFile::fake()->image('same.jpg'), UploadedFile::fake()->image('same.jpg'), UploadedFile::fake()->image('removed.jpg')], 'publish_mode' => 'draft']);
+        $files = array_values($component->get('mountedActions.0.data.files'));
+        $first = hash('sha256', $files[0]->getPathname());
+        $second = hash('sha256', $files[1]->getPathname());
+        $component->set('mountedActions.0.data.file_titles.'.$first, '第一张自定义')
+            ->set('mountedActions.0.data.file_titles.'.$second, '第二张自定义')
+            ->set('mountedActions.0.data.files', ['second' => $files[1], 'first' => $files[0]])
+            ->callMountedAction()->assertHasNoActionErrors();
+        $photos = Photo::orderBy('id')->get();
+        $this->assertSame(['第二张自定义', '第一张自定义'], $photos->pluck('title')->all());
+        foreach ($photos as $photo) {
+            $this->assertSame('same.jpg', $photo->original_filename);
+            $this->assertNotSame($photo->title, $photo->stored_filename);
+            Storage::disk('public')->assertExists($photo->original_key);
+        }
+    }
+
+    public function test_backend_lists_default_to_twenty_and_discard_legacy_ten_preference(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        foreach ([ManagePhotos::class, ManageAlbums::class, ManagePhotoUploadBatches::class] as $page) {
+            session()->put('tables.'.md5($page).'_per_page', 10);
+            $component = Livewire::test($page);
+            $component->assertSet('tableRecordsPerPage', 20);
+            $this->assertSame([20, 50, 100], $component->instance()->getTable()->getPaginationPageOptions());
+        }
+    }
+
+    public function test_upload_can_add_custom_categories_and_reject_blank_names(): void
+    {
+        $this->seed(GalleryTaxonomySeeder::class);
+        $this->actingAs(User::factory()->create(['role' => 'editor', 'status' => 'active']));
+        foreach (['scene', 'image-type', 'person-relation'] as $slug) {
+            $root = Category::where('slug', $slug)->sole();
+            $field = 'category_root_'.$root->id;
+            $component = Livewire::test(ManagePhotos::class)->mountAction('bulkUpload');
+            $action = TestAction::make('createOption')->schemaComponent($field, 'mountedActionSchema0');
+            $component->callAction($action, ['name' => '新增上传选项'])->assertHasNoActionErrors();
+            $option = $root->children()->where('name', '新增上传选项')->sole();
+            $component->assertSet('mountedActions.0.data.'.$field, [$option->id]);
+        }
+        $component = Livewire::test(ManagePhotos::class)->mountAction('bulkUpload');
+        $component->callAction($action, ['name' => '   '])->assertHasActionErrors(['name']);
+        $this->assertSame(0, Category::where('name', '')->count());
+    }
+
+    public function test_upload_saves_multiple_values_for_all_eight_category_roots(): void
     {
         Storage::fake('public');
         Queue::fake();

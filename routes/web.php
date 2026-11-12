@@ -58,6 +58,20 @@ Route::get('/photos', PhotoGalleryController::class)->name('photos.index');
 Route::get('/photos/{uuid}', PhotoDetailController::class)->name('photos.show');
 Route::get('/rankings', RankingController::class)->name('rankings.index');
 Route::get('/support', SupportController::class)->name('support.index');
+
+if (app()->environment('local')) {
+    Route::get('/preview/supporters', function (\App\Services\PublicSponsorship $sponsorship) {
+        $payload = $sponsorship->supporterWall();
+        return \Inertia\Inertia::render('Supporters/Preview', ['supportersPage' => $payload]);
+    });
+    Route::get('/preview/support', function (\Illuminate\Http\Request $request, \App\Services\PublicSponsorship $sponsorship) {
+        return \Inertia\Inertia::render('Support/Preview', [
+            'support' => $sponsorship->supportPage($request->user()),
+
+        ]);
+    });
+}
+
 Route::get('/supporters', SupporterWallController::class)->name('supporters.index');
 Route::redirect('/badges', '/me/badges/hall')->name('badges.index');
 Route::post('/photos/{uuid}/shares', [PhotoShareController::class, 'store'])->name('photos.shares.store');

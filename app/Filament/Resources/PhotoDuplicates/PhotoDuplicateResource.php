@@ -118,7 +118,7 @@ class PhotoDuplicateResource extends Resource
             });
 
         return $table->extraAttributes(['class' => 'admin-content-table'])->columns($columns)->recordActions($actions)->filters([$filter])
-            ->defaultSort('distance')->paginated([20, 50])->defaultPaginationPageOption(20)
+            ->defaultSort('distance')->paginated([20, 50, 100])->defaultPaginationPageOption(20)
             ->emptyStateHeading('暂无疑似重复图片')
             ->emptyStateDescription('点击“开始检查”，在后台检查现有图片；检查不会自动删除图片。');
     }

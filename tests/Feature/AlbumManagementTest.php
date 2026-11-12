@@ -4,11 +4,15 @@ namespace Tests\Feature;
 
 use App\Filament\Resources\Albums\AlbumResource;
 use App\Filament\Resources\Albums\Pages\ManageAlbums;
+use App\Filament\Resources\Photos\Pages\ManagePhotos;
 use App\Models\Album;
 use App\Models\Category;
+use App\Models\Photo;
 use App\Models\User;
+use App\Services\PhotoBatchOrganizer;
 use Database\Seeders\GalleryTaxonomySeeder;
 use Filament\Actions\Testing\TestAction;
+use Filament\Forms\Components\Select;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -18,6 +22,63 @@ use Tests\TestCase;
 class AlbumManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_album_and_upload_time_options_are_sorted_newest_first(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        foreach (['season' => ['04/05赛季', '22/23赛季', '2026赛季', '2025赛季', '待补充'], 'year' => ['2003年之前', '2028年', '2028年之后', '2026年', '待补充']] as $slug => $names) {
+            $root = Category::create(['name' => $slug, 'slug' => $slug]);
+            foreach ($names as $index => $name) {
+                Category::create(['name' => $name, 'slug' => $slug.'-'.$index, 'parent_id' => $root->id]);
+            }
+            $expected = $slug === 'season' ? ['2026赛季', '2025赛季', '22/23赛季', '04/05赛季', '待补充'] : ['2028年之后', '2028年', '2026年', '2003年之前', '待补充'];
+            foreach ([ManageAlbums::class => 'create', ManagePhotos::class => 'bulkUpload'] as $page => $action) {
+                Livewire::test($page)->mountAction($action)->assertFormFieldExists('category_root_'.$root->id,
+                    fn (Select $field): bool => array_values($field->getOptions()) === $expected);
+            }
+        }
+    }
+
+    public function test_album_saves_all_eight_multiple_categories_and_preserves_them_when_editing_title(): void
+    {
+        $this->seed(GalleryTaxonomySeeder::class);
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $data = ['title' => '多分类相册', 'slug' => 'multi-category-album'];
+        $expected = [];
+        foreach (Category::roots()->get() as $root) {
+            $ids = $root->children()->limit(1)->pluck('id')->all();
+            $ids[] = Category::create(['parent_id' => $root->id, 'name' => '新增选项', 'slug' => 'multi-'.$root->slug])->id;
+            $data['category_root_'.$root->id] = $ids;
+            $expected = array_merge($expected, $ids);
+        }
+        Livewire::test(ManageAlbums::class)->callAction('create', $data)->assertHasNoActionErrors();
+        $album = Album::sole();
+        $this->assertEqualsCanonicalizing($expected, $album->categories()->pluck('categories.id')->all());
+        $this->assertTrue($album->hasCompleteCategorySet());
+        Livewire::test(ManageAlbums::class)->callAction(TestAction::make('edit')->table($album), ['title' => '修改名称'])->assertHasNoActionErrors();
+        $this->assertEqualsCanonicalizing($expected, $album->categories()->pluck('categories.id')->all());
+        $photo = Photo::create(['title' => '继承相册分类']);
+        $photo->categories()->sync($album->categories()->pluck('categories.id'));
+        $this->assertTrue($photo->hasCompleteCategorySet());
+        $this->assertTrue(app(PhotoBatchOrganizer::class)->isCompleteCategorySet($expected));
+    }
+
+    public function test_album_can_create_and_select_custom_scene_without_duplicate_categories(): void
+    {
+        $this->seed(GalleryTaxonomySeeder::class);
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        foreach (['scene', 'image-type', 'person-relation'] as $slug) {
+            $root = Category::where('slug', $slug)->sole();
+            $field = 'category_root_'.$root->id;
+            $component = Livewire::test(ManageAlbums::class)->mountAction('create');
+            $action = TestAction::make('createOption')->schemaComponent($field, 'mountedActionSchema0');
+            $component->callAction($action, ['name' => '自定义测试项'])->assertHasNoActionErrors();
+            $option = $root->children()->where('name', '自定义测试项')->sole();
+            $component->assertSet('mountedActions.0.data.'.$field, [$option->id]);
+            $component->callAction($action, ['name' => '自定义测试项'])->assertHasNoActionErrors();
+            $this->assertSame(1, $root->children()->where('name', '自定义测试项')->count());
+        }
+    }
 
     public function test_create_defaults_to_published_and_generates_unique_pinyin_slug_without_changing_existing_links(): void
     {

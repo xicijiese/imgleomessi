@@ -24,7 +24,7 @@ class Category extends Model
     /**
      * 发布图片时必须填写的主分类。其他主分类保留为可选资料维度。
      */
-    public const MULTI_SELECT_ROOT_SLUGS = ['scene', 'image-type', 'person-relation', 'source-platform'];
+    public const MULTI_SELECT_ROOT_SLUGS = ['career-stage', 'competition', 'season', 'year', 'scene', 'image-type', 'person-relation', 'source-platform'];
 
     public const REQUIRED_ROOT_SLUGS = [
         'career-stage',

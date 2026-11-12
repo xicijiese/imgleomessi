@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Photos;
 
+use App\Filament\Forms\CategoryOption;
 use App\Filament\Resources\Photos\Pages\ManagePhotos;
 use App\Models\Album;
 use App\Models\Category;
@@ -502,13 +503,10 @@ class PhotoResource extends Resource
             ->get()
             ->map(function (Category $root): Select {
 
-                return Select::make(self::categoryFieldName((int) $root->id))
+                return CategoryOption::allowCreation(Select::make(self::categoryFieldName((int) $root->id)), $root)
                     ->label($root->name)
                     ->multiple(in_array($root->slug, Category::MULTI_SELECT_ROOT_SLUGS, true))
-                    ->options($root->children
-                        ->where('visibility', 'public')
-                        ->mapWithKeys(fn (Category $child): array => [$child->id => $child->name])
-                        ->all())
+                    ->options(fn (): array => CategoryOption::options($root))
                     ->searchable()
                     ->preload()
                     ->markAsRequired($root->required_for_publish)
@@ -577,7 +575,7 @@ class PhotoResource extends Resource
                 if (($selectedByParent->get($rootId, collect())->isEmpty()
                 || ($selectedByParent->get($rootId, collect())->count() > 1
                     && ! in_array(Category::find($rootId)?->slug, Category::MULTI_SELECT_ROOT_SLUGS, true)))) {
-                    $fail('发布前必须选择生涯阶段、年份各一个子分类，并至少选择一个场景。');
+                    $fail('发布前生涯阶段、年份和场景必须各至少选择一项。');
 
                     return;
                 }
@@ -585,7 +583,7 @@ class PhotoResource extends Resource
 
             if ($selectedByParent->contains(fn ($selected, $rootId): bool => $selected->count() > 1
                 && ! in_array(Category::find($rootId)?->slug, Category::MULTI_SELECT_ROOT_SLUGS, true))) {
-                $fail('生涯阶段、赛事、赛季和年份最多选择一个子分类。');
+                $fail('该主分类不支持多选。');
             }
         };
     }

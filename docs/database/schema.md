@@ -856,3 +856,6 @@ comments.parent_id现用于两级讨论，始终指向同一图片的主评论�
 新增comment_likes：comment_id关联comments、user_id关联users，二者组成联合主键，created_at记录时间；外键级联清除只在记录被物理删除时发生。点赞/取消在评论行锁内幂等写入并重算该评论计数。新评论/回复仍默认pending，公开列表不返回他人待审内容；本人待审只随本人图片详情返回。不存在公开三级回复。
 
 2026-11-09敏感词导入数据：沿用sensitive_words，新增词填写word/severity=medium/is_enabled=true/internal_note=来源版本。现有settings新增group=moderation、key=lexicon_import，其value含completed=true/source_commit/imported_at，表明后台数据库已成为普通评论词库事实源。导入记录与标记同事务提交，不新增表/字段；不覆盖原规则，导入后后台删除不会被命令重复恢复。
+
+
+2026-11-12后台分类选择补充：album_category和photo_category沿用现有多对多关系；八个系统主分类均允许关联多个子分类，必填维度各至少一项。场景、图片类型、人物关系可在后台图片/相册表单即时新增公开非系统子分类，同主分类公开同名复用，不自动恢复隐藏项。无数据库字段或迁移变化。

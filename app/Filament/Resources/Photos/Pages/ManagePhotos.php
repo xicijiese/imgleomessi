@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Photos\Pages;
 
+use App\Filament\Forms\CategoryOption;
 use App\Filament\Resources\Photos\PhotoResource;
 use App\Models\Album;
 use App\Models\Category;
@@ -15,12 +16,16 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\ImageEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ManageRecords;
+use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Http\UploadedFile;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class ManagePhotos extends ManageRecords
 {
@@ -43,7 +48,34 @@ class ManagePhotos extends ManageRecords
                             ->image()
                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
                             ->storeFiles(false)
+                            ->live()
+                            ->reorderable()
                             ->required(),
+                        Section::make('图片名称')
+                            ->collapsible()
+                            ->collapsed()
+                            ->description('可逐张修改；留空沿用系统自动名称，不改变原文件和存储地址。')
+                            ->visible(fn (Get $get): bool => filled($get('files')))
+                            ->schema(fn (Get $get): array => [
+                                TextInput::make('batch_title')->label('批量名称')->maxLength(250)
+                                    ->dehydrated(false)->placeholder('例如：世界杯决赛庆祝'),
+                                Actions::make([
+                                    Action::make('applyBatchNames')->label('批量填入名称')
+                                        ->action(function (Get $get, Set $set): void {
+                                            $base = trim((string) $get('batch_title'));
+                                            if ($base === '') {
+                                                return;
+                                            }
+                                            $index = 1;
+                                            foreach ((array) $get('files') as $file) {
+                                                if ($file instanceof UploadedFile) {
+                                                    $set('file_titles.'.self::fileTitleKey($file), $base.' '.str_pad((string) $index++, 2, '0', STR_PAD_LEFT));
+                                                }
+                                            }
+                                        }),
+                                ]),
+                                ...self::fileTitleFields((array) $get('files')),
+                            ])->columnSpanFull(),
                         Section::make('图片分类与相册')
                             ->schema([
                                 ...self::categorySelectors(),
@@ -149,6 +181,7 @@ class ManagePhotos extends ManageRecords
                     foreach ($files as $file) {
                         try {
                             $photoUploadService->store($file, $album, $uploader, $batch, [
+                                'title' => $data['file_titles'][self::fileTitleKey($file)] ?? null,
                                 'source_url' => filled($data['source_url'] ?? null) ? $data['source_url'] : null,
                                 'copyright_status' => $data['copyright_status'] ?? 'unknown',
                                 'publish_after_processing' => $publishAfterProcessing,
@@ -194,6 +227,32 @@ class ManagePhotos extends ManageRecords
         ];
     }
 
+    private static function fileTitleKey(UploadedFile $file): string
+    {
+        return hash('sha256', $file->getPathname());
+    }
+
+    private static function fileTitleFields(array $files): array
+    {
+        $fields = [];
+        foreach ($files as $file) {
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+            $key = self::fileTitleKey($file);
+            $fields[] = Grid::make(['default' => 1, 'sm' => 5])->schema([
+                ImageEntry::make('file_preview_'.$key)->hiddenLabel()
+                    ->state($file instanceof TemporaryUploadedFile ? $file->temporaryUrl() : null)
+                    ->imageHeight(72)->imageWidth(96),
+                TextInput::make('file_titles.'.$key)->label('图片名称')->maxLength(255)
+                    ->helperText('原文件：'.$file->getClientOriginalName())
+                    ->placeholder('留空使用系统自动名称')->columnSpan(['sm' => 4]),
+            ]);
+        }
+
+        return $fields;
+    }
+
     /**
      * @return array<int, mixed>
      */
@@ -206,13 +265,10 @@ class ManagePhotos extends ManageRecords
             ->orderBy('id')
             ->get()
             ->map(function (Category $root): Select {
-                return Select::make(self::categoryFieldName((int) $root->id))
+                return CategoryOption::allowCreation(Select::make(self::categoryFieldName((int) $root->id)), $root)
                     ->label($root->name)
                     ->multiple(in_array($root->slug, Category::MULTI_SELECT_ROOT_SLUGS, true))
-                    ->options($root->children
-                        ->where('visibility', 'public')
-                        ->mapWithKeys(fn (Category $child): array => [$child->id => $child->name])
-                        ->all())
+                    ->options(fn (): array => CategoryOption::options($root))
                     ->searchable()
                     ->preload()
                     ->markAsRequired($root->required_for_publish)
