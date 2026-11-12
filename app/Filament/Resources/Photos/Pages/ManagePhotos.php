@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Photos\Pages;
 
 use App\Filament\Forms\CategoryOption;
+use App\Filament\Forms\EventDate;
 use App\Filament\Resources\Photos\PhotoResource;
 use App\Models\Album;
 use App\Models\Category;
@@ -88,10 +89,8 @@ class ManagePhotos extends ManageRecords
                                     ->searchable()
                                     ->preload()
                                     ->live()
-                                    ->columnSpanFull()
                                     ->helperText('可直接选择分类，也可以只选择相册；选择相册后图片自动继承相册分类。'),
                                 Select::make('tag_ids')
-                                    ->columnSpanFull()
                                     ->label('标签')
                                     ->options(fn (): array => Tag::query()->orderBy('name')->pluck('name', 'id')->all())
                                     ->multiple()
@@ -109,6 +108,7 @@ class ManagePhotos extends ManageRecords
                             ])
                             ->columns(2)
                             ->columnSpanFull(),
+                        EventDate::field()->columnSpanFull(),
                         Section::make('来源与发布')->schema([
                             TextInput::make('source_url')
                                 ->columnSpanFull()
@@ -182,6 +182,7 @@ class ManagePhotos extends ManageRecords
                         try {
                             $photoUploadService->store($file, $album, $uploader, $batch, [
                                 'title' => $data['file_titles'][self::fileTitleKey($file)] ?? null,
+                                'event_date' => $data['event_date'] ?? null,
                                 'source_url' => filled($data['source_url'] ?? null) ? $data['source_url'] : null,
                                 'copyright_status' => $data['copyright_status'] ?? 'unknown',
                                 'publish_after_processing' => $publishAfterProcessing,

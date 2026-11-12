@@ -21,6 +21,19 @@ class PublicTimelineTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_year_only_event_is_in_correct_year_without_inventing_month_or_using_publication_year(): void
+    {
+        $photo = $this->publicPhoto('历史年份图片', ['event_date' => '2008', 'published_at' => now()]);
+        $this->assertNull($photo->fresh()->event_date);
+        $this->assertSame(2008, $photo->fresh()->event_year);
+        $this->get('/timeline')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('timeline.years.0.year', 2008)->has('timeline.years.0.months', 0)
+            ->where('timeline.latest_photos.0.event_date', '2008年'));
+        $this->get('/timeline/2008')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('timeline.photos.data', 1)->where('timeline.photos.data.0.event_date', '2008年'));
+        $this->get('/timeline/2008/01')->assertOk()->assertInertia(fn (Assert $page) => $page->has('timeline.photos.data', 0));
+    }
+
     public function test_guest_can_visit_timeline_index_with_year_groups(): void
     {
         $public2022 = $this->publicPhoto('2022 世界杯决赛', [

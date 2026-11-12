@@ -49,7 +49,7 @@ class PublicTimeline
             'years' => $years,
             'latest_photos' => (clone $this->publicDatedPhotosQuery())
                 ->with(['albums' => fn ($query) => $query->where('albums.status', 'published')->orderBy('albums.sort_order')->orderBy('albums.id'), 'categories.parent', 'tags'])
-                ->orderByDesc('event_date')
+                ->orderByRaw('COALESCE(CAST(photos.event_year AS CHAR), SUBSTR(photos.event_date, 1, 4)) DESC')->orderByDesc('event_date')
                 ->orderByDesc('published_at')
                 ->orderByDesc('id')
                 ->limit(12)
@@ -68,7 +68,7 @@ class PublicTimeline
         $this->abortIfInvalidYear($year);
 
         $filters = $this->filters($request);
-        $query = $this->filteredPhotosQuery($filters)->whereYear('event_date', $year);
+        $query = $this->filteredPhotosQuery($filters)->forEventYear($year);
         $this->applySort($query, $filters['sort']);
 
         /** @var LengthAwarePaginator<int, Photo> $paginator */
@@ -114,7 +114,7 @@ class PublicTimeline
 
         $filters = $this->filters($request);
         $query = $this->filteredPhotosQuery($filters)
-            ->whereYear('event_date', $year)
+            ->forEventYear($year)
             ->whereMonth('event_date', $month);
         $this->applySort($query, $filters['sort']);
 
@@ -243,7 +243,7 @@ class PublicTimeline
     {
         return Photo::query()
             ->published()
-            ->whereNotNull('event_date')
+            ->where(fn ($q) => $q->whereNotNull('event_date')->orWhereNotNull('event_year'))
             ->whereNotIn('copyright_status', ['restricted', 'remove_requested']);
     }
 
@@ -263,7 +263,7 @@ class PublicTimeline
 
     private function publicDatedPhotoConstraint($query)
     {
-        return $this->publicPhotoConstraint($query)->whereNotNull('photos.event_date');
+        return $this->publicPhotoConstraint($query)->where(fn ($q) => $q->whereNotNull('photos.event_date')->orWhereNotNull('photos.event_year'));
     }
 
     /**
@@ -272,11 +272,11 @@ class PublicTimeline
     private function yearSummaries(): array
     {
         return (clone $this->publicDatedPhotosQuery())
-            ->orderByDesc('event_date')
+            ->orderByRaw('COALESCE(CAST(photos.event_year AS CHAR), SUBSTR(photos.event_date, 1, 4)) DESC')->orderByDesc('event_date')
             ->orderByDesc('published_at')
             ->orderByDesc('id')
-            ->get(['id', 'uuid', 'title', 'display_key', 'thumbnail_key', 'original_key', 'event_date', 'published_at'])
-            ->groupBy(fn (Photo $photo): string => $photo->event_date?->format('Y') ?? '')
+            ->get(['id', 'uuid', 'title', 'display_key', 'thumbnail_key', 'original_key', 'event_date', 'event_year', 'published_at'])
+            ->groupBy(fn (Photo $photo): string => (string) ($photo->event_date?->year ?? $photo->event_year ?? ''))
             ->filter(fn ($photos, string $year): bool => $year !== '')
             ->map(function ($photos, string $year): array {
                 $cover = $photos->first();
@@ -315,11 +315,11 @@ class PublicTimeline
     private function monthSummaries(int $year, array $filters): array
     {
         return $this->filteredDatedPhotosQuery($filters)
-            ->whereYear('event_date', $year)
-            ->orderByDesc('event_date')
+            ->forEventYear($year)
+            ->orderByRaw('COALESCE(CAST(photos.event_year AS CHAR), SUBSTR(photos.event_date, 1, 4)) DESC')->orderByDesc('event_date')
             ->orderByDesc('published_at')
             ->orderByDesc('id')
-            ->get(['id', 'title', 'display_key', 'thumbnail_key', 'original_key', 'event_date', 'published_at'])
+            ->get(['id', 'title', 'display_key', 'thumbnail_key', 'original_key', 'event_date', 'event_year', 'published_at'])
             ->groupBy(fn (Photo $photo): string => $photo->event_date?->format('n') ?? '')
             ->filter(fn ($photos, string $month): bool => $month !== '')
             ->map(function ($photos, string $month) use ($year): array {
@@ -383,7 +383,7 @@ class PublicTimeline
 
     private function periodPhotoConstraint($query, int $year, ?int $month)
     {
-        $query = $this->publicDatedPhotoConstraint($query)->whereYear('photos.event_date', $year);
+        $query = $this->publicDatedPhotoConstraint($query)->forEventYear($year);
 
         if ($month !== null) {
             $query->whereMonth('photos.event_date', $month);
@@ -506,10 +506,10 @@ class PublicTimeline
     private function applySort(Builder $query, string $sort): void
     {
         match ($sort) {
-            'event_asc' => $query->orderBy('event_date')->orderBy('published_at')->orderBy('id'),
+            'event_asc' => $query->orderByRaw('COALESCE(CAST(photos.event_year AS CHAR), SUBSTR(photos.event_date, 1, 4)) ASC')->orderBy('event_date')->orderBy('published_at')->orderBy('id'),
             'published_desc' => $query->orderByDesc('published_at')->orderByDesc('created_at')->orderByDesc('id'),
-            'hot_desc' => $query->orderByRaw('(favorites_count * 4 + likes_count * 3 + published_comments_count * 2 + shares_count) desc')->orderByDesc('event_date')->orderByDesc('id'),
-            default => $query->orderByDesc('event_date')->orderByDesc('published_at')->orderByDesc('id'),
+            'hot_desc' => $query->orderByRaw('(favorites_count * 4 + likes_count * 3 + published_comments_count * 2 + shares_count) desc')->orderByRaw('COALESCE(CAST(photos.event_year AS CHAR), SUBSTR(photos.event_date, 1, 4)) DESC')->orderByDesc('event_date')->orderByDesc('id'),
+            default => $query->orderByRaw('COALESCE(CAST(photos.event_year AS CHAR), SUBSTR(photos.event_date, 1, 4)) DESC')->orderByDesc('event_date')->orderByDesc('published_at')->orderByDesc('id'),
         };
     }
 
@@ -589,7 +589,7 @@ class PublicTimeline
             'url' => '/photos/'.$photo->uuid,
             'image_url' => PublicMediaUrl::thumbnail($photo),
             'alt' => filled($photo->title) ? $photo->title : '梅西图片档案',
-            'event_date' => $photo->event_date?->toDateString(),
+            'event_date' => $photo->eventDateLabel(),
             'published_at' => $photo->published_at?->toDateString(),
             'category_summary' => $categories->pluck('name')->take(3)->implode(' / '),
             'categories' => $categories->all(),

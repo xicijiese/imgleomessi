@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Photos;
 
 use App\Filament\Forms\CategoryOption;
+use App\Filament\Forms\EventDate;
 use App\Filament\Resources\Photos\Pages\ManagePhotos;
 use App\Models\Album;
 use App\Models\Category;
@@ -20,7 +21,6 @@ use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -93,8 +93,7 @@ class PhotoResource extends Resource
                                     DateTimePicker::make('taken_at')
                                         ->label('拍摄时间')
                                         ->seconds(false),
-                                    DatePicker::make('event_date')
-                                        ->label('事件日期'),                    TextInput::make('source_url')
+                                    EventDate::field(),                    TextInput::make('source_url')
                                         ->columnSpanFull()
                                         ->label('来源链接')
                                         ->url()
@@ -252,7 +251,7 @@ class PhotoResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => Photo::COPYRIGHT_STATUSES[$state] ?? $state)
                     ->sortable(),
-                TextColumn::make('event_date')
+                TextColumn::make('event_date')->formatStateUsing(fn ($state, Photo $record) => $record->eventDateLabel())->placeholder(fn (Photo $record) => $record->eventDateLabel() ?? '待补充')
                     ->label('事件日期')
                     ->date('Y-m-d')
                     ->sortable()
@@ -291,6 +290,13 @@ class PhotoResource extends Resource
             ->defaultSort('updated_at', 'desc')
             ->toolbarActions([
                 BulkActionGroup::make([
+                    BulkAction::make('bulkEventDate')
+                        ->label('批量修改事件日期')
+                        ->schema([EventDate::field()->required()])
+                        ->action(function (Collection $records, array $data, PhotoBatchOrganizer $organizer): void {
+                            $result = $organizer->updateCommonFields($records, ['event_date' => $data['event_date']]);
+                            Notification::make()->title('已更新 '.$result['updated'].' 张图片的事件日期')->success()->send();
+                        }),
                     BulkAction::make('bulkSourceUrl')
                         ->label('批量修改来源链接')
                         ->schema([

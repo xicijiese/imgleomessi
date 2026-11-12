@@ -337,7 +337,7 @@ class PublicPhotoDetail
             'image_url' => PublicMediaUrl::display($photo),
             'alt' => filled($photo->title) ? $photo->title : '梅西图片档案',
             'taken_at' => $photo->taken_at?->format('Y-m-d H:i'),
-            'event_date' => $photo->event_date?->toDateString(),
+            'event_date' => $photo->eventDateLabel(),
             'published_at' => $photo->published_at?->toDateString(),
             'copyright_status' => [
                 'value' => $photo->copyright_status,
@@ -411,7 +411,7 @@ class PublicPhotoDetail
             'url' => $this->photoUrl($photo, $context),
             'image_url' => PublicMediaUrl::thumbnail($photo),
             'alt' => filled($photo->title) ? $photo->title : '梅西图片档案',
-            'event_date' => $photo->event_date?->toDateString(),
+            'event_date' => $photo->eventDateLabel(),
             'published_at' => $photo->published_at?->toDateString(),
         ];
     }

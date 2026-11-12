@@ -205,7 +205,7 @@ class PublicTopicDetail
             'url' => '/photos/'.$photo->uuid.'?topic='.rawurlencode($slug),
             'image_url' => PublicMediaUrl::thumbnail($photo),
             'alt' => filled($photo->title) ? $photo->title : '梅西图片档案',
-            'event_date' => $photo->event_date?->toDateString(),
+            'event_date' => $photo->eventDateLabel(),
             'published_at' => $photo->published_at?->toDateString(),
             'category_summary' => $categories->pluck('name')->take(3)->implode(' / '),
             'categories' => $categories->all(),

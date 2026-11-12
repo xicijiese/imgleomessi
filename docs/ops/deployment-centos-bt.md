@@ -2523,3 +2523,10 @@ CDN只在确认存在旧缓存时定向刷新相关资源，不用全站清缓�
 修复限定目录权限：storage/bootstrap/cache归www:www，目录775、文件664；public/build目录755、文件644。随后以runuser -u www -- /www/server/php/83/bin/php artisan依次执行optimize:clear、config:cache、route:cache、view:cache。宝塔重启现有PHP服务刷新OPcache；artisan up后启动原有队列守护进程。无需修改守护命令、.env存储或COS配置。
 
 验收前台支持页/致谢墙桌面及手机、后台新建/编辑相册多选回填与时间排序、列表默认20、上传命名默认折叠；用少量真实图片验证命名、处理任务和自动发布（仍受分类/版权/派生图条件约束）。若500，获取最新时间对应的日志而非旧堆栈；tail -n 100 storage/logs/laravel.log，检查manifest或权限实际报错后处理，不强制覆盖服务器文件。此文仅为更新教程，尚未连接或部署生产。
+## 2026-11-12事件日期年份精度生产部署
+
+此批新增EventDate.php和2026_11_12_000001_add_event_year_to_photos.php，必须随图片模型、上传/编辑、公共详情/列表及PublicTimeline服务一并提交，不能只更新表单。无依赖或前端源码变化，不需要npm构建、安装依赖或重生成图片。
+
+先在本地按相关文件提交推送main，排除独立WordPress工作区及临时文件。生产宝塔备份数据库后，暂停现有队列守护；项目目录内记录旧git版本、确认工作区干净，以www执行artisan down，git pull --ff-only origin main。再以runuser -u www -- /www/server/php/83/bin/php artisan migrate --path=database/migrations/2026_11_12_000001_add_event_year_to_photos.php --force新增可空事件年份及索引，不回填历史日期。成功后以www执行optimize:clear/config:cache/route:cache/view:cache，重启现有PHP服务刷新代码缓存，artisan up并启动原守护进程。任一步失败保留维护状态，不继续恢复网站或强制覆盖代码。
+
+验收上传相册/标签左右排列、输入完整日期/仅年份、批量更新指定图片、年份图片进入相应年份而不进具体月份；生产真实图片改日期前先选测试记录，不执行全库批量覆盖。只知年份保存为event_year，event_date为空；旧完整日期保持不变。不要migrate:rollback删除已填的年份字段。此处仅更新操作教程，未部署生产。

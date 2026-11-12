@@ -49,6 +49,7 @@ class PhotoUploadService
             'uploaded_by' => $uploader?->id,
             'photo_upload_batch_id' => $batch?->id,
         ], Arr::only($attributes, [
+            'event_date',
             'source_url',
             'copyright_status',
             'publish_after_processing',

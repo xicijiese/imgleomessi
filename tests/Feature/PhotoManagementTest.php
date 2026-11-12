@@ -27,6 +27,26 @@ class PhotoManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_upload_and_bulk_edit_accept_year_or_exact_event_date_and_reject_invalid_date(): void
+    {
+        Storage::fake('public');
+        Queue::fake();
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        Livewire::test(ManagePhotos::class)->callAction('bulkUpload', ['files' => [UploadedFile::fake()->image('old.jpg')], 'publish_mode' => 'draft', 'event_date' => '2008年'])->assertHasNoActionErrors();
+        $photo = Photo::sole();
+        $this->assertSame(2008, $photo->event_year);
+        $this->assertNull($photo->event_date);
+        Livewire::test(ManagePhotos::class)->selectTableRecords([$photo->id])
+            ->callAction(TestAction::make('bulkEventDate')->table()->bulk(), ['event_date' => '2010年7月3日'])->assertHasNoActionErrors();
+        $this->assertSame('2010-07-03', $photo->fresh()->event_date->toDateString());
+        $this->assertNull($photo->fresh()->event_year);
+        Livewire::test(ManagePhotos::class)->selectTableRecords([$photo->id])
+            ->callAction(TestAction::make('bulkEventDate')->table()->bulk(), ['event_date' => '2010年2月30日'])->assertHasActionErrors(['event_date']);
+        $this->assertSame('2010-07-03', $photo->fresh()->event_date->toDateString());
+        Livewire::test(ManagePhotos::class)->callAction(TestAction::make('edit')->table($photo), ['event_date' => '2009年'])->assertHasNoActionErrors();
+        $this->assertSame(2009, $photo->fresh()->event_year);
+    }
+
     public function test_batch_names_can_be_applied_and_overridden_per_picture(): void
     {
         Storage::fake('public');

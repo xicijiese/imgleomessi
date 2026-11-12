@@ -47,6 +47,7 @@ class Photo extends Model
         'stored_filename',
         'taken_at',
         'event_date',
+        'event_year',
         'source_url',
         'copyright_status',
         'watermark_status',
@@ -69,6 +70,7 @@ class Photo extends Model
         return [
             'taken_at' => 'datetime',
             'event_date' => 'date',
+            'event_year' => 'integer',
 
             'width' => 'integer',
             'height' => 'integer',
@@ -78,6 +80,29 @@ class Photo extends Model
             'published_at' => 'datetime',
             'publish_after_processing' => 'boolean',
         ];
+    }
+
+    public function setEventDateAttribute($value): void
+    {
+        if (is_string($value) && preg_match('/^\d{4}$/', $value)) {
+            $this->attributes['event_year'] = (int) $value;
+            $this->attributes['event_date'] = null;
+
+            return;
+        }
+        $this->attributes['event_date'] = $value ? $this->fromDateTime($value) : null;
+        $this->attributes['event_year'] = null;
+    }
+
+    public function eventDateLabel(): ?string
+    {
+        return $this->event_date?->toDateString() ?? ($this->event_year ? $this->event_year.'年' : null);
+    }
+
+    public function scopeForEventYear(Builder $query, int $year): Builder
+    {
+        return $query->where(fn (Builder $q) => $q->whereYear('photos.event_date', $year)
+            ->orWhere(fn (Builder $q) => $q->whereNull('photos.event_date')->where('photos.event_year', $year)));
     }
 
     protected static function booted(): void
