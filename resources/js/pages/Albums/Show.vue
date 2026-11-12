@@ -2,6 +2,7 @@
 import ArchivePagination from '@/components/ArchivePagination.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
+import { useLightboxBackdrop } from '@/composables/useLightboxBackdrop';
 import PhotoDetail from '@/pages/Photos/Show.vue';
 import type { SeoPayload } from '@/types';
 import { Link, router } from '@inertiajs/vue3';
@@ -60,6 +61,7 @@ interface AlbumDetailPayload {
 const props = defineProps<{ albumDetail: AlbumDetailPayload }>();
 const pending = ref(false);
 const zoomDialog = ref<HTMLDialogElement | null>(null);
+const zoomBackdrop = useLightboxBackdrop(() => closeZoom());
 const zoomImageFailed = ref(false);
 watch(
     () => props.albumDetail.current_photo?.photo.uuid,
@@ -355,7 +357,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
             aria-label="相册放大浏览"
             :aria-busy="pending"
             @cancel.prevent="closeZoom"
-            @click="$event.target === $event.currentTarget && closeZoom()"
+            @pointerdown="zoomBackdrop.pointerDown"
+            @click="zoomBackdrop.click"
         >
             <button
                 type="button"

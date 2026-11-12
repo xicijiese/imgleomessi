@@ -6,6 +6,7 @@ import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import SharePanel from '@/components/SharePanel.vue';
 import SuggestedPhotoGrid from '@/components/SuggestedPhotoGrid.vue';
+import { useLightboxBackdrop } from '@/composables/useLightboxBackdrop';
 import type { SeoPayload } from '@/types';
 import type { ThreadComment } from '@/types/comments';
 import { Link, router } from '@inertiajs/vue3';
@@ -689,6 +690,7 @@ const submitCorrection = async () => {
 const detailRoot = ref<HTMLElement | null>(null);
 const metadataContent = ref<HTMLElement | null>(null);
 const zoomDialog = ref<HTMLDialogElement | null>(null);
+const zoomBackdrop = useLightboxBackdrop(() => zoomDialog.value?.close());
 const zoomPending = ref(false);
 const openZoom = () => {
     if (props.embedded) emit('zoom');
@@ -1459,9 +1461,8 @@ watch(
             aria-label="放大查看图片"
             @keydown.left.prevent="stepZoom('previous')"
             @keydown.right.prevent="stepZoom('next')"
-            @click="
-                $event.target === $event.currentTarget && zoomDialog?.close()
-            "
+            @pointerdown="zoomBackdrop.pointerDown"
+            @click="zoomBackdrop.click"
         >
             <button
                 type="button"

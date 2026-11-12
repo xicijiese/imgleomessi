@@ -126,7 +126,7 @@ class PublicAlbumIndex
             'published_desc' => $query->orderByDesc('published_at')->orderByDesc('id'),
             'published_asc' => $query->orderBy('published_at')->orderBy('id'),
             'updated_desc' => $query->orderByDesc('updated_at')->orderByDesc('id'),
-            default => $query->orderBy('sort_order')->orderByDesc('published_at')->orderByDesc('id'),
+            default => $query->orderBy('sort_order')->orderByDesc('created_at')->orderByDesc('id'),
         };
     }
 

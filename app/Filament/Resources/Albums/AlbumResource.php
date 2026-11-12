@@ -11,6 +11,7 @@ use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -24,6 +25,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use UnitEnum;
@@ -77,11 +79,7 @@ class AlbumResource extends Resource
                         ->options(Album::STATUSES)
                         ->default('published')
                         ->required(),
-                    TextInput::make('sort_order')
-                        ->label('排序')
-                        ->numeric()
-                        ->default(0)
-                        ->required(),
+                    Hidden::make('sort_order')->default(fn () => min(0, (int) Album::min('sort_order')) - 1),
                     DateTimePicker::make('published_at')
                         ->label('发布时间')
                         ->seconds(false),
@@ -143,7 +141,9 @@ class AlbumResource extends Resource
                     ->label('状态')
                     ->options(Album::STATUSES),
             ])
-            ->defaultSort('sort_order')
+            ->defaultSort(fn (Builder $query) => $query->orderBy('sort_order')->orderByDesc('created_at')->orderByDesc('id'))
+            ->reorderable('sort_order')
+            ->reorderRecordsTriggerAction(fn (Action $action) => $action->label(fn ($livewire) => $livewire->isTableReordering ? '完成排序' : '调整排序'))
             ->recordActions([
                 Action::make('toggleFeatured')
                     ->label(fn (Album $record): string => $record->is_featured ? '取消精选' : '精选首页')

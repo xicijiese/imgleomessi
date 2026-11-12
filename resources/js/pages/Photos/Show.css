@@ -638,9 +638,12 @@
     background: #04224099;
 }
 .detail-zoom-dialog img {
-    width: 100%;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: calc(100% - 32px);
     min-height: 0;
-    flex: 1;
+    flex: none;
     object-fit: contain;
 }
 .detail-zoom-dialog p {
