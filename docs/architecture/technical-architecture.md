@@ -429,3 +429,12 @@ PhotoDuplicateResource/ManagePhotoDuplicates改为独立Filament资源与页面�
 新增迁移2026_11_12_000001_add_event_year_to_photos，仅增加可空unsignedSmallInteger event_year及索引，不回填历史日期。只知年份：event_date=null/event_year=年份；明确日期：event_date=日期/event_year=null。单图编辑、保存、详情/列表显示年级别标签，不虚构1月1日。时间线年份分组和年份归档同时接纳完整日期及年份图片，月分组和月页仅接纳有具体日期者；缺日期且缺年份者仍不进入时间线。事件排序先比较事件年再日期，发布日期仍可选排序/同日期次序，不决定年份归属；年份归档沿用现有1900至明年的路由限制。与标签中的“年份”分类为不同字段，不自动替换分类。
 
 全量453项7194断言通过，新增上传年份、批量完整日期、非法日期不写入、单图改年份、今年发布的2008年份图进入2008而不进入1月。真实1440/390浏览器上传表单截图已查看，桌面相册标签同一行、手机无横向溢出，日期可输入，取消未提交真实图片。本地SQLite在私有backups中VACUUM备份后仅执行此新增迁移，已有图片不回填不批量改动。生产尚未部署；本批必须先备份生产数据库、执行新增迁移再开放代码，清缓存并重启现有PHP/队列服务；没有前端资源变更或新依赖。
+## 2026-11-12统一错误页面与Inertia上游错误兜底
+
+新增resources/views/errors/archive.blade.php，蓝白金、中文说明、清楚返回首页/图库入口，401/419另提供登录。覆盖401/403/404/405/410/419/429/500/502/503/504；不加载Vite、数据库、COS图片或第三方字体，noindex/nofollow，保留HTTP错误状态及Retry-After等原有响应头。bootstrap/app.php exceptions respond接入，JSON/API与Livewire JSON保持原有格式，debug=true时5xx保留开发诊断；不回显生产异常细节。
+
+Inertia错误GET使用location同址整页加载，避免HTML被弹为默认错误对话框；非GET错误转静态错误页，禁止自动重放表单。app.ts捕获invalid已知HTTP错误，Nginx等上游HTML错误也跳转/errors/{status}.html，不解析/回显原始HTML。此路径为静态兜底，直接访问HTTP200但noindex，原请求已是对应错误状态；真正Laravel普通错误返回对应HTTP状态，不把错误统一重定向首页。新增errors:build命令由统一Blade生成public/errors下11个静态页，已生成并须提交，日后改模板需重新运行此命令；不依赖PHP正常运行即可访问静态页。
+
+图片所示nginx404是上游服务器响应，尚无生产Nginx配置或失败URL，无法断言是路由重写缺失/资源不存在/拦截所致；本批解决错误展示，不宣称修复所有无效链接或生产路由根因。生产如需直接导航的Nginx错误也用新版，应在宝塔检查既有error_page并指向/errors/{status}.html，确认root为项目public，PHP的fastcgi_intercept_errors关闭以保留应用JSON/页面错误；不得覆盖未知的整份站点配置。先nginx -t再重载，保留原配置备份。
+
+验收：全量459项7281断言、构建通过；新增5项76断言验证404状态、Inertia整页定位、JSON不替换、生产错误不泄漏细节及Retry-After、静态页独立资源。实际浏览器普通404、模拟Nginx404跳静态页/无iframe弹层通过，390宽度390且主要按钮48px；截图原标签/独立预览均超时，未取得有效截图，不声称视觉截图验收通过。静态404预览/errors/404.html；500/503等同路径。无迁移/新依赖，生产需提交静态页及PHP/JS修改、重新npm run build并刷新PHP/视图缓存；生产未部署。

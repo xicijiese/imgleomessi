@@ -10,6 +10,14 @@ import { initializeTheme } from './composables/useAppearance';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
+// Nginx等上游返回的HTML错误不符合Inertia协议，改用独立错误页兜底。
+router.on('invalid', (event) => {
+    const status = event.detail.response.status;
+    if (![401, 403, 404, 405, 410, 419, 429, 500, 502, 503, 504].includes(status)) return;
+    event.preventDefault();
+    window.location.assign(`/errors/${status}.html`);
+});
+
 interface PublicShellPayload {
     site: {
         name: string;
