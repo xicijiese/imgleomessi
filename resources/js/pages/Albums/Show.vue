@@ -111,12 +111,6 @@ const visit = (url: string | null) => {
 };
 const slideUrl = (position: number) =>
     `/albums/${props.albumDetail.album.slug}?${new URLSearchParams({ sort: props.albumDetail.filters.sort, slide: String(position) })}`;
-const sortChanged = (event: Event) => {
-    const sort = (event.target as HTMLSelectElement).value;
-    visit(
-        `/albums/${props.albumDetail.album.slug}?${new URLSearchParams({ sort })}`,
-    );
-};
 const onKey = (event: KeyboardEvent) => {
     if (
         event.defaultPrevented ||
@@ -193,38 +187,16 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
             :site="albumDetail.site"
             theme="afa"
         />
-        <div class="album-slideshow-heading">
-            <Link href="/albums" class="album-back"
+        <div
+            v-if="!albumDetail.current_photo || failure"
+            class="album-slideshow-heading"
+        >
+            <Link
+                v-if="!albumDetail.current_photo"
+                href="/albums"
+                class="album-back"
                 ><ArrowLeft :size="17" aria-hidden="true" />返回相册列表</Link
             >
-            <div class="album-slideshow-title">
-                <div>
-                    <h1>{{ albumDetail.album.title }}</h1>
-                    <details
-                        v-if="albumDetail.album.description"
-                        class="album-description-disclosure"
-                    >
-                        <summary>相册简介</summary>
-                        <p>{{ albumDetail.album.description }}</p>
-                    </details>
-                </div>
-                <label class="browser-sort-control"
-                    >排序<select
-                        :value="albumDetail.filters.sort"
-                        :disabled="pending"
-                        aria-label="相册图片排序"
-                        @change="sortChanged"
-                    >
-                        <option
-                            v-for="sort in albumDetail.filter_options.sorts"
-                            :key="sort.value"
-                            :value="sort.value"
-                        >
-                            {{ sort.label }}
-                        </option>
-                    </select></label
-                >
-            </div>
             <p v-if="failure" role="alert">{{ failure }}</p>
         </div>
         <PhotoDetail
@@ -239,6 +211,17 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
             :aria-busy="pending"
             @zoom="zoomDialog?.showModal()"
         >
+            <template #context-heading>
+                <Link href="/albums" class="detail-back"
+                    ><ArrowLeft
+                        :size="17"
+                        aria-hidden="true"
+                    />返回相册列表</Link
+                >
+                <div class="album-slideshow-title">
+                    <h1>{{ albumDetail.album.title }}</h1>
+                </div>
+            </template>
             <template #viewer-position>
                 <div class="album-position-controls">
                     <button

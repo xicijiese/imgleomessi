@@ -721,12 +721,15 @@ const stepZoom = (direction: 'previous' | 'next') => {
     );
 };
 const defaultMetadataExpanded = () =>
-    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches;
+    typeof window !== 'undefined' &&
+    window.matchMedia('(min-width: 768px)').matches;
 const metadataExpanded = ref(defaultMetadataExpanded());
 const displayFormat = computed(() => {
     const url = (props.photoDetail.photo.image_url ?? '').split(/[?#]/)[0];
     if (/\/gallery_(display|thumb)_avif$/.test(url)) return 'avif';
-    return url.match(/\.(avif|webp|jpe?g|png|gif)$/i)?.[1].toLowerCase() ?? null;
+    return (
+        url.match(/\.(avif|webp|jpe?g|png|gif)$/i)?.[1].toLowerCase() ?? null
+    );
 });
 const metadataVisible = computed(() => metadataExpanded.value);
 let detailMotion: gsap.MatchMedia | undefined;
@@ -819,10 +822,55 @@ watch(
             theme="afa"
         />
         <section class="detail-container">
-            <div v-if="!embedded" class="detail-context">
-                <Link :href="photoDetail.context.return_url"
-                    ><ArrowLeft aria-hidden="true" />{{ contextLabel }}</Link
-                ><span>图片档案</span>
+            <div class="detail-context">
+                <slot name="context-heading">
+                    <Link
+                        :href="photoDetail.context.return_url"
+                        class="detail-back"
+                        ><ArrowLeft aria-hidden="true" />{{
+                            contextLabel
+                        }}</Link
+                    >
+                </slot>
+                <div class="detail-actions">
+                    <button
+                        type="button"
+                        :aria-pressed="interactions.is_favorited"
+                        :aria-busy="favoritePending"
+                        :disabled="favoritePending"
+                        @click="toggleFavorite"
+                    >
+                        <Heart
+                            :class="{
+                                'fill-current': interactions.is_favorited,
+                            }"
+                            aria-hidden="true"
+                        />{{ interactions.is_favorited ? '已收藏' : '收藏' }}
+                    </button>
+                    <button
+                        type="button"
+                        :aria-label="`点赞，${interactions.likes_count} 次`"
+                        :aria-pressed="interactions.is_liked"
+                        :aria-busy="likePending"
+                        :disabled="likePending"
+                        @click="toggleLike"
+                    >
+                        <ThumbsUp
+                            :class="{
+                                'fill-current': interactions.is_liked,
+                            }"
+                            aria-hidden="true"
+                        /><span>{{ interactions.likes_count }}</span>
+                    </button>
+                    <SharePanel
+                        theme="archive"
+                        type="photo"
+                        :target-key="photoDetail.photo.uuid"
+                        :title="photoDetail.photo.title"
+                        :blocked-reason="interactions.blocked_reason"
+                        :album="shareAlbum"
+                    />
+                </div>
             </div>
             <div class="detail-layout">
                 <div class="detail-viewer-column">
@@ -854,47 +902,11 @@ watch(
                         </div>
                         <slot name="viewer-controls" />
                     </figure>
-                    <div class="detail-actions">
+                    <div
+                        v-if="$slots['viewer-position']"
+                        class="detail-actions"
+                    >
                         <slot name="viewer-position" />
-                        <button
-                            type="button"
-                            :aria-pressed="interactions.is_favorited"
-                            :aria-busy="favoritePending"
-                            :disabled="favoritePending"
-                            @click="toggleFavorite"
-                        >
-                            <Heart
-                                :class="{
-                                    'fill-current': interactions.is_favorited,
-                                }"
-                                aria-hidden="true"
-                            />{{
-                                interactions.is_favorited ? '已收藏' : '收藏'
-                            }}
-                        </button>
-                        <button
-                            type="button"
-                            :aria-label="`点赞，${interactions.likes_count} 次`"
-                            :aria-pressed="interactions.is_liked"
-                            :aria-busy="likePending"
-                            :disabled="likePending"
-                            @click="toggleLike"
-                        >
-                            <ThumbsUp
-                                :class="{
-                                    'fill-current': interactions.is_liked,
-                                }"
-                                aria-hidden="true"
-                            /><span>{{ interactions.likes_count }}</span>
-                        </button>
-                        <SharePanel
-                            theme="archive"
-                            type="photo"
-                            :target-key="photoDetail.photo.uuid"
-                            :title="photoDetail.photo.title"
-                            :blocked-reason="interactions.blocked_reason"
-                            :album="shareAlbum"
-                        />
                     </div>
                     <slot name="filmstrip" />
                     <p v-if="shareStatus" role="status" class="detail-notice">
@@ -1008,7 +1020,14 @@ watch(
                                     v-if="photoDetail.photo.file_size_label"
                                     ><dt>文件大小</dt>
                                     <dd>
-                                        {{ photoDetail.photo.file_size_label.replace(/\s/g, '') }}<span class="detail-file-note">（页面展示经过压缩优化的图片，暂不提供原图下载。）</span>
+                                        {{
+                                            photoDetail.photo.file_size_label.replace(
+                                                /\s/g,
+                                                '',
+                                            )
+                                        }}<span class="detail-file-note"
+                                            >（页面展示经过压缩优化的图片，暂不提供原图下载。）</span
+                                        >
                                     </dd></template
                                 >
                             </dl>
@@ -1421,7 +1440,6 @@ watch(
             >
                 <div class="detail-section-heading">
                     <h2 id="related-photos-heading">相关推荐</h2>
-                    <span>{{ photoDetail.context.title }}</span>
                 </div>
                 <div class="detail-related">
                     <Link
@@ -1453,7 +1471,9 @@ watch(
                             >
                         </div>
                         <h3>{{ photo.title }}</h3>
-                        <p>{{ formatDate(photo.event_date) }}</p></Link
+                        <p v-if="photo.event_date">
+                            {{ formatDate(photo.event_date) }}
+                        </p></Link
                     >
                 </div>
             </section>
