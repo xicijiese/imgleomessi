@@ -59,7 +59,7 @@ class PhotoDuplicateResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['photo.analysisResult', 'candidatePhoto.analysisResult'])
+        return parent::getEloquentQuery()->with(['photo.analysisResult', 'candidatePhoto.analysisResult', 'photo.albums', 'candidatePhoto.albums'])
             ->where('distance', '<=', PhotoSimilarityService::DISTANCE_THRESHOLD)
             ->whereHas('photo', fn ($photos) => $photos->where('status', '!=', 'archived'))
             ->whereHas('candidatePhoto', fn ($photos) => $photos->where('status', '!=', 'archived'));
@@ -74,6 +74,11 @@ class PhotoDuplicateResource extends Resource
                 ->checkFileExistence(false);
             $columns[] = TextColumn::make($relation.'.title')->label($label.'标题')->wrap()->searchable()
                 ->extraCellAttributes(['class' => 'admin-object-cell']);
+            $columns[] = TextColumn::make($relation.'.albums.title')
+                ->label($label.'所属相册')
+                ->listWithLineBreaks()
+                ->wrap()
+                ->placeholder('无关联相册');
         }
         $columns[] = TextColumn::make('similarity_score')->label('画面相似度')->suffix('%')->alignEnd()->sortable();
         $columns[] = TextColumn::make('result')->label('检查结果')

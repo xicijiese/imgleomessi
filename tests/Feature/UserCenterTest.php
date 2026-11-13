@@ -164,6 +164,31 @@ class UserCenterTest extends TestCase
             );
     }
 
+    public function test_opening_notification_marks_it_read_and_updates_center_count(): void
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+        $user->notify(new UserCenterNotification('system', '查看详情', '内容', '/me/comments'));
+        $other->notify(new UserCenterNotification('system', '其他用户', '内容', '/me/comments'));
+        $notice = $user->notifications()->firstOrFail();
+        $otherNotice = $other->notifications()->firstOrFail();
+        $this->actingAs($user)->post('/me/notifications/'.$otherNotice->id.'/open')->assertNotFound();
+        $this->assertNull($otherNotice->fresh()->read_at);
+        $this->post('/me/notifications/'.$notice->id.'/open')->assertStatus(303)->assertRedirect('/me/comments');
+        $readAt = $notice->fresh()->read_at;
+        $this->assertNotNull($readAt);
+        $this->post('/me/notifications/'.$notice->id.'/open')->assertRedirect('/me/comments');
+        $this->assertEquals($readAt, $notice->fresh()->read_at);
+        $this->get('/me')->assertInertia(fn (Assert $page) => $page
+            ->where('me.summary.unread_notifications_count', 0)
+            ->where('me.recent_notifications.0.is_read', true));
+        foreach ([null, 'https://example.com', '//example.com', '/\\example.com'] as $url) {
+            $notice->update(['data' => ['url' => $url], 'read_at' => null]);
+            $this->post('/me/notifications/'.$notice->id.'/open')->assertRedirect('/me/notifications');
+            $this->assertNotNull($notice->fresh()->read_at);
+        }
+    }
+
     public function test_user_can_mark_notifications_read_but_not_other_users_notifications(): void
     {
         $user = User::factory()->create();

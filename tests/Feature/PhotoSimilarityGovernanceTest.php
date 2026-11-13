@@ -31,6 +31,27 @@ class PhotoSimilarityGovernanceTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_duplicate_list_and_comparison_show_all_album_memberships_or_empty_label(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $a = $this->photo();
+        $b = $this->photo();
+        $first = \App\Models\Album::create(['title' => '所属公开相册', 'slug' => 'duplicate-album-one', 'status' => 'published']);
+        $second = \App\Models\Album::create(['title' => '所属草稿相册', 'slug' => 'duplicate-album-two', 'status' => 'draft']);
+        $a->albums()->sync([$first->id, $second->id]);
+        $this->pair($a, $b);
+        $pair = PhotoSimilarityCandidate::sole();
+        Livewire::test(ManagePhotoDuplicates::class)
+            ->assertSee('图片 A所属相册')->assertSee('图片 B所属相册')
+            ->assertSee($first->title)->assertSee($second->title)->assertSee('无关联相册')
+            ->mountAction(TestAction::make('compare')->table($pair))
+            ->assertMountedActionModalSee($first->title)
+            ->assertMountedActionModalSee($second->title)
+            ->assertMountedActionModalSee('无关联相册');
+        $this->assertSame(2, $a->albums()->count());
+        $this->assertSame(0, $b->albums()->count());
+    }
+
     public function test_duplicate_management_lists_pairs_and_has_no_recommendation_controls(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));

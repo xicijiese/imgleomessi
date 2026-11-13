@@ -19,6 +19,19 @@ class UserNotificationController extends Controller
         ]);
     }
 
+    public function open(Request $request, DatabaseNotification $notification): RedirectResponse
+    {
+        $this->ensureOwnNotification($request, $notification);
+        $notification->markAsRead();
+        $url = $notification->data['url'] ?? null;
+        // 只跳转站内路径，避免通知数据被用来跳转外部网站。
+        if (! is_string($url) || ! str_starts_with($url, '/') || str_starts_with($url, '//') || preg_match('/[\\\\\x00-\x20]/', $url)) {
+            $url = '/me/notifications';
+        }
+
+        return redirect()->to($url, 303);
+    }
+
     public function markRead(Request $request, DatabaseNotification $notification): JsonResponse|RedirectResponse
     {
         $this->ensureOwnNotification($request, $notification);

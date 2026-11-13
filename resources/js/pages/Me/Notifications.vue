@@ -4,7 +4,7 @@ import PublicHeader from '@/components/PublicHeader.vue';
 import UserCenterNav from '@/components/UserCenterNav.vue';
 import { useArchiveBrowserMotion } from '@/composables/useArchiveBrowserMotion';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 
 interface NavigationItem {
     label: string;
@@ -76,6 +76,12 @@ const isFirstEmpty = computed(
         !props.me.filters.type,
 );
 const notices = ref([...props.me.notifications.data]);
+watch(
+    () => props.me.notifications.data,
+    (data) => {
+        notices.value = [...data];
+    },
+);
 const pending = ref<Record<string, boolean>>({});
 const allPending = ref(false);
 const status = ref<string | null>(null);
@@ -121,6 +127,7 @@ const markRead = async (notice: NotificationItem) => {
             item.id === notice.id ? { ...item, is_read: true } : item,
         );
         status.value = '已标为已读。';
+        router.reload({ only: ['me'] });
     } catch {
         status.value = '操作失败，请稍后重试。';
     } finally {
@@ -138,6 +145,7 @@ const markAllRead = async () => {
             is_read: true,
         }));
         status.value = '已全部标为已读。';
+        router.reload({ only: ['me'] });
     } catch {
         status.value = '操作失败，请稍后重试。';
     } finally {
@@ -261,7 +269,12 @@ const markAllRead = async () => {
                         <div class="notice-actions">
                             <Link
                                 v-if="notice.url"
-                                :href="notice.url"
+                                :href="
+                                    '/me/notifications/' + notice.id + '/open'
+                                "
+                                method="post"
+                                as="button"
+                                type="button"
                                 class="filter-clear"
                                 >查看详情</Link
                             ><button

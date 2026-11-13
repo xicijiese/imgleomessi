@@ -248,7 +248,14 @@ const statItems = [
                                     v-for="notice in me.recent_notifications"
                                     :key="notice.id"
                                     class="notice"
-                                    :href="notice.url ?? '/me/notifications'"
+                                    :href="
+                                        '/me/notifications/' +
+                                        notice.id +
+                                        '/open'
+                                    "
+                                    method="post"
+                                    as="button"
+                                    type="button"
                                 >
                                     <h3>
                                         <span>{{ notice.title }}</span

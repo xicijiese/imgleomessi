@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import ArchivePagination from '@/components/ArchivePagination.vue';
 import PublicHeader from '@/components/PublicHeader.vue';
 import SeoHead from '@/components/SeoHead.vue';
 import { useLightboxBackdrop } from '@/composables/useLightboxBackdrop';
@@ -307,31 +306,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
                         /><ImageOff v-else :size="20" aria-hidden="true" />
                     </button>
                 </nav>
-                <ArchivePagination
-                    v-if="albumDetail.photos.meta.last_page > 1"
-                    :meta="albumDetail.photos.meta"
-                    :links="{
-                        prev:
-                            albumDetail.photos.meta.current_page > 1
-                                ? slideUrl(
-                                      (albumDetail.photos.meta.current_page -
-                                          2) *
-                                          albumDetail.photos.meta.per_page +
-                                          1,
-                                  )
-                                : null,
-                        next:
-                            albumDetail.photos.meta.current_page <
-                            albumDetail.photos.meta.last_page
-                                ? slideUrl(
-                                      albumDetail.photos.meta.current_page *
-                                          albumDetail.photos.meta.per_page +
-                                          1,
-                                  )
-                                : null,
-                    }"
-                    label="相册缩略图分页"
-                />
+
             </template>
         </PhotoDetail>
         <dialog

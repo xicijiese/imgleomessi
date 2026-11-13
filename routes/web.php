@@ -90,6 +90,7 @@ Route::middleware(['auth', EnsureFreshUserSession::class])->group(function (): v
     Route::get('/me/comments', [UserCommentController::class, 'index'])->name('me.comments.index');
     Route::get('/me/reports', [UserReportController::class, 'index'])->name('me.reports.index');
     Route::get('/me/notifications', [UserNotificationController::class, 'index'])->name('me.notifications.index');
+    Route::post('/me/notifications/{notification}/open', [UserNotificationController::class, 'open'])->name('me.notifications.open');
     Route::patch('/me/notifications/{notification}/read', [UserNotificationController::class, 'markRead'])->name('me.notifications.read');
     Route::patch('/me/notifications/read-all', [UserNotificationController::class, 'markAllRead'])->name('me.notifications.read-all');
     Route::get('/me/sponsorships', [UserSponsorshipController::class, 'index'])->name('me.sponsorships.index');

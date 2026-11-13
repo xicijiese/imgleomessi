@@ -7,6 +7,14 @@
                 @endif
             </div>
             <p class="admin-comparison-title">#{{ $photo->id }} {{ $photo->title }}</p>
+            <div class="admin-comparison-status">
+                <p>所属相册：</p>
+                @forelse ($photo->albums as $album)
+                    <p>{{ $album->title }}</p>
+                @empty
+                    <p>无关联相册</p>
+                @endforelse
+            </div>
             <p class="admin-comparison-status">{{ \App\Models\Photo::STATUSES[$photo->status] ?? $photo->status }}</p>
             <p class="admin-comparison-status">{{ $photo->width ?? '—' }} × {{ $photo->height ?? '—' }} · {{ $photo->file_size ? number_format($photo->file_size / 1024, 1).' KB' : '大小待补充' }} · 点击查看图片档案</p>
         </a>
