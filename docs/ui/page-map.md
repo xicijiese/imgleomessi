@@ -5246,3 +5246,7 @@ Inertia错误GET使用location同址整页加载，避免HTML被弹为默认错�
 2026-11-12头像显示修复：个人中心UserCenter::profile原先未提供avatar，UserCenterNav头像仅固定姓名首字；现增加解析后的avatar并渲染裁切圆形图片，缺头像/加载失败回退姓名首字，头像URL改变后可重新加载。User模型实现Filament HasAvatar接口，getFilamentAvatarUrl复用现有avatar展示URL，避免Filament将存储key直接拼成站点根路径。保持avatar_url隐藏、local/COS解析和原上传/删除逻辑，不改身份权限或已有头像数据，无迁移。头像为空时后台沿用Filament默认回退。
 
 头像/资料/用户中心相关21项213断言通过，新增管理员上传后settingsCenter.user.avatar/auth.user.avatar/me.user.avatar一致、后台HTML正确URL及COS CDN地址、移除后null验证（不调用真实COS）。构建通过。实际本地管理员导航与资料页头像同为/storage/avatars/1下同一资源且naturalWidth>0，后台右上角解析为http://127.0.0.1:8000/storage/avatars/1/...且加载成功；未重新上传/修改用户头像。代码本地完成，生产未部署；需提交User/UserCenter/Nav组件CSS及测试、前端重新构建并刷新PHP代码缓存。
+
+### 2026-11-13 后台相册封面
+
+相册管理→编辑→相册封面：可搜索选择本相册内可公开图片，选项显示缩略图及标题。留空自动选择；新建相册后先关联图片再编辑指定。首页精选相册及相册列表统一优先使用指定图片缩略图，失效自动回退。

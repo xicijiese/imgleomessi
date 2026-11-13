@@ -6,6 +6,8 @@ use App\Filament\Forms\CategoryOption;
 use App\Filament\Resources\Albums\Pages\ManageAlbums;
 use App\Models\Album;
 use App\Models\Category;
+use App\Models\Photo;
+use App\Services\PublicMediaUrl;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -69,6 +71,23 @@ class AlbumResource extends Resource
                         ->unique(ignoreRecord: true)
                         ->dehydrateStateUsing(fn (?string $state, Get $get): string => filled($state) ? Str::slug($state) : self::suggestSlug($get('title'))),
                 ])->columns(2)->columnSpanFull(),
+                Section::make('相册封面')->schema([
+                    Select::make('cover_photo_id')
+                        ->label('选择相册内的图片')
+                        ->placeholder('自动选择')
+                        ->helperText('仅选择本相册内可公开展示的图片；清空后恢复自动选择。首页精选相册与相册列表统一使用所选图片的缩略图。')
+                        ->searchable()
+                        ->allowHtml()
+                        ->options(fn (?Album $record): array => self::coverOptions($record))
+                        ->getSearchResultsUsing(fn (?Album $record, string $search): array => self::coverOptions($record, $search))
+                        ->getOptionLabelUsing(fn (?Album $record, $value): ?string => self::coverOptions($record, photoId: $value)[$value] ?? null)
+                        ->rules([fn (?Album $record): \Closure => function (string $attribute, $value, \Closure $fail) use ($record): void {
+                            if ($value !== null && ! self::coverQuery($record)->where('photos.id', $value)->exists()) {
+                                $fail('请选择本相册内可公开展示的图片作为封面。');
+                            }
+                        }])
+                        ->columnSpanFull(),
+                ])->visible(fn (?Album $record): bool => $record !== null)->columnSpanFull(),
                 Section::make('相册分类')
                     ->schema(self::categorySelectors())
                     ->columns(2)
@@ -89,6 +108,26 @@ class AlbumResource extends Resource
                     ->rows(4)
                     ->columnSpanFull(),
             ]);
+    }
+
+    private static function coverQuery(?Album $album): Builder
+    {
+        return Photo::query()->whereHas('albums', fn (Builder $query) => $query->where('albums.id', $album?->id ?? 0))
+            ->where('status', 'published')->whereNotIn('copyright_status', ['restricted', 'remove_requested']);
+    }
+
+    private static function coverOptions(?Album $album, string $search = '', mixed $photoId = null): array
+    {
+        return self::coverQuery($album)
+            ->when($search !== '', fn (Builder $query) => $query->where('title', 'like', '%'.$search.'%'))
+            ->when($photoId !== null, fn (Builder $query) => $query->where('photos.id', $photoId))
+            ->orderByDesc('created_at')->orderByDesc('id')->limit(50)->get()
+            ->mapWithKeys(function (Photo $photo): array {
+                $url = PublicMediaUrl::thumbnail($photo);
+                $image = $url ? '<img src="'.e($url).'" alt="" width="48" height="36" style="object-fit:cover;border-radius:4px;display:inline-block;margin-right:8px;vertical-align:middle">' : '';
+
+                return [$photo->id => $image.e($photo->title)];
+            })->all();
     }
 
     public static function suggestSlug(?string $title): string

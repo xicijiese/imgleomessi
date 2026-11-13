@@ -23,6 +23,39 @@ class AlbumManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_album_cover_can_only_be_selected_from_its_public_photos_and_is_shared_by_lists(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $album = Album::create(['title' => '封面相册', 'slug' => 'chosen-cover', 'status' => 'published', 'published_at' => now()]);
+        $cover = Photo::create(['title' => '指定封面', 'status' => 'published', 'thumbnail_key' => 'thumb/chosen.webp', 'original_key' => 'original/chosen.jpg']);
+        $latest = Photo::create(['title' => '自动封面', 'status' => 'published', 'thumbnail_key' => 'thumb/latest.webp', 'created_at' => now()->addMinute()]);
+        $outsider = Photo::create(['title' => '其他相册图片', 'status' => 'published']);
+        $hidden = Photo::create(['title' => '不可公开', 'status' => 'draft']);
+        $album->photos()->sync([$cover->id, $latest->id, $hidden->id]);
+        $action = TestAction::make('edit')->table($album);
+        foreach ([$outsider, $hidden] as $invalid) {
+            Livewire::test(ManageAlbums::class)->callAction($action, ['cover_photo_id' => $invalid->id])
+                ->assertHasActionErrors(['cover_photo_id']);
+        }
+        Livewire::test(ManageAlbums::class)->callAction($action, ['cover_photo_id' => $cover->id])->assertHasNoActionErrors();
+        $this->assertSame($cover->id, $album->fresh()->cover_photo_id);
+        $this->assertAlbumCoverUrls('/storage/thumb/chosen.webp');
+
+        $album->photos()->detach($cover);
+        $this->assertAlbumCoverUrls('/storage/thumb/latest.webp');
+        Livewire::test(ManageAlbums::class)->callAction($action, ['cover_photo_id' => null])->assertHasNoActionErrors();
+        $this->assertNull($album->fresh()->cover_photo_id);
+        $this->assertAlbumCoverUrls('/storage/thumb/latest.webp');
+    }
+
+    private function assertAlbumCoverUrls(string $url): void
+    {
+        $this->get('/')->assertOk()->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+            ->where('home.category_module.tabs.0.items.0.image_url', $url));
+        $this->get('/albums')->assertOk()->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+            ->where('albumIndex.albums.data.0.cover_image_url', $url));
+    }
+
     public function test_new_album_rejects_negative_sort_values_before_database_write(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
