@@ -277,7 +277,7 @@ class PublicPhotoDetail
 
         return $this->publicPhotosQuery()->where('id', '!=', $photo->id)
             ->whereHas('tags', fn (Builder $tags) => $tags->whereIn('tags.id', $tagIds))
-            ->inRandomOrder()->limit(self::RELATED_LIMIT)->get()
+            ->inRandomOrder()->limit(6)->get()
             ->map(fn (Photo $match): array => $this->photoCard($match, ['type' => 'gallery', 'summary' => ['slug' => null]]))
             ->all();
     }

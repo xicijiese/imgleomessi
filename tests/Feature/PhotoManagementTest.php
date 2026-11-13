@@ -27,6 +27,92 @@ class PhotoManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_all_photo_bulk_actions_persist_only_to_selected_records(): void
+    {
+        $this->seed(GalleryTaxonomySeeder::class);
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $photos = collect(range(1, 3))->map(fn ($i) => Photo::create([
+            'title' => '批量测试'.$i, 'status' => 'draft', 'copyright_status' => 'unknown',
+            'display_key' => 'display/'.$i.'.webp', 'thumbnail_key' => 'thumb/'.$i.'.webp',
+        ]));
+        $selected = $photos->take(2);
+        $old = Tag::create(['name' => '原标签', 'slug' => 'old-bulk']);
+        $new = Tag::create(['name' => '追加标签', 'slug' => 'new-bulk']);
+        foreach ($photos as $photo) {
+            $photo->tags()->sync([$old->id]);
+        }
+        $run = fn ($name, $data = []) => Livewire::test(ManagePhotos::class)
+            ->selectTableRecords($selected->pluck('id')->all())
+            ->callAction(TestAction::make($name)->table()->bulk(), $data)->assertHasNoActionErrors();
+
+        $run('appendTags', ['tag_ids' => [$new->id]]);
+        $run('appendTags', ['tag_ids' => [$new->id]]);
+        foreach ($selected as $photo) {
+            $this->assertEqualsCanonicalizing([$old->id, $new->id], $photo->tags()->pluck('tags.id')->all());
+        }
+        $this->assertSame([$old->id], $photos->last()->tags()->pluck('tags.id')->all());
+
+        $run('bulkEventDate', ['event_date' => '2009年']);
+        $run('bulkSourceUrl', ['source_url' => 'https://example.com/source']);
+        $run('bulkCopyrightStatus', ['copyright_status' => 'credited']);
+        $categories = [];
+        foreach (Category::roots()->where('required_for_publish', true)->get() as $root) {
+            $categories['category_root_'.$root->id] = [$root->children()->firstOrFail()->id];
+        }
+        $run('bulkCategories', $categories);
+        foreach ($selected as $photo) {
+            $photo = $photo->fresh();
+            $this->assertSame(2009, $photo->event_year);
+            $this->assertSame('https://example.com/source', $photo->source_url);
+            $this->assertSame('credited', $photo->copyright_status);
+            $this->assertTrue($photo->hasCompleteCategorySet());
+        }
+        $run('publishSelected');
+        foreach ($selected as $photo) {
+            $this->assertSame('published', $photo->fresh()->status);
+        }
+        $run('setDraft');
+        foreach ($selected as $photo) {
+            $this->assertSame('draft', $photo->fresh()->status);
+            $this->assertNull($photo->fresh()->published_at);
+            $this->assertFalse($photo->fresh()->publish_after_processing);
+        }
+        $run('archiveSelected');
+        foreach ($selected as $photo) {
+            $this->assertSame('archived', $photo->fresh()->status);
+        }
+        $untouched = $photos->last()->fresh();
+        $this->assertSame('draft', $untouched->status);
+        $this->assertNull($untouched->event_year);
+        $this->assertNull($untouched->source_url);
+        $this->assertSame('unknown', $untouched->copyright_status);
+        $this->assertSame(0, $untouched->categories()->count());
+    }
+
+    public function test_photo_bulk_actions_reject_invalid_input_without_changing_records(): void
+    {
+        $this->seed(GalleryTaxonomySeeder::class);
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $photo = Photo::create(['title' => '异常输入测试']);
+        foreach ([
+            ['appendTags', ['tag_ids' => []], 'tag_ids'],
+            ['appendTags', ['tag_ids' => [999999]], 'tag_ids'],
+            ['bulkSourceUrl', ['source_url' => '不是网址'], 'source_url'],
+        ] as [$name, $data, $field]) {
+            Livewire::test(ManagePhotos::class)->selectTableRecords([$photo->id])
+                ->callAction(TestAction::make($name)->table()->bulk(), $data)->assertHasActionErrors([$field]);
+        }
+        Livewire::test(ManagePhotos::class)->selectTableRecords([$photo->id])
+            ->callAction(TestAction::make('bulkCategories')->table()->bulk(), [])->assertNotified('分类设置失败');
+        Livewire::test(ManagePhotos::class)->selectTableRecords([$photo->id])
+            ->callAction(TestAction::make('publishSelected')->table()->bulk())
+            ->assertNotified('已发布 0 张，失败 1 张');
+        $this->assertSame('draft', $photo->fresh()->status);
+        $this->assertNull($photo->fresh()->source_url);
+        $this->assertSame(0, $photo->tags()->count());
+        $this->assertSame(0, $photo->categories()->count());
+    }
+
     public function test_upload_and_bulk_edit_accept_year_or_exact_event_date_and_reject_invalid_date(): void
     {
         Storage::fake('public');

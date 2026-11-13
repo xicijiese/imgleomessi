@@ -44,7 +44,7 @@ class PublicPhotoDetailTest extends TestCase
             ->missing('photoDetail.similar'));
     }
 
-    public function test_tag_suggestions_are_empty_without_tags_or_matching_photos_and_limited_to_eight(): void
+    public function test_tag_suggestions_are_empty_without_tags_or_matching_photos_and_limited_to_six(): void
     {
         $photo = $this->publicPhoto('无标签');
         $this->get('/photos/'.$photo->uuid)->assertInertia(fn (Assert $page) => $page->has('photoDetail.suggestions.data', 0));
@@ -55,8 +55,8 @@ class PublicPhotoDetailTest extends TestCase
             $this->publicPhoto('推荐'.$i)->tags()->sync([$tag->id]);
         }
         $this->get('/photos/'.$photo->uuid)->assertInertia(fn (Assert $page) => $page
-            ->has('photoDetail.suggestions.data', 8)
-            ->where('photoDetail.suggestions.data', fn ($rows) => collect($rows)->pluck('id')->unique()->count() === 8));
+            ->has('photoDetail.suggestions.data', 6)
+            ->where('photoDetail.suggestions.data', fn ($rows) => collect($rows)->pluck('id')->unique()->count() === 6));
     }
 
     public function test_guest_can_visit_public_photo_detail_with_metadata(): void

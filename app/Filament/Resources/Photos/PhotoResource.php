@@ -327,14 +327,15 @@ class PhotoResource extends Resource
                         ->schema([
                             Select::make('tag_ids')
                                 ->label('标签')
-                                ->relationship(name: 'tags', titleAttribute: 'name')
+                                ->options(fn (): array => Tag::query()->orderBy('name')->pluck('name', 'id')->all())
                                 ->multiple()
                                 ->preload()
                                 ->searchable()
+                                ->exists('tags', 'id')
                                 ->required(),
                         ])
                         ->action(function (Collection $records, array $data, PhotoBatchOrganizer $organizer): void {
-                            $result = $organizer->appendTags($records, $data['tag_ids'] ?? []);
+                            $result = $organizer->appendTags($records, $data['tag_ids']);
                             Notification::make()->title('已为 '.$result['updated'].' 张图片追加标签')->success()->send();
                         }),
                     BulkAction::make('bulkCategories')

@@ -720,7 +720,14 @@ const stepZoom = (direction: 'previous' | 'next') => {
         },
     );
 };
-const metadataExpanded = ref(false);
+const defaultMetadataExpanded = () =>
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches;
+const metadataExpanded = ref(defaultMetadataExpanded());
+const displayFormat = computed(() => {
+    const url = (props.photoDetail.photo.image_url ?? '').split(/[?#]/)[0];
+    if (/\/gallery_(display|thumb)_avif$/.test(url)) return 'avif';
+    return url.match(/\.(avif|webp|jpe?g|png|gif)$/i)?.[1].toLowerCase() ?? null;
+});
 const metadataVisible = computed(() => metadataExpanded.value);
 let detailMotion: gsap.MatchMedia | undefined;
 let metadataTween: gsap.core.Tween | undefined;
@@ -746,6 +753,7 @@ const toggleMetadata = async () => {
     }
 };
 onMounted(() => {
+    metadataExpanded.value = defaultMetadataExpanded();
     detailMotion = gsap.matchMedia();
     detailMotion.add(
         '(prefers-reduced-motion: no-preference)',
@@ -776,7 +784,7 @@ watch(
     () => {
         metadataTween?.revert();
         pendingDiscussions.value = props.photoDetail.comments.pending ?? [];
-        metadataExpanded.value = false;
+        metadataExpanded.value = defaultMetadataExpanded();
         imageFailed.value = false;
         relatedImageFailures.value = {};
         activeComposer.value = props.photoDetail.comments.can_submit
@@ -991,16 +999,16 @@ watch(
                                         {{ photoDetail.photo.width }} ×
                                         {{ photoDetail.photo.height }}
                                     </dd></template
-                                ><template v-if="photoDetail.photo.mime_type"
+                                ><template v-if="displayFormat"
                                     ><dt>格式</dt>
                                     <dd>
-                                        {{ photoDetail.photo.mime_type }}
+                                        {{ displayFormat }}
                                     </dd></template
                                 ><template
                                     v-if="photoDetail.photo.file_size_label"
                                     ><dt>文件大小</dt>
                                     <dd>
-                                        {{ photoDetail.photo.file_size_label }}
+                                        {{ photoDetail.photo.file_size_label.replace(/\s/g, '') }}<span class="detail-file-note">（页面展示经过压缩优化的图片，暂不提供原图下载。）</span>
                                     </dd></template
                                 >
                             </dl>
