@@ -1,5 +1,13 @@
 # 项目路线图与开发进度
 
+## 当前入口：COS AVIF样式接入（2026-11-13，本地完成，待用户Git发布）
+
+验证限制：全局vue-tsc报告Support/Index、Support/Preview及Supporters/Index、Preview中6处类型错误（GSAP目标可空、分页缺label），这些页面本次无diff，不擅自修改；新增回退模块单独类型检查通过。生产构建成功不等同全局类型检查通过。
+
+用户已创建gallery_thumb_avif（质量49）与gallery_display_avif（质量71），均不缩放不裁剪。统一PublicMediaUrl仅对云端WebP派生图按用途追加/样式名，仍使用现有600/2048文件；本地、原图、外部完整地址及签名参数不改。站点图片错误捕获先回退原WebP再交组件显示错误；WordPress1.2.0提供同样回退，API复用统一地址，无新库表/生成任务/图片写入。COS_AVIF_ENABLED默认true，false+config:cache可回退；直接fromPublicDisk和存储URL保持不变。
+
+全量463项7334断言、生产构建、两端回退事件检查及插件PHP/JS语法通过。真实公开图库cdntu.leomessi.cn单图验证：thumbnail.webp为55166字节，样式AVIF4956字节；display.webp为379656字节，样式AVIF42975字节，均200/image/avif。旧WordPress域名cdn.leomessi.cn的同名样式返回404，原生历史文章不在本次范围。仅少量只读GET，无云配置或对象修改。包chajian/messi-album-1.2.0.zip；先Git更新图库、config:cache及npm构建，再WordPress替换插件，用户自行提交/推送，未部署生产。
+
 ## 当前开发入口：WordPress 相册引用（2026-11-11）
 
 1.1.2样式补充：用户要求来源链接显示“更多梅西图片点进访问梅西图片档案库”，位于幻灯片/缩略图下方居中。文字及CSS已更新，来源相册URL保持，安装包chajian/messi-album-1.1.2.zip已核对，无行为/数据变更，待用户覆盖更新WordPress插件。

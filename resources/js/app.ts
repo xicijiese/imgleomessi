@@ -1,4 +1,5 @@
 import '../css/app.css';
+import './lib/cos-image-fallback';
 
 import PublicFooter from '@/components/PublicFooter.vue';
 import ShareVisitTracker from '@/components/ShareVisitTracker.vue';

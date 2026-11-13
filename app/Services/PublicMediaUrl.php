@@ -25,7 +25,7 @@ class PublicMediaUrl
             return null;
         }
 
-        return self::fromPublicDisk($key);
+        return self::avifVariant($key, $variant);
     }
 
     public static function settingImage(mixed $path, string $variant = 'thumbnail_key'): ?string
@@ -36,7 +36,21 @@ class PublicMediaUrl
         }
         $keys = SettingImageVariants::keys($path);
 
-        return self::fromPublicDisk($keys[$variant] ?? null);
+        return self::avifVariant($keys[$variant] ?? null, $variant);
+    }
+
+    private static function avifVariant(?string $key, string $variant): ?string
+    {
+        $url = self::fromPublicDisk($key);
+        // 仅处理当前存储服务返回的云端 WebP 派生图，原图、外部地址、本地文件和签名地址不改。
+        if (! config('media.cos_avif_enabled') || ! $url || ! $key
+            || Str::startsWith($key, ['http://', 'https://'])
+            || ! Str::startsWith($url, ['http://', 'https://'])
+            || ! preg_match('/\.webp$/i', $url)) {
+            return $url;
+        }
+
+        return $url.'/'.($variant === 'thumbnail_key' ? 'gallery_thumb_avif' : 'gallery_display_avif');
     }
 
     public static function fromPublicDisk(mixed $path): ?string

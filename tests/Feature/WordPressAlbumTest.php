@@ -39,6 +39,36 @@ class WordPressAlbumTest extends TestCase
         $this->getJson('/api/wordpress/v1/health')->assertUnauthorized();
     }
 
+    public function test_diagnostics_distinguish_missing_header_configuration_and_mismatch_without_exposing_secrets(): void
+    {
+        $this->getJson('/api/wordpress/v1/health')->assertUnauthorized()->assertJsonPath('code', 'wordpress_token_missing');
+        $response = $this->withToken(str_repeat('x', 64))->getJson('/api/wordpress/v1/health')
+            ->assertUnauthorized()->assertJsonPath('code', 'wordpress_token_mismatch');
+        $this->assertStringNotContainsString($this->token, $response->getContent());
+        $this->assertStringNotContainsString(config('wordpress.token_hash'), $response->getContent());
+        config(['wordpress.token_hash' => '']);
+        $this->getJson('/api/wordpress/v1/health')->assertUnauthorized()->assertJsonPath('code', 'wordpress_not_configured');
+    }
+
+    public function test_configuration_check_reports_stale_config_without_printing_hashes(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'wp-album-');
+        $hash = hash('sha256', 'different-test-token');
+        file_put_contents($path, 'WORDPRESS_ALBUM_TOKEN_HASH='.$hash.PHP_EOL);
+        $this->app->useEnvironmentPath(dirname($path));
+        $this->app->loadEnvironmentFrom(basename($path));
+        try {
+            $this->artisan('wordpress:album-check')
+                ->expectsOutput('当前接口配置：已加载有效格式')
+                ->expectsOutput('环境文件配置：有效格式')
+                ->expectsOutput('当前配置与环境文件：不一致，请核对缓存及服务器环境变量')
+                ->doesntExpectOutput($hash)
+                ->assertSuccessful();
+        } finally {
+            unlink($path);
+        }
+    }
+
     public function test_short_link_resolves_without_recording_a_visit_or_operation(): void
     {
         $album = $this->album();

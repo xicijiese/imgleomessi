@@ -406,6 +406,8 @@ PhotoDuplicateResource/ManagePhotoDuplicates改为独立Filament资源与页面�
 验证：全量433项6886断言通过、前端构建成功；后续补强旧候选状态不影响标签推荐、弹窗模板精简后相关49项690断言再次通过。新增/更新测试覆盖任意标签而非全部、无标签/无结果、8张上限/去重、缩略图/隐私、相册切图同步、旧地址404、旧任务停止及查重功能保持。真实浏览器检查图41推荐4张共同标签图片；图37无标签隐藏模块，1440评论单列1280px；相册654从图45切图44时推荐相应变化且无自身；桌面/390手机截图已查看，推荐点击进入普通图片详情，后台旧入口404、查重200且有开始检查按钮。普通截图两次超时后使用同一标签CDP截图验收。没有为验收新增标签或改动图片资料，未提交删除/检查动作，生产未部署。
 # WordPress 相册引用接口（2026-11-11）
 
+2026-11-13动态AVIF：PublicMediaUrl在photoVariant/settingImage层对存储服务返回的HTTP(S)、无查询后缀的WebP派生图追加固定/thumb或display对应样式（实际名称gallery_thumb_avif/gallery_display_avif，分隔符/）；fromPublicDisk、PhotoStorage.url和原图通道不变，local地址不处理。现有生成队列继续写600/2048WebP，动态样式只转换格式和质量，不产生新持久化Key。文档Accept不用于猜测浏览器能力；页面捕获已知.webp/样式名图片错误，先去掉样式重试一次，失败再允许原错误状态处理；SSR已失败图片补查。WordPress头部加载同样回退脚本，缓存键含插件版本。由开关COS_AVIF_ENABLED控制，默认开启，关闭并重建配置后恢复原地址。
+
 1.0.1诊断补充：仍用401拒绝全部未授权请求，同时返回wordpress_not_configured/wordpress_token_missing/wordpress_token_mismatch，区分缺少哈希、缺少Bearer与值不匹配，不返回秘密或任何部分摘要。插件仅映射白名单错误码；配置检查命令比较当前配置和环境文件，仅显示布尔结论。生产反馈的401原因须实测确认，不添加其他令牌传输路径或自动修改鉴权配置。
 
 用户确认图库统一保存比赛组图，WordPress仅保存文章编排。`/api/wordpress/v1/health`、`resolve?url=...`、`albums/{id}?page=...&per_page=...`使用独立无会话API中间件、Bearer令牌SHA-256常量时间比较、每IP每分钟120次限流；响应private/no-store，默认无哈希即关闭。resolve只接受APP_URL同源相册路径或已有分享码，不请求任意URL、不记录分享访问及收益；分享停用和分享者状态沿用原规则，解析后以稳定相册ID读取。
