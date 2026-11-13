@@ -128,6 +128,7 @@ class UserResource extends Resource
             ->columns([
                 ImageColumn::make('avatar')
                     ->label('头像')
+                    ->state(fn (User $record): ?string => filled($record->avatar) ? url($record->avatar) : null)
                     ->circular(),
                 TextColumn::make('name')->extraCellAttributes(['class' => 'admin-object-cell'])->wrap()
                     ->label('昵称')

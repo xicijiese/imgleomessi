@@ -19,6 +19,25 @@ class AdminUserManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_user_list_displays_profile_avatars_for_local_and_cos_storage(): void
+    {
+        Storage::fake('public');
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $user = User::factory()->create(['avatar_url' => 'avatars/list-user.png']);
+        Storage::disk('public')->put($user->avatar_url, 'avatar');
+
+        $this->actingAs($admin)->get('/admin/users')->assertOk()
+            ->assertSee(url('/storage/avatars/list-user.png'));
+
+        Storage::disk('public')->delete($user->avatar_url);
+        app(\App\Services\StorageSettings::class)->save(['mode' => 'cos', 'cos' => [
+            'secret_id' => 'test-id', 'secret_key' => 'test-key', 'region' => 'ap-guangzhou',
+            'bucket' => 'test-1250000000', 'cdn_url' => 'https://cdn.example.com',
+        ]]);
+        $this->get('/admin/users')->assertOk()
+            ->assertSee('https://cdn.example.com/avatars/list-user.png');
+    }
+
     public function test_admin_audit_page_displays_complete_result_snapshots_without_splitting_values(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);

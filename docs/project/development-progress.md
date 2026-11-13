@@ -1315,3 +1315,11 @@ Inertia错误GET使用location同址整页加载，避免HTML被弹为默认错�
 2026-11-12头像显示修复：个人中心UserCenter::profile原先未提供avatar，UserCenterNav头像仅固定姓名首字；现增加解析后的avatar并渲染裁切圆形图片，缺头像/加载失败回退姓名首字，头像URL改变后可重新加载。User模型实现Filament HasAvatar接口，getFilamentAvatarUrl复用现有avatar展示URL，避免Filament将存储key直接拼成站点根路径。保持avatar_url隐藏、local/COS解析和原上传/删除逻辑，不改身份权限或已有头像数据，无迁移。头像为空时后台沿用Filament默认回退。
 
 头像/资料/用户中心相关21项213断言通过，新增管理员上传后settingsCenter.user.avatar/auth.user.avatar/me.user.avatar一致、后台HTML正确URL及COS CDN地址、移除后null验证（不调用真实COS）。构建通过。实际本地管理员导航与资料页头像同为/storage/avatars/1下同一资源且naturalWidth>0，后台右上角解析为http://127.0.0.1:8000/storage/avatars/1/...且加载成功；未重新上传/修改用户头像。代码本地完成，生产未部署；需提交User/UserCenter/Nav组件CSS及测试、前端重新构建并刷新PHP代码缓存。
+
+## 2026-11-13 用户管理列表头像补漏
+
+后台用户列表将用户统一头像地址转为完整 URL 后交给 Filament ImageColumn，避免 /storage/avatars/... 被再次作为存储 key 检查或重复拼接。沿用个人资料的头像来源，不修改原头像文件或存储模式。增加列表本地存储及 COS/CDN 地址回归测试；AdminUserManagementTest 共10项65断言通过。此批仅 PHP 及测试/文档修改，无迁移、无需前端构建，尚未部署生产。
+
+## 2026-11-13 首页未精选相册排序修复
+
+首页精选相册模块保留手动精选优先，未精选的补足相册由发布时间倒序改为创建时间倒序，同时间按ID倒序。适用于全部及子分类导航，避免新建历史相册填写旧发布时间后被旧相册压在后面。不改变后台拖动排序或相册页规则。新增新建历史相册排序回归，PublicHomepageTest共7项127断言通过；无迁移、无需前端构建，生产数据尚未直接核实，待部署。
