@@ -120,6 +120,28 @@ class PublicHomepageTest extends TestCase
             );
     }
 
+    public function test_unfeatured_homepage_albums_follow_creation_time_instead_of_publication_time(): void
+    {
+        $photo = Photo::query()->create([
+            'title' => '公开图片', 'status' => 'published', 'published_at' => now(),
+            'thumbnail_key' => 'photos/thumb/order.webp',
+        ]);
+        foreach ([
+            ['旧相册', 'older', now()->subDays(2), now()],
+            ['新建历史相册', 'newer', now()->subDay(), now()->subYears(10)],
+        ] as [$title, $slug, $createdAt, $publishedAt]) {
+            $album = Album::query()->create([
+                'title' => $title, 'slug' => $slug, 'status' => 'published',
+                'is_featured' => false, 'created_at' => $createdAt, 'published_at' => $publishedAt,
+            ]);
+            $album->photos()->sync([$photo->id]);
+        }
+
+        $this->get('/')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('home.category_module.tabs.0.items.0.title', '新建历史相册')
+            ->where('home.category_module.tabs.0.items.1.title', '旧相册'));
+    }
+
     public function test_homepage_featured_albums_are_shown_under_all_and_child_category_tabs(): void
     {
         $this->seed(GalleryTaxonomySeeder::class);

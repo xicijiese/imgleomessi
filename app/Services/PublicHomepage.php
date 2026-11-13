@@ -176,7 +176,7 @@ class PublicHomepage
     }
 
     /**
-     * 精选相册优先，其余按相册发布时间倒序补足；可选按子分类过滤。
+     * 精选相册优先，其余按相册创建时间倒序补足；可选按子分类过滤。
      *
      * @return array<int, array<string, mixed>>
      */
@@ -199,7 +199,7 @@ class PublicHomepage
             ? collect()
             : (clone $query)
                 ->when($featured->isNotEmpty(), fn (Builder $query): Builder => $query->whereNotIn('albums.id', $featured->pluck('id')))
-                ->orderByDesc('published_at')
+                ->orderByDesc('created_at')
                 ->orderByDesc('id')
                 ->limit($limit - $featured->count())
                 ->get();
