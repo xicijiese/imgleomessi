@@ -87,6 +87,10 @@ class GalleryOverview extends Widget
             return $snapshot;
         });
 
+        if ($admin) {
+            $snapshot['applications'] = SubmissionApplication::where('status', 'pending')->count();
+        }
+
         $overview = [
             ['label' => '图片总数', 'count' => $snapshot['photos'], 'url' => PhotoResource::getUrl()],
             ['label' => '已发布图片', 'count' => $snapshot['published'], 'url' => $this->filteredUrl(PhotoResource::class, ['status' => 'published'])],

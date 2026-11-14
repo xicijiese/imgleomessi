@@ -86,7 +86,7 @@ class ImportPhotoSubmission implements ShouldQueue
             if ($current->status !== 'processing') {
                 return;
             }
-            $meta = $current->metadata;
+            $meta = $submissions->publicationMetadata($current->metadata);
             $photo = $current->replacement_photo_id
                 ? Photo::query()->lockForUpdate()->findOrFail($current->replacement_photo_id)
                 : new Photo(['uuid' => $current->asset_uuid]);
@@ -114,6 +114,9 @@ class ImportPhotoSubmission implements ShouldQueue
                 if (! empty($meta['album_id'])) {
                     $photo->albums()->sync([$meta['album_id']]);
                 }
+                if (! $photo->publish()) {
+                    throw new RuntimeException('采纳图片未满足发布条件，请检查分类、版权或派生图后重试。');
+                }
             }
             PhotoAnalysisResult::query()->updateOrCreate(['photo_id' => $photo->id], [
                 'sha256_hash' => $current->sha256, 'perceptual_hash' => $hash, 'width' => $current->width, 'height' => $current->height,
@@ -123,7 +126,7 @@ class ImportPhotoSubmission implements ShouldQueue
                 ProcessingJob::query()->create(['photo_id' => $photo->id, 'type' => $type, 'status' => 'done', 'processed_at' => now(), 'payload' => ['submission_id' => $current->id]]);
             }
             $current->update(['status' => 'accepted', 'photo_id' => $photo->id, 'accepted_at' => now(), 'cleanup_at' => now(), 'error_message' => null]);
-            $submissions->event($current, $current->reviewer, 'imported', $replacing ? '高清替换成功，保留原档案关联' : '采纳入库成功，待人工发布');
+            $submissions->event($current, $current->reviewer, 'imported', $replacing ? '高清替换成功，保留原档案关联' : '采纳入库并自动发布成功');
             app(BadgeService::class)->evaluate($user);
             NotifySubmissionBatch::dispatch($current->batch_id, $user->id)->onConnection(app(QueueWorkerStatus::class)->connection())->delay(now()->addSeconds(15))->afterCommit();
         }, 3);

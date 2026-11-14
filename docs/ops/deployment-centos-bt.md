@@ -2545,3 +2545,7 @@ Ctrl+F5后验收后台调整/完成排序入口，新相册置前及前台默认
 ## 2026-11-12头像同步修复增量部署
 
 本批仅发布User.php、UserCenter.php、UserCenterNav.vue/UserCenterNav.css及头像回归测试/相关文档；错误页及WordPress修改属于其他未提交批次，不用git add .混入。无迁移/依赖，原头像保留，无需重新上传。生产备份、确认工作区干净，以www执行artisan down后拉取main，npm run build并检查manifest入口/生成文件；构建失败不开放网站。public/build目录755文件644，以www重建optimize/config/route/view缓存，宝塔重启网站PHP服务后artisan up。Ctrl+F5核对个人中心导航、资料页及Filament右上角同一头像，图片URL应为/storage/avatars/...或配置CDN地址，不是站点根/avatars/...。无须修改存储模式、COS权限或重新生成头像；实际生产尚未部署。
+
+## 2026-11-14 投稿与图片管理修复发布
+
+本轮包含投稿资格/待审导航徽标、仪表盘提醒、投稿自动上传/多选/新增标签/居中反馈、来源选填、发布分类必填、采纳自动公开、私有预览和默认审核原因、单张/批量删除及投稿重投去重占用修复、批量审核版本快照。新增PhotoDeletionService必须提交。无新依赖/数据库迁移，需npm run build并检查三入口manifest，public/build目录755文件644；artisan以www执行optimize/config/route/view缓存，重启网站PHP服务。本次ImportPhotoSubmission及服务有改动，必须在宝塔重启现有队列守护加载新代码，不修改原监听命令，避免沿用旧Worker使采纳仍草稿。恢复网站后验证投稿分类/标签自动上传/审核单条及批量后公开、受保护删除明确提示、已删图重投可采纳及导航计数。历史已采纳草稿不由本批自动批量公开，不重建缩略图，不操作旧失败队列。

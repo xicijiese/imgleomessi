@@ -12,6 +12,7 @@ use App\Models\PhotoUploadBatch;
 use App\Models\Tag;
 use App\Models\User;
 use App\Services\PhotoBatchOrganizer;
+use App\Services\PhotoDeletionService;
 use App\Services\PhotoProcessingService;
 use App\Services\PhotoStorage;
 use BackedEnum;
@@ -41,6 +42,8 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use UnitEnum;
 
 class PhotoResource extends Resource
@@ -393,6 +396,48 @@ class PhotoResource extends Resource
                             $count = $records->filter(fn (Photo $photo): bool => $photo->archive())->count();
                             Notification::make()->title('已归档 '.$count.' 张图片')->success()->send();
                         }),
+                    BulkAction::make('deleteSelected')
+                        ->label('批量删除')
+                        ->color('danger')
+                        ->authorize(fn (): bool => static::canDeleteAny())
+                        ->requiresConfirmation()
+                        ->modalHeading('确认批量删除图片')
+                        ->modalDescription(fn (Collection $records): string => '已选中 '.$records->count().' 张图片。将永久删除图片档案及其相册关联、评论、点赞和收藏，无法恢复；不会直接清理存储文件。投稿审核与贡献历史保留；正在入库或受查重历史保护的图片将跳过，其他图片继续处理。')
+                        ->modalSubmitActionLabel('确认永久删除')
+                        ->action(function (Collection $records): void {
+                            abort_unless(static::canDeleteAny(), 403);
+                            $deleted = 0;
+                            $skipped = [];
+                            $failed = [];
+                            foreach ($records as $record) {
+                                try {
+                                    DB::transaction(function () use ($record): void {
+                                        $photo = Photo::query()->lockForUpdate()->find($record->id);
+                                        if (! $photo) {
+                                            throw ValidationException::withMessages(['photo' => '图片已不存在，请刷新列表。']);
+                                        }
+                                        if (! static::canDelete($photo)) {
+                                            throw ValidationException::withMessages(['photo' => '没有删除该图片的权限。']);
+                                        }
+                                        app(PhotoDeletionService::class)->delete($photo);
+                                    });
+                                    $deleted++;
+                                } catch (ValidationException $error) {
+                                    $skipped[] = $record->title.'（档案编号 '.$record->id.'）：'.collect($error->errors())->flatten()->implode('；');
+                                } catch (\Throwable $error) {
+                                    report($error);
+                                    $failed[] = $record->title.'（档案编号 '.$record->id.'）：删除失败，详细原因已记录到日志。';
+                                }
+                            }
+                            $notification = Notification::make()->title('已删除 '.$deleted.' 张，跳过 '.count($skipped).' 张，失败 '.count($failed).' 张');
+                            if ($skipped || $failed) {
+                                $notification->warning()->body(implode('；', [...$skipped, ...$failed]))->persistent();
+                            } else {
+                                $notification->success();
+                            }
+                            $notification->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                 ]),
             ])
             ->recordActions([
@@ -486,7 +531,18 @@ class PhotoResource extends Resource
                     ->requiresConfirmation()
                     ->visible(fn (Photo $record): bool => $record->status === 'archived')
                     ->action(fn (Photo $record): bool => $record->restoreFromArchive()),
-                DeleteAction::make(),
+                DeleteAction::make()->using(function (Photo $record, DeleteAction $action): bool {
+                    try {
+                        return app(PhotoDeletionService::class)->delete($record);
+                    } catch (ValidationException $error) {
+                        Notification::make()->danger()->title('图片未删除')->body(collect($error->errors())->flatten()->implode('；'))->persistent()->send();
+                        $action->halt();
+                    } catch (\Throwable $error) {
+                        report($error);
+                        Notification::make()->danger()->title('删除失败')->body('请稍后重试，详细原因已记录到日志。')->persistent()->send();
+                        $action->halt();
+                    }
+                }),
             ]);
     }
 

@@ -13,6 +13,8 @@ export interface SubmissionDictionaries {
     categories: {
         id: number;
         name: string;
+        multiple?: boolean;
+        required?: boolean;
         children: { id: number; name: string }[];
     }[];
     albums: { id: number; title: string }[];

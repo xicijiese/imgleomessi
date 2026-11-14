@@ -34,6 +34,14 @@ class SubmissionApplicationResource extends Resource
 
     protected static ?int $navigationSort = 15;
 
+    public static function getNavigationBadge(): ?string
+    {
+        if (! static::canViewAny()) return null;
+        $count = SubmissionApplication::where('status', 'pending')->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
     public static function canViewAny(): bool
     {
         return auth()->user()?->isAdministrator() ?? false;

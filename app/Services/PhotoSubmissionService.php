@@ -88,26 +88,54 @@ class PhotoSubmissionService
     {
         $validated = Validator::make($data, [
             'title' => ['nullable', 'string', 'max:255'], 'event_date' => ['nullable', 'date_format:Y-m-d'],
-            'source_url' => ['nullable', 'url:http,https', 'max:2000'], 'source_note' => ['required', 'string', 'max:2000'],
+            'source_url' => ['nullable', 'url:http,https', 'max:2000'], 'source_note' => ['nullable', 'string', 'max:2000'],
             'description' => ['nullable', 'string', 'max:5000'], 'show_credit' => ['required', 'boolean'],
             'album_id' => ['nullable', 'integer', Rule::exists('albums', 'id')->where('status', 'published')],
-            'category_ids' => ['present', 'array', 'max:8'],
+            'category_ids' => ['present', 'array', 'max:100'],
             'category_ids.*' => ['integer', 'distinct', Rule::exists('categories', 'id')->where('visibility', 'public')->whereNotNull('parent_id')],
             'tag_ids' => ['present', 'array', 'max:30'], 'tag_ids.*' => ['integer', 'distinct', 'exists:tags,id'],
+        ], [
+            'source_url.url' => '来源链接格式不正确，请使用 http 或 https 链接。',
+            'event_date.date_format' => '图片日期格式不正确，请填写有效日期。',
         ])->validate();
         $categories = Category::query()->whereIn('id', $validated['category_ids'])->get();
-        if ($categories->pluck('parent_id')->unique()->count() !== $categories->count()) {
-            throw ValidationException::withMessages(['category_ids' => '每个主分类只能选择一个子分类。']);
+        foreach ($categories->groupBy('parent_id') as $rootId => $selected) {
+            if ($selected->count() > 1 && ! in_array(Category::find($rootId)?->slug, Category::MULTI_SELECT_ROOT_SLUGS, true)) {
+                throw ValidationException::withMessages(['category_ids' => '该主分类不支持多选。']);
+            }
         }
 
         return $validated;
+    }
+
+    public function publicationMetadata(array $data): array
+    {
+        $meta = $this->metadata($data);
+        if (! empty($meta['album_id'])) {
+            $selected = Category::whereIn('id', $meta['category_ids'])->pluck('parent_id')->all();
+            $inherited = \App\Models\Album::findOrFail($meta['album_id'])->categories()
+                ->whereNotIn('parent_id', $selected)->where('visibility', 'public')->pluck('categories.id')->all();
+            $meta['category_ids'] = array_values(array_unique([...$meta['category_ids'], ...$inherited]));
+        }
+        $selectedRoots = Category::whereIn('id', $meta['category_ids'])->pluck('parent_id')->all();
+        $missing = Category::requiredForPublish()->whereNotIn('id', $selectedRoots)->pluck('name')->all();
+        if ($missing || Category::requiredRootIds() === []) {
+            throw ValidationException::withMessages(['category_ids' => $missing ? '请补齐必填分类：'.implode('、', $missing).'。' : '网站必填分类尚未配置，请联系管理员。']);
+        }
+
+        return $meta;
     }
 
     public function submit(User $user, array $items): void
     {
         $prepared = [];
         foreach ($items as $item) {
-            $prepared[$item['id']] = $this->metadata($item['metadata']);
+            try {
+                $prepared[$item['id']] = $this->publicationMetadata($item['metadata']);
+            } catch (ValidationException $error) {
+                $filename = PhotoSubmission::where('user_id', $user->id)->whereKey($item['id'])->value('original_filename');
+                throw ValidationException::withMessages(collect($error->errors())->map(fn ($messages) => ($filename ? $filename.'：' : '').implode('；', $messages))->all());
+            }
         }
         DB::transaction(function () use ($user, $prepared): void {
             $user = User::query()->lockForUpdate()->findOrFail($user->id);
@@ -175,6 +203,11 @@ class PhotoSubmissionService
                 $row->show_credit = $meta['show_credit'];
             }
             if ($decision === 'accepted') {
+                try {
+                    $row->metadata = $this->publicationMetadata($row->metadata);
+                } catch (ValidationException $error) {
+                    throw ValidationException::withMessages(['note' => collect($error->errors())->flatten()->implode('；').'请先通过“整理资料”补齐后再采纳。']);
+                }
                 $this->claim($row);
                 if ($replacement) {
                     $target = Photo::query()->lockForUpdate()->findOrFail($replacement);
@@ -201,6 +234,16 @@ class PhotoSubmissionService
             throw ValidationException::withMessages(['note' => '完全相同的图片已存在图库，不能重复采纳。']);
         }
         DB::table('photo_submission_claims')->insertOrIgnore(['sha256' => $row->sha256, 'submission_id' => $row->id]);
+        $ownerId = DB::table('photo_submission_claims')->where('sha256', $row->sha256)->value('submission_id');
+        if ($ownerId !== $row->id) {
+            $owner = PhotoSubmission::query()->lockForUpdate()->find($ownerId);
+            if ($owner?->status === 'accepted' && $owner->photo_id === null
+                && SubmissionEvent::where('submission_id', $owner->id)->where('action', 'photo_deleted')->exists()) {
+                // 只接续确认已删除的历史占用，不覆盖处理中或仍在图库中的图片。
+                DB::table('photo_submission_claims')->where('sha256', $row->sha256)->where('submission_id', $ownerId)
+                    ->update(['submission_id' => $row->id]);
+            }
+        }
         if (DB::table('photo_submission_claims')->where('sha256', $row->sha256)->value('submission_id') !== $row->id) {
             throw ValidationException::withMessages(['note' => '相同图片已有采纳任务，请勿重复采纳。']);
         }

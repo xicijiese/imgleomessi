@@ -38,7 +38,7 @@ class PhotoSubmissionController extends Controller
             'batch_summaries' => $batchSummaries,
             'contribution_count' => $badges->contributionCount($user),
             'categories' => Category::query()->whereNull('parent_id')->where('visibility', 'public')->with(['children' => fn ($q) => $q->where('visibility', 'public')])->orderBy('sort_order')->get()->map(fn ($category) => [
-                'id' => $category->id, 'name' => $category->name, 'children' => $category->children->map(fn ($item) => ['id' => $item->id, 'name' => $item->name]),
+                'id' => $category->id, 'name' => $category->name, 'required' => $category->required_for_publish, 'multiple' => in_array($category->slug, Category::MULTI_SELECT_ROOT_SLUGS, true), 'children' => $category->children->map(fn ($item) => ['id' => $item->id, 'name' => $item->name]),
             ]),
             'albums' => Album::query()->published()->orderBy('title')->get(['id', 'title']),
             'tags' => Tag::query()->orderBy('name')->get(['id', 'name']),
@@ -62,6 +62,16 @@ class PhotoSubmissionController extends Controller
         $qualification->apply($request->user(), $data['reason']);
 
         return back(303)->with('status', 'submission-application-created');
+    }
+
+    public function createTag(Request $request)
+    {
+        abort_unless($request->user()->canSubmitPhotos(), 403);
+        $request->merge(['name' => trim((string) $request->input('name'))]);
+        $data = $request->validate(['name' => ['required', 'string', 'max:50']]);
+        $tag = Tag::firstOrCreate(['name' => $data['name']]);
+
+        return response()->json(['id' => $tag->id, 'name' => $tag->name]);
     }
 
     public function upload(Request $request, PhotoSubmissionService $submissions)

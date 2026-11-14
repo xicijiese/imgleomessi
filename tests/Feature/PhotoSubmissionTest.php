@@ -52,9 +52,65 @@ class PhotoSubmissionTest extends TestCase
         return User::factory()->create(['role' => $role, 'status' => 'active']);
     }
 
+    public function test_submitter_can_create_tags_and_use_admin_multiple_category_rules(): void
+    {
+        $user = User::factory()->create(['role' => 'submitter', 'status' => 'active']);
+        $this->actingAs($user)->postJson('/me/submissions/tags', ['name' => ' 新建投稿标签 '])->assertOk()->assertJsonPath('name', '新建投稿标签');
+        $this->postJson('/me/submissions/tags', ['name' => '新建投稿标签'])->assertOk();
+        $this->assertDatabaseCount('tags', 1);
+        $this->postJson('/me/submissions/tags', ['name' => ''])->assertUnprocessable();
+        $this->actingAs(User::factory()->create(['role' => 'user']))->postJson('/me/submissions/tags', ['name' => '禁止创建'])->assertForbidden();
+        $ids = [];
+        foreach (Category::MULTI_SELECT_ROOT_SLUGS as $slug) {
+            $root = Category::create(['name' => $slug, 'slug' => $slug]);
+            foreach ([1, 2] as $i) {
+                $ids[] = Category::create(['name' => $slug.$i, 'slug' => $slug.$i, 'parent_id' => $root->id, 'visibility' => 'public'])->id;
+            }
+        }
+        $validated = app(PhotoSubmissionService::class)->metadata($this->metadata(['category_ids' => $ids]));
+        $this->assertEquals($ids, $validated['category_ids']);
+        $this->expectException(ValidationException::class);
+        app(PhotoSubmissionService::class)->metadata($this->metadata(['source_url' => '无效链接']));
+    }
+
+    public function test_review_table_preview_and_default_acceptance_work_without_replacement(): void
+    {
+        Queue::fake();
+        $user = $this->user();
+        $row = $this->uploaded($user);
+        app(PhotoSubmissionService::class)->submit($user, [['id' => $row->id, 'metadata' => $this->metadata(['source_note' => ''])]]);
+        $this->actingAs($this->user('admin'));
+        $url = url('/me/submissions/'.$row->id.'/image');
+        Livewire::test(ManagePhotoSubmissions::class)->assertSee($url);
+        $this->get($url)->assertOk()->assertHeader('Content-Type', $row->mime_type);
+        Livewire::test(ManagePhotoSubmissions::class)
+            ->mountAction(TestAction::make('accepted')->table($row))
+            ->assertSet('mountedActions.0.data.note', '感谢分享，您的投稿已采纳，将整理入库。');
+        Livewire::test(ManagePhotoSubmissions::class)->selectTableRecords([$row->id])
+            ->mountAction(TestAction::make('accepted')->table()->bulk())
+            ->assertSet('mountedActions.0.data.note', '感谢分享，您的投稿已采纳，将整理入库。');
+        Livewire::test(ManagePhotoSubmissions::class)
+            ->callAction(TestAction::make('accepted')->table($row), ['replacement_photo_id' => 999999])
+            ->assertHasActionErrors(['replacement_photo_id']);
+        Livewire::test(ManagePhotoSubmissions::class)
+            ->callAction(TestAction::make('accepted')->table($row), ['replacement_photo_id' => null])
+            ->assertHasNoActionErrors();
+        $this->assertSame('processing', $row->fresh()->status);
+        Queue::assertPushed(ImportPhotoSubmission::class);
+    }
+
     private function metadata(array $extra = []): array
     {
-        return array_replace(['title' => '梅西训练影像', 'event_date' => null, 'source_url' => null, 'source_note' => '不详', 'description' => '用户提交说明', 'show_credit' => false, 'album_id' => null, 'category_ids' => [], 'tag_ids' => []], $extra);
+        $required = [];
+        foreach (Category::REQUIRED_ROOT_SLUGS as $slug) {
+            $root = Category::firstOrCreate(['slug' => $slug], ['name' => Category::ROOT_CATEGORIES[$slug], 'visibility' => 'public']);
+            $root->update(['required_for_publish' => true]);
+            $required[] = $root->children()->first()?->id ?? Category::create(['name' => '测试必选项', 'slug' => $slug.'-required', 'parent_id' => $root->id, 'visibility' => 'public'])->id;
+        }
+        $meta = array_replace(['title' => '梅西训练影像', 'event_date' => null, 'source_url' => null, 'source_note' => '不详', 'description' => '用户提交说明', 'show_credit' => false, 'album_id' => null, 'category_ids' => $required, 'tag_ids' => []], $extra);
+        $meta['category_ids'] = array_values(array_unique([...$meta['category_ids'], ...$required]));
+
+        return $meta;
     }
 
     private function uploaded(User $user, ?string $batch = null, int $width = 30): PhotoSubmission
@@ -73,6 +129,123 @@ class PhotoSubmissionTest extends TestCase
     private function review(PhotoSubmission $row, User $reviewer, string $decision = 'accepted', ?int $replacement = null): void
     {
         app(PhotoSubmissionService::class)->review($row, $reviewer, $decision, '审核结果说明', $row->revision, replacement: $replacement);
+    }
+
+    public function test_submission_requires_publish_categories_and_inherits_them_from_album(): void
+    {
+        $user = $this->user();
+        $meta = $this->metadata();
+        $completeIds = $meta['category_ids'];
+        $row = $this->uploaded($user);
+        $meta['category_ids'] = [];
+        $this->actingAs($user)->post('/me/submissions', ['items' => [['id' => $row->id, 'metadata' => $meta]]])
+            ->assertSessionHasErrors('category_ids');
+        $this->assertSame('temporary', $row->fresh()->status);
+        $album = Album::create(['title' => '资料完整相册', 'slug' => 'complete-submission-album', 'status' => 'published']);
+        $album->categories()->sync($completeIds);
+        $meta['album_id'] = $album->id;
+        $this->post('/me/submissions', ['items' => [['id' => $row->id, 'metadata' => $meta]]])->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertEqualsCanonicalizing($completeIds, $row->fresh()->metadata['category_ids']);
+        $row->update(['metadata' => [...$meta, 'album_id' => null]]);
+        $this->actingAs($this->user('admin'));
+        Livewire::test(ManagePhotoSubmissions::class)->callAction(TestAction::make('accepted')->table($row))
+            ->assertHasActionErrors(['note']);
+        $this->assertSame('pending', $row->fresh()->status);
+        Queue::assertNotPushed(ImportPhotoSubmission::class);
+    }
+
+    public function test_accepted_submission_images_support_single_and_bulk_deletion_without_losing_history(): void
+    {
+        $user = $this->user();
+        $admin = $this->user('admin');
+        foreach ([false, true] as $bulk) {
+            $row = $this->uploaded($user, width: $bulk ? 80 : 70);
+            app(PhotoSubmissionService::class)->submit($user, [['id' => $row->id, 'metadata' => $this->metadata()]]);
+            $this->review($row->fresh(), $admin);
+            app()->call([new ImportPhotoSubmission($row->id), 'handle']);
+            $photo = $row->fresh()->photo;
+            $this->actingAs($admin);
+            $page = Livewire::test(\App\Filament\Resources\Photos\Pages\ManagePhotos::class);
+            if ($bulk) {
+                $page->selectTableRecords([$photo->id])->callAction(TestAction::make('deleteSelected')->table()->bulk())
+                    ->assertNotified('已删除 1 张，跳过 0 张，失败 0 张');
+            } else {
+                $page->callAction(TestAction::make('delete')->table($photo))->assertHasNoActionErrors();
+            }
+            $this->assertDatabaseMissing('photos', ['id' => $photo->id]);
+            $this->assertSame('accepted', $row->fresh()->status);
+            $this->assertNull($row->fresh()->photo_id);
+            $this->assertDatabaseHas('submission_events', ['submission_id' => $row->id, 'action' => 'photo_deleted']);
+        }
+        $this->assertSame(2, app(BadgeService::class)->contributionCount($user));
+    }
+
+    public function test_deleted_submission_can_be_resubmitted_even_with_legacy_claim_but_existing_photo_blocks_duplicates(): void
+    {
+        $user = $this->user();
+        $admin = $this->user('admin');
+        $old = $this->pending($user);
+        $this->review($old, $admin);
+        app()->call([new ImportPhotoSubmission($old->id), 'handle']);
+        $old->refresh();
+        $this->actingAs($admin);
+        app(\App\Services\PhotoDeletionService::class)->delete($old->photo);
+        $this->assertDatabaseMissing('photo_submission_claims', ['submission_id' => $old->id]);
+        // 模拟修复前已删除档案但未释放的历史占用。
+        \Illuminate\Support\Facades\DB::table('photo_submission_claims')->insert(['sha256' => $old->sha256, 'submission_id' => $old->id]);
+        $again = $this->pending($user);
+        $this->assertSame($old->sha256, $again->sha256);
+        $this->review($again, $admin);
+        app()->call([new ImportPhotoSubmission($again->id), 'handle']);
+        $this->assertSame('published', $again->fresh()->photo->status);
+        $this->assertDatabaseHas('photo_submissions', ['id' => $old->id, 'status' => 'accepted', 'photo_id' => null]);
+        $duplicate = $this->pending($user);
+        $this->expectException(ValidationException::class);
+        $this->review($duplicate, $admin);
+    }
+
+    public function test_bulk_accepts_deleted_photo_resubmission_with_default_revision_snapshot(): void
+    {
+        $user = $this->user();
+        $admin = $this->user('admin');
+        $old = $this->pending($user);
+        $this->review($old, $admin);
+        app()->call([new ImportPhotoSubmission($old->id), 'handle']);
+        $this->actingAs($admin);
+        app(\App\Services\PhotoDeletionService::class)->delete($old->fresh()->photo);
+        \Illuminate\Support\Facades\DB::table('photo_submission_claims')->insert(['sha256' => $old->sha256, 'submission_id' => $old->id]);
+        $again = $this->pending($user);
+        $other = $this->uploaded($user, width: 91);
+        app(PhotoSubmissionService::class)->submit($user, [['id' => $other->id, 'metadata' => $this->metadata()]]);
+        Livewire::test(ManagePhotoSubmissions::class)->selectTableRecords([$again->id, $other->id])
+            ->callAction(TestAction::make('accepted')->table()->bulk())
+            ->assertHasNoActionErrors()->assertNotified('处理 2 张，跳过 0 张');
+        $this->assertSame('processing', $again->fresh()->status);
+        $this->assertSame('processing', $other->fresh()->status);
+        foreach ([$again, $other] as $row) {
+            app()->call([new ImportPhotoSubmission($row->id), 'handle']);
+            $this->assertSame('published', $row->fresh()->photo->status);
+        }
+    }
+
+    public function test_submission_review_navigation_badge_counts_only_pending_for_authorized_staff(): void
+    {
+        $user = $this->user();
+        $first = $this->pending($user);
+        $second = $this->pending($user);
+        $this->uploaded($user);
+        $resource = \App\Filament\Resources\PhotoSubmissions\PhotoSubmissionResource::class;
+        foreach (['admin', 'editor'] as $role) {
+            $this->actingAs($this->user($role));
+            $this->assertSame('2', $resource::getNavigationBadge());
+        }
+        $first->update(['status' => 'processing']);
+        $this->assertSame('1', $resource::getNavigationBadge());
+        $second->update(['status' => 'rejected']);
+        $this->assertNull($resource::getNavigationBadge());
+        $first->update(['status' => 'pending']);
+        $this->actingAs($user);
+        $this->assertNull($resource::getNavigationBadge());
     }
 
     public function test_normal_user_requires_application_and_submitter_has_no_admin_access(): void
@@ -124,10 +297,10 @@ class PhotoSubmissionTest extends TestCase
     {
         $user = $this->user();
         $row = $this->uploaded($user);
-        $this->actingAs($user)->post('/me/submissions', ['items' => [['id' => $row->id, 'metadata' => $this->metadata(['source_note' => ''])]]])->assertSessionHasErrors('source_note');
+        $this->actingAs($user)->post('/me/submissions', ['items' => [['id' => $row->id, 'metadata' => $this->metadata(['source_url' => '无效链接'])]]])->assertSessionHasErrors('source_url');
         $album = Album::query()->create(['title' => '私有', 'slug' => 'private', 'status' => 'draft']);
         $this->post('/me/submissions', ['items' => [['id' => $row->id, 'metadata' => $this->metadata(['album_id' => $album->id])]]])->assertSessionHasErrors('album_id');
-        $this->post('/me/submissions', ['items' => [['id' => $row->id, 'metadata' => $this->metadata()]]])->assertRedirect();
+        $this->post('/me/submissions', ['items' => [['id' => $row->id, 'metadata' => $this->metadata(['source_note' => ''])]]])->assertRedirect();
         $this->assertSame('pending', $row->fresh()->status);
         $this->assertDatabaseCount('photos', 0);
         $this->assertDatabaseCount('photo_submissions', 1);
@@ -149,7 +322,7 @@ class PhotoSubmissionTest extends TestCase
         $this->assertEqualsWithDelta(now()->addDays(7)->timestamp, $row->fresh()->cleanup_at->timestamp, 2);
     }
 
-    public function test_real_import_creates_only_one_draft_with_metadata_and_never_repeats_contribution(): void
+    public function test_real_import_publishes_photo_with_metadata_and_never_repeats_contribution(): void
     {
         $user = $this->user();
         $editor = $this->user('editor');
@@ -162,7 +335,9 @@ class PhotoSubmissionTest extends TestCase
         $row->refresh();
         $this->assertSame('accepted', $row->status);
         $this->assertDatabaseCount('photos', 1);
-        $this->assertSame('draft', $row->photo->status);
+        $this->assertSame('published', $row->photo->status);
+        $this->assertNotNull($row->photo->published_at);
+        $this->get('/photos/'.$row->photo->uuid)->assertOk();
         $this->assertSame('梅西训练影像', $row->photo->title);
         $this->assertTrue($row->photo->albums()->whereKey($album->id)->exists());
         $this->assertSame(1, app(BadgeService::class)->contributionCount($user));
@@ -472,11 +647,12 @@ class PhotoSubmissionTest extends TestCase
         $editor = $this->user('editor');
         $row = $this->pending($user);
         $revision = $row->revision;
-        app(PhotoSubmissionService::class)->edit($row, $user, $this->metadata(['title' => '用户刚修改']), $revision);
         $this->actingAs($editor);
-        Livewire::test(ManagePhotoSubmissions::class)->selectTableRecords([$row->id])
-            ->callAction(TestAction::make('accepted')->table()->bulk(), data: ['note' => '批量采纳', 'revisions' => json_encode([$row->id => $revision])])
-            ->assertHasNoActionErrors();
+        $page = Livewire::test(ManagePhotoSubmissions::class)->selectTableRecords([$row->id])
+            ->mountAction(TestAction::make('accepted')->table()->bulk())
+            ->assertSet('mountedActions.0.data.revisions', json_encode([$row->id => $revision]));
+        app(PhotoSubmissionService::class)->edit($row, $user, $this->metadata(['title' => '用户刚修改']), $revision);
+        $page->callMountedAction()->assertHasNoActionErrors()->assertNotified('处理 0 张，跳过 1 张');
         $this->assertSame('pending', $row->fresh()->status);
         $this->assertDatabaseCount('photo_submission_claims', 0);
     }

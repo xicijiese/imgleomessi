@@ -1,9 +1,16 @@
 <x-filament-widgets::widget>
-    <div class="admin-dashboard">
+    <div class="admin-dashboard" wire:poll.30s>
         <div class="admin-dashboard-heading">
             <h2>图库概览</h2>
             <p>更新于 {{ $snapshot['updated_at'] }}（北京时间）· 一分钟缓存，刷新页面更新</p>
         </div>
+
+        @if ($admin && $snapshot['applications'] > 0)
+            <a href="{{ \App\Filament\Resources\SubmissionApplications\SubmissionApplicationResource::getUrl('index', ['filters' => ['status' => ['value' => 'pending']]]) }}" class="admin-dashboard-row" role="status">
+                <strong>有 {{ $snapshot['applications'] }} 条投稿资格申请待审核</strong>
+                <span class="admin-dashboard-link">立即审核 →</span>
+            </a>
+        @endif
 
         <div @class(['admin-dashboard-metrics', 'admin-dashboard-metrics--three' => count($overview) === 3])>
             @foreach ($overview as $item)

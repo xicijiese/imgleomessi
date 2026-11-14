@@ -27,6 +27,35 @@ class PhotoManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_bulk_delete_removes_only_selected_unprotected_photos_and_reports_skips(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $deletable = Photo::create(['title' => '可批量删除']);
+        $protected = Photo::create(['title' => '受保护查重记录']);
+        $untouched = Photo::create(['title' => '未选中的图片']);
+        $album = Album::create(['title' => '保留相册', 'slug' => 'bulk-delete-album', 'cover_photo_id' => $deletable->id]);
+        $deletable->albums()->sync([$album->id]);
+        \App\Models\PhotoDeduplicationLog::create([
+            'photo_id' => $protected->id, 'retained_photo_id' => $untouched->id,
+            'sha256_hash' => str_repeat('a', 64), 'previous_status' => 'draft',
+        ]);
+        $page = Livewire::test(ManagePhotos::class)->selectTableRecords([$protected->id, $deletable->id]);
+        $page->mountAction(TestAction::make('deleteSelected')->table()->bulk())
+            ->assertMountedActionModalSee('已选中 2 张图片')
+            ->assertMountedActionModalSee('无法恢复');
+        $this->assertDatabaseHas('photos', ['id' => $deletable->id]);
+        $page->callMountedAction()->assertNotified('已删除 1 张，跳过 1 张，失败 0 张');
+        $this->assertDatabaseMissing('photos', ['id' => $deletable->id]);
+        $this->assertDatabaseHas('photos', ['id' => $protected->id]);
+        $this->assertDatabaseHas('photos', ['id' => $untouched->id]);
+        $this->assertDatabaseHas('albums', ['id' => $album->id]);
+        $this->assertNull($album->fresh()->cover_photo_id);
+        $this->assertDatabaseMissing('album_photo', ['photo_id' => $deletable->id]);
+        Livewire::test(ManagePhotos::class)->callAction(TestAction::make('delete')->table($protected))
+            ->assertNotified('图片未删除');
+        $this->assertDatabaseHas('photos', ['id' => $protected->id]);
+    }
+
     public function test_all_photo_bulk_actions_persist_only_to_selected_records(): void
     {
         $this->seed(GalleryTaxonomySeeder::class);

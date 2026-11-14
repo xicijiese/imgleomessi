@@ -81,6 +81,10 @@ const files = ref<PendingFile[]>([]);
 const batch = ref(crypto.randomUUID());
 const uploadBusy = ref(false);
 const statusMessage = ref('');
+const feedbackDialog = ref<HTMLDialogElement | null>(null);
+function showFeedback() {
+    feedbackDialog.value?.showModal();
+}
 const submit = useForm<{
     items: { id: string; metadata: SubmissionMetadata }[];
 }>({ items: [] });
@@ -95,6 +99,7 @@ const cloneMeta = (meta: SubmissionMetadata): SubmissionMetadata => ({
 const buttonClass =
     'min-h-11 rounded-sm border border-[#094067] px-4 py-2 text-sm font-semibold text-[#094067] transition hover:bg-[#d8eefe] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
 function addFiles(selection: FileList | File[]) {
+    if (uploadBusy.value || submit.processing) return;
     for (const file of Array.from(selection)) {
         if (files.value.length >= 20) {
             statusMessage.value = '单批最多 20 张。';
@@ -130,6 +135,7 @@ function addFiles(selection: FileList | File[]) {
             metadata: cloneMeta(common.value),
         });
     }
+    void uploadPendingFiles();
 }
 function removeFile(item: PendingFile) {
     if (item.status === 'uploaded')
@@ -198,11 +204,15 @@ function uploadOne(item: PendingFile): Promise<void> {
         xhr.send(data);
     });
 }
-async function uploadAll() {
+async function uploadPendingFiles() {
+    if (uploadBusy.value) return;
     uploadBusy.value = true;
-    for (const item of files.value)
-        if (item.status !== 'uploaded') await uploadOne(item);
-    uploadBusy.value = false;
+    try {
+        for (const item of files.value)
+            if (item.status === 'waiting') await uploadOne(item);
+    } finally {
+        uploadBusy.value = false;
+    }
 }
 async function retryFile(item: PendingFile) {
     if (uploadBusy.value) return;
@@ -215,7 +225,9 @@ function submitFiles() {
         !files.value.length ||
         files.value.some((item) => item.status !== 'uploaded')
     ) {
-        statusMessage.value = '请先上传全部选中图片，失败图片可重试或移除。';
+        statusMessage.value =
+            '图片尚未全部上传完成，请等待上传结束；失败图片可单独重试或移除。';
+        showFeedback();
         return;
     }
     submit.items = files.value.map((item) => ({
@@ -229,6 +241,12 @@ function submitFiles() {
             files.value = [];
             batch.value = crypto.randomUUID();
             statusMessage.value = '投稿已提交，等待审核。';
+            showFeedback();
+        },
+        onError: (errors) => {
+            statusMessage.value =
+                '投稿未提交：' + Object.values(errors).join('；');
+            showFeedback();
         },
     });
 }
@@ -359,7 +377,7 @@ const paginationLabel = (label: string) =>
                     <p class="text-sm leading-7 text-[#5f6c7b]">
                         支持 JPG、PNG、WebP、GIF，单张最大 5MB，单批最多 20
                         张，每日最多成功提交 100
-                        张。资料不确定可以留空，来源不详请如实说明。
+                        张。带红色星号的分类为必填，可从所选相册继承；其他资料可留空，来源请如实填写。
                     </p>
                     <details
                         class="rounded-sm border border-[#90b4ce]/50 p-4"
@@ -401,12 +419,18 @@ const paginationLabel = (label: string) =>
                         "
                     >
                         <label
-                            class="inline-flex min-h-11 cursor-pointer items-center gap-2 font-semibold"
-                            >选择或拖拽图片<input
+                            class="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-[#ba9f6c] bg-[#ba9f6c] px-5 py-2 font-semibold text-[#042240] transition hover:bg-[#c9b384]"
+                            >选择图片<input
                                 type="file"
                                 accept="image/jpeg,image/png,image/webp,image/gif"
                                 multiple
-                                class="block max-w-full text-sm"
+                                class="sr-only"
+                                style="
+                                    width: 1px;
+                                    height: 1px;
+                                    padding: 0;
+                                    border: 0;
+                                "
                                 :disabled="uploadBusy"
                                 @change="
                                     addFiles(
@@ -417,6 +441,9 @@ const paginationLabel = (label: string) =>
                                         '';
                                 "
                         /></label>
+                        <p class="mt-3 text-sm text-[#526779]">
+                            选择或拖入后自动上传 · 单张最大5MB · 每批最多20张
+                        </p>
                     </div>
                     <article
                         v-for="(item, index) in files"
@@ -497,22 +524,16 @@ const paginationLabel = (label: string) =>
                     <div class="flex flex-wrap gap-3">
                         <button
                             type="button"
-                            :class="buttonClass"
-                            :disabled="!files.length || uploadBusy"
-                            @click="uploadAll"
-                        >
-                            {{
-                                uploadBusy ? '上传中…' : '上传选中图片'
-                            }}</button
-                        ><button
-                            type="button"
                             :class="[buttonClass, 'bg-[#d8eefe]']"
                             :disabled="
-                                !files.length || uploadBusy || submit.processing
+                                !files.length ||
+                                uploadBusy ||
+                                submit.processing ||
+                                files.some((item) => item.status !== 'uploaded')
                             "
                             @click="submitFiles"
                         >
-                            提交审核
+                            {{ submit.processing ? '正在提交…' : '提交审核' }}
                         </button>
                     </div>
                     <p
@@ -839,5 +860,22 @@ const paginationLabel = (label: string) =>
             </main>
         </div>
     </div>
+    <dialog
+        ref="feedbackDialog"
+        class="submission-feedback"
+        aria-labelledby="submission-feedback-title"
+    >
+        <h2 id="submission-feedback-title">
+            {{
+                statusMessage.startsWith('投稿已提交')
+                    ? '提交成功'
+                    : '请检查投稿信息'
+            }}
+        </h2>
+        <p>{{ statusMessage }}</p>
+        <button type="button" autofocus @click="feedbackDialog?.close()">
+            知道了
+        </button>
+    </dialog>
 </template>
 <style scoped src="./Submissions.css"></style>

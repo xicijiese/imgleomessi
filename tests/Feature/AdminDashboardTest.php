@@ -24,6 +24,16 @@ class AdminDashboardTest extends TestCase
         Cache::flush();
     }
 
+    public function test_dashboard_application_reminder_bypasses_cached_counts(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        Livewire::test(GalleryOverview::class)->assertDontSee('条投稿资格申请待审核');
+        $user = User::factory()->create(['role' => 'user', 'status' => 'active']);
+        app(\App\Services\SubmissionQualification::class)->apply($user, '我有大量高清梅西图片资源愿意投稿');
+        Livewire::test(GalleryOverview::class)->assertSee('有 1 条投稿资格申请待审核');
+        $this->assertSame('1', \App\Filament\Resources\SubmissionApplications\SubmissionApplicationResource::getNavigationBadge());
+    }
+
     public function test_dashboard_counts_real_records_and_only_manual_review_work(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);

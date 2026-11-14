@@ -105,7 +105,7 @@ class PhotoDuplicateResource extends Resource
                             if (PhotoDeduplicationLog::where('photo_id', $deleted->id)->orWhere('retained_photo_id', $deleted->id)->exists()) {
                                 throw ValidationException::withMessages(['photo' => '该图片有关联的历史处理记录，不能直接删除。']);
                             }
-                            $deleted->delete();
+                            app(\App\Services\PhotoDeletionService::class)->delete($deleted);
                         });
                     } catch (ValidationException $exception) {
                         Notification::make()->danger()->title(collect($exception->errors())->flatten()->first())->send();

@@ -333,3 +333,43 @@
         grid-column: 1/-1;
     }
 }
+
+.submission-feedback {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: min(480px, calc(100vw - 32px));
+    max-height: 80dvh;
+    overflow-y: auto;
+    padding: 28px;
+    border: 1px solid #cbd8e2;
+    border-top: 4px solid #ba9f6c;
+    border-radius: 12px;
+    background: #fff;
+    color: #042240;
+    box-shadow: 0 20px 70px #04224033;
+}
+.submission-feedback::backdrop {
+    background: #04224066;
+    backdrop-filter: blur(3px);
+}
+.submission-feedback h2 {
+    font-size: 22px;
+    font-weight: 600;
+}
+.submission-feedback p {
+    margin: 16px 0 24px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.submission-feedback button {
+    display: block;
+    margin-left: auto;
+    min-height: 44px;
+    padding: 10px 24px;
+    border-radius: 6px;
+    background: #ba9f6c;
+    color: #042240;
+    font-weight: 600;
+}

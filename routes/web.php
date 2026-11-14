@@ -80,6 +80,7 @@ Route::middleware(['auth', EnsureFreshUserSession::class])->group(function (): v
     Route::get('/me/submissions', [PhotoSubmissionController::class, 'index'])->name('me.submissions.index');
     Route::post('/me/submissions/apply', [PhotoSubmissionController::class, 'apply'])->middleware('throttle:6,1')->name('me.submissions.apply');
     Route::post('/me/submissions/upload', [PhotoSubmissionController::class, 'upload'])->middleware('throttle:30,1')->name('me.submissions.upload');
+    Route::post('/me/submissions/tags', [PhotoSubmissionController::class, 'createTag'])->middleware('throttle:20,1')->name('me.submissions.tags');
     Route::post('/me/submissions', [PhotoSubmissionController::class, 'submit'])->name('me.submissions.submit');
     Route::patch('/me/submissions/{submission}', [PhotoSubmissionController::class, 'update'])->name('me.submissions.update');
     Route::post('/me/submissions/{submission}/withdraw', [PhotoSubmissionController::class, 'withdraw'])->name('me.submissions.withdraw');

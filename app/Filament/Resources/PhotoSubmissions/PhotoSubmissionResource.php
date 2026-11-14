@@ -51,6 +51,16 @@ class PhotoSubmissionResource extends Resource
 
     protected static ?int $navigationSort = 45;
 
+    public static function getNavigationBadge(): ?string
+    {
+        if (! static::canViewAny()) {
+            return null;
+        }
+        $count = PhotoSubmission::where('status', 'pending')->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
     public static function canViewAny(): bool
     {
         return auth()->user()?->canManageGalleryContent() ?? false;
@@ -83,7 +93,7 @@ class PhotoSubmissionResource extends Resource
             TextInput::make('metadata.title')->label('标题')->maxLength(255),
             TextInput::make('metadata.event_date')->label('图片日期')->type('date'),
             TextInput::make('metadata.source_url')->columnSpanFull()->label('来源链接')->url(),
-            Textarea::make('metadata.source_note')->columnSpanFull()->label('来源说明')->required()->maxLength(2000),
+            Textarea::make('metadata.source_note')->columnSpanFull()->label('来源说明（选填）')->maxLength(2000),
             Textarea::make('metadata.description')->columnSpanFull()->label('投稿说明')->maxLength(5000),
             Select::make('metadata.category_ids')->columnSpanFull()->label('分类')->multiple()->searchable()->options(fn () => Category::query()->whereNotNull('parent_id')->where('visibility', 'public')->with('parent')->get()->mapWithKeys(fn ($item) => [$item->id => $item->parent->name.' / '.$item->name])->all()),
             Select::make('metadata.album_id')->label('相册')->searchable()->options(fn () => Album::query()->published()->pluck('title', 'id')->all()),
@@ -99,10 +109,18 @@ class PhotoSubmissionResource extends Resource
             ->visible(fn (PhotoSubmission $record) => $record->status === 'pending' || ($decision === 'rejected' && $record->status === 'failed'))
             ->form([
                 Hidden::make('revision')->default(fn (PhotoSubmission $record) => $record->revision),
-                Textarea::make('note')->label('用户可见审核原因')->required()->maxLength(2000),
+                Textarea::make('note')->label('用户可见审核原因')->default($decision === 'accepted' ? '感谢分享，您的投稿已采纳，将整理入库。' : null)->required()->maxLength(2000)
+                    ->rules(fn (PhotoSubmission $record): array => $decision !== 'accepted' ? [] : [function (string $attribute, $value, \Closure $fail) use ($record): void {
+                        try {
+                            app(PhotoSubmissionService::class)->publicationMetadata($record->metadata);
+                        } catch (ValidationException $error) {
+                            $fail(collect($error->errors())->flatten()->implode('；').'请先通过“整理资料”补齐后再采纳。');
+                        }
+                    }]),
                 Select::make('replacement_photo_id')->label('高清替换目标（可选）')->searchable()
-                    ->helperText('只有确实为同一画面且分辨率改善时才选择；保留原档案及互动。留空建立新草稿。')
+                    ->helperText('只有确实为同一画面且分辨率改善时才选择；保留原档案及互动。留空新建档案，处理完成后自动发布。')
                     ->visible($decision === 'accepted')
+                    ->getOptionLabelUsing(fn ($value): ?string => ($photo = Photo::find($value)) ? '#'.$photo->id.' '.$photo->title.' '.$photo->width.'×'.$photo->height : null)
                     ->getSearchResultsUsing(fn (string $search): array => Photo::query()->where('title', 'like', '%'.$search.'%')->limit(30)->get()->mapWithKeys(fn ($item) => [$item->id => '#'.$item->id.' '.$item->title.' '.$item->width.'×'.$item->height])->all()),
             ])->action(fn (PhotoSubmission $record, array $data) => app(PhotoSubmissionService::class)->review($record, auth()->user(), $decision, $data['note'], (int) $data['revision'], replacement: $data['replacement_photo_id'] ?? null));
     }
@@ -110,7 +128,7 @@ class PhotoSubmissionResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->extraAttributes(['class' => 'admin-content-table'])->columns([
-            ImageColumn::make('preview')->label('私有预览')->state(fn (PhotoSubmission $record) => $record->cleaned_at ? null : '/me/submissions/'.$record->id.'/image')->imageSize(70),
+            ImageColumn::make('preview')->label('私有预览')->state(fn (PhotoSubmission $record) => $record->cleaned_at ? null : url('/me/submissions/'.$record->id.'/image'))->imageSize(70),
             TextColumn::make('original_filename')->wrap()->extraCellAttributes(['class' => 'admin-object-cell'])->label('原文件名')->searchable()->wrap(),
             TextColumn::make('user.name')->label('投稿人')->searchable(),
             TextColumn::make('batch_id')->label('批次')->limit(8)->searchable(),
@@ -145,10 +163,15 @@ class PhotoSubmissionResource extends Resource
 
     private static function bulkReview(string $decision, string $label): BulkAction
     {
-        return BulkAction::make($decision)->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()->label($label)->form([Hidden::make('revisions')->default(fn (Collection $records): string => json_encode($records->mapWithKeys(fn ($record) => [$record->id => $record->revision])->all())), Textarea::make('note')->label('统一审核原因')->required()->maxLength(2000)])
+        return BulkAction::make($decision)->modalWidth('3xl')->stickyModalHeader()->stickyModalFooter()->label($label)->form([Hidden::make('revisions')->required(), Textarea::make('note')->label('统一审核原因')->default($decision === 'accepted' ? '感谢分享，您的投稿已采纳，将整理入库。' : null)->required()->maxLength(2000)])
+            ->fillForm(fn (Collection $records): array => [
+                'revisions' => json_encode($records->mapWithKeys(fn ($record) => [$record->id => $record->revision])->all()),
+                'note' => $decision === 'accepted' ? '感谢分享，您的投稿已采纳，将整理入库。' : null,
+            ])
             ->action(function (Collection $records, array $data) use ($decision): void {
                 $processed = 0;
                 $skipped = 0;
+                $issues = [];
                 $revisions = json_decode($data['revisions'] ?? '{}', true) ?: [];
                 foreach ($records as $record) {
                     try {
@@ -156,9 +179,16 @@ class PhotoSubmissionResource extends Resource
                         $processed++;
                     } catch (ValidationException $error) {
                         $skipped++;
+                        $issues[] = $record->original_filename.'（投稿编号 '.$record->id.'）：'.collect($error->errors())->flatten()->implode('；');
                     }
                 }
-                Notification::make()->title('处理 '.$processed.' 张，跳过 '.$skipped.' 张')->body('状态变化或重复图片会跳过，请逐张复核。')->send();
+                $notification = Notification::make()->title('处理 '.$processed.' 张，跳过 '.$skipped.' 张');
+                if ($issues) {
+                    $notification->warning()->body(implode('；', $issues))->persistent();
+                } else {
+                    $notification->success()->body('选中投稿已完成审核处理。');
+                }
+                $notification->send();
             })->deselectRecordsAfterCompletion();
     }
 
