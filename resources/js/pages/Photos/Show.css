@@ -785,6 +785,13 @@ html:has(.detail-zoom-dialog[open]) {
 }
 .archive-detail .detail-classification-list .detail-taxonomy > span {
     padding: 0;
+    flex-shrink: 0;
+}
+.archive-detail .detail-taxonomy-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
 }
 .archive-detail .detail-taxonomy a,
 .archive-detail .detail-tags a {

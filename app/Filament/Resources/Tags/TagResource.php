@@ -43,7 +43,8 @@ class TagResource extends Resource
                     ->label('标签名')
                     ->required()
                     ->maxLength(255)
-                    ->unique(ignoreRecord: true),
+                    ->unique(ignoreRecord: true)
+                    ->validationMessages(['unique' => '该标签已存在，请使用其他名称。']),
                 TextInput::make('sort_order')
                     ->label('排序')
                     ->numeric()

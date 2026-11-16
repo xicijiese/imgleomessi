@@ -19,6 +19,25 @@ class GalleryTaxonomyTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_duplicate_tag_creation_and_edit_show_chinese_message(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $existing = \App\Models\Tag::create(['name' => '梅西']);
+        $other = \App\Models\Tag::create(['name' => '阿根廷']);
+        $component = Livewire::test(\App\Filament\Resources\Tags\Pages\ManageTags::class)
+            ->callAction('create', ['name' => '梅西', 'sort_order' => 0])
+            ->assertHasActionErrors(['name' => 'unique']);
+        $this->assertSame('该标签已存在，请使用其他名称。', $component->instance()->getErrorBag()->first('mountedActions.0.data.name'));
+        $component = Livewire::test(\App\Filament\Resources\Tags\Pages\ManageTags::class)
+            ->callAction(TestAction::make('edit')->table($other), ['name' => '梅西'])
+            ->assertHasActionErrors(['name' => 'unique']);
+        $this->assertSame('该标签已存在，请使用其他名称。', $component->instance()->getErrorBag()->first('mountedActions.0.data.name'));
+        Livewire::test(\App\Filament\Resources\Tags\Pages\ManageTags::class)
+            ->callAction(TestAction::make('edit')->table($existing), ['name' => '梅西'])
+            ->assertHasNoActionErrors();
+        $this->assertDatabaseCount('tags', 2);
+    }
+
     public function test_admin_can_delete_a_system_child_with_photo_and_album_links_without_deleting_media(): void
     {
         $this->seed(GalleryTaxonomySeeder::class);

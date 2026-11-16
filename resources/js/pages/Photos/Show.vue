@@ -157,6 +157,21 @@ const props = defineProps<{
 
 const emit = defineEmits<{ zoom: [] }>();
 
+const categoryGroups = computed(() => {
+    const groups = new Map<
+        string,
+        { name: string | null; categories: CategorySummary[] }
+    >();
+    for (const category of props.photoDetail.photo.categories) {
+        const key = category.root_slug ?? category.root_name ?? '';
+        if (!groups.has(key)) {
+            groups.set(key, { name: category.root_name, categories: [] });
+        }
+        groups.get(key)!.categories.push(category);
+    }
+    return [...groups.entries()].map(([key, group]) => ({ key, ...group }));
+});
+
 type ComposerMode = 'discussion' | 'correction' | null;
 type ReportReason = 'spam' | 'abuse' | 'copyright' | 'misleading' | 'other';
 
@@ -1108,15 +1123,19 @@ watch(
                             <h2 id="photo-taxonomy-heading">分类</h2>
                             <div class="detail-classification-list">
                                 <div
-                                    v-for="category in photoDetail.photo
-                                        .categories"
-                                    :key="category.id"
+                                    v-for="group in categoryGroups"
+                                    :key="group.key"
                                     class="detail-taxonomy"
                                 >
-                                    <span>{{ category.root_name }}</span
-                                    ><Link :href="category.url">{{
-                                        category.name
-                                    }}</Link>
+                                    <span v-if="group.name">{{ group.name }}</span>
+                                    <div class="detail-taxonomy-values">
+                                        <Link
+                                            v-for="category in group.categories"
+                                            :key="category.id"
+                                            :href="category.url"
+                                            >{{ category.name }}</Link
+                                        >
+                                    </div>
                                 </div>
                             </div>
                         </section>
