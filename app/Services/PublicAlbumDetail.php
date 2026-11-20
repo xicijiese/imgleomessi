@@ -46,6 +46,8 @@ class PublicAlbumDetail
         $requestedSlide = $request->integer('slide', max(1, $request->integer('page', 1)) * self::PER_PAGE - self::PER_PAGE + 1);
         $slide = max(1, min($requestedSlide, max(1, $total)));
         $selected = (clone $query)->offset($slide - 1)->first();
+        $filmstripQuery = (clone $query)->without(['categories.parent', 'tags'])
+            ->select(['photos.id', 'photos.uuid', 'photos.title', 'photos.thumbnail_key', 'photos.original_key', 'photos.display_key']);
 
         /** @var LengthAwarePaginator<int, Photo> $paginator */
         $paginator = $query->paginate(self::PER_PAGE, ['*'], 'page', (int) ceil($slide / self::PER_PAGE))->withQueryString();
@@ -69,6 +71,14 @@ class PublicAlbumDetail
                     ->all(),
             ],
             'album' => $albumHeader,
+            'filmstrip' => $filmstripQuery->get()
+                ->map(fn (Photo $photo): array => [
+                    'id' => $photo->id,
+                    'uuid' => $photo->uuid,
+                    'title' => $photo->title,
+                    'image_url' => PublicMediaUrl::thumbnail($photo),
+                    'alt' => $photo->title,
+                ])->values()->all(),
             'viewer' => [
                 'position' => $selected ? $slide : 0,
                 'total' => $total,

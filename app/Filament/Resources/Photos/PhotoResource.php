@@ -259,9 +259,9 @@ class PhotoResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => Photo::COPYRIGHT_STATUSES[$state] ?? $state)
                     ->sortable(),
-                TextColumn::make('event_date')->formatStateUsing(fn ($state, Photo $record) => $record->eventDateLabel())->placeholder(fn (Photo $record) => $record->eventDateLabel() ?? '待补充')
+                TextColumn::make('event_date')
+                    ->state(fn (Photo $record) => $record->eventDateLabel())
                     ->label('事件日期')
-                    ->date('Y-m-d')
                     ->sortable()
                     ->placeholder('未填写'),
                 TextColumn::make('published_at')
@@ -575,6 +575,9 @@ class PhotoResource extends Resource
                     ->label($root->name)
                     ->multiple(in_array($root->slug, Category::MULTI_SELECT_ROOT_SLUGS, true))
                     ->options(fn (): array => CategoryOption::options($root))
+                    ->getOptionLabelsUsing(fn (array $values): array => $root->children()
+                        ->whereIn('id', $values)
+                        ->pluck('name', 'id')->all())
                     ->searchable()
                     ->preload()
                     ->markAsRequired($root->required_for_publish)

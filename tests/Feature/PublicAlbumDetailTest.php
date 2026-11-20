@@ -261,6 +261,9 @@ class PublicAlbumDetailTest extends TestCase
             $album->photos()->attach($photo);
         }
         $this->get('/albums/long-slides?sort=event_asc&slide=25')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('albumDetail.filmstrip', 25)
+            ->where('albumDetail.filmstrip.0.title', '照片1')
+            ->where('albumDetail.filmstrip.24.title', '照片25')
             ->where('albumDetail.photos.meta.current_page', 2)
             ->has('albumDetail.photos.data', 1)
             ->where('albumDetail.current_photo.photo.title', '照片25')
@@ -269,6 +272,7 @@ class PublicAlbumDetailTest extends TestCase
         $this->get('/albums/long-slides?sort=event_asc&slide=999')->assertOk()->assertInertia(fn (Assert $page) => $page
             ->where('albumDetail.viewer.position', 25));
         $this->get('/albums/long-slides?sort=event_asc&slide=-1')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('albumDetail.filmstrip', 25)
             ->where('albumDetail.viewer.position', 1));
     }
 

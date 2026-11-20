@@ -56,6 +56,7 @@ interface AlbumDetailPayload {
         next_url: string | null;
     };
     current_photo: Detail | null;
+    filmstrip: AlbumDetailPayload['photos']['data'];
 }
 const props = defineProps<{ albumDetail: AlbumDetailPayload }>();
 const pending = ref(false);
@@ -279,23 +280,17 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
                     aria-label="相册图片导航"
                 >
                     <button
-                        v-for="(photo, index) in albumDetail.photos.data"
+                        v-for="(photo, index) in albumDetail.filmstrip"
                         :key="photo.uuid"
                         type="button"
-                        :aria-label="`查看第${(albumDetail.photos.meta.from ?? 1) + index}张：${photo.title}`"
+                        :aria-label="`查看第${index + 1}张：${photo.title}`"
                         :aria-current="
                             photo.uuid === albumDetail.current_photo.photo.uuid
                                 ? 'true'
                                 : undefined
                         "
                         :disabled="pending"
-                        @click="
-                            visit(
-                                slideUrl(
-                                    (albumDetail.photos.meta.from ?? 1) + index,
-                                ),
-                            )
-                        "
+                        @click="visit(slideUrl(index + 1))"
                     >
                         <img
                             v-if="photo.image_url && !imageFailures[photo.id]"

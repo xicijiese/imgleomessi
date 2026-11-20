@@ -27,6 +27,36 @@ class PhotoManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_standalone_edit_resolves_selected_season_and_year_labels(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $photo = Photo::create(['title' => '独立分类回显']);
+        foreach (['season' => '赛季', 'year' => '年份'] as $slug => $name) {
+            $root = Category::create(['name' => $name, 'slug' => $slug]);
+            $selected = $root->children()->create(['name' => '待补充', 'slug' => 'pending-'.$slug]);
+            $photo->categories()->attach($selected);
+            $hidden = $root->children()->create(['name' => '历史分类', 'slug' => 'hidden-'.$slug, 'visibility' => 'hidden']);
+            $photo->categories()->attach($hidden);
+        }
+        $component = Livewire::test(ManagePhotos::class)->mountAction(TestAction::make('edit')->table($photo));
+        foreach (Category::roots()->get() as $root) {
+            $field = $component->instance()->getSchema('mountedActionSchema0')->getComponent('category_root_'.$root->id);
+            $this->assertNotNull($field);
+            $this->assertSame(['待补充', '历史分类'], array_values($field->getOptionLabels()));
+            $this->assertCount(1, $field->getOptions());
+        }
+        $component->callMountedAction()->assertHasNoActionErrors();
+        $this->assertSame(4, $photo->categories()->count());
+    }
+
+    public function test_management_displays_year_only_and_full_event_dates(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        Photo::create(['title' => '仅年份', 'event_date' => '2008']);
+        Photo::create(['title' => '完整日期', 'event_date' => '2021-11-30']);
+        Livewire::test(ManagePhotos::class)->assertSee('2008年')->assertSee('2021-11-30');
+    }
+
     public function test_upload_requires_event_date_and_records_publisher(): void
     {
         Storage::fake('public');
