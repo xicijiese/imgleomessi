@@ -15,6 +15,7 @@ use App\Services\PhotoBatchOrganizer;
 use App\Services\PhotoUploadService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\ImageEntry;
@@ -38,7 +39,7 @@ class ManagePhotos extends ManageRecords
             Action::make('bulkUpload')
                 ->label('上传图片')
                 ->modalHeading('上传图片')
-                ->modalDescription('支持上传单张或多张图片。可选择保留草稿，或在基础处理完成且满足发布条件后自动发布。')
+                ->modalDescription('支持上传单张或多张图片，基础处理完成且满足发布条件后自动发布。')
                 ->modalSubmitActionLabel('开始上传')
                 ->schema([
                     Grid::make(2)->schema([
@@ -108,30 +109,17 @@ class ManagePhotos extends ManageRecords
                             ])
                             ->columns(2)
                             ->columnSpanFull(),
-                        EventDate::field()->columnSpanFull(),
-                        Section::make('来源与发布')->schema([
-                            TextInput::make('source_url')
-                                ->columnSpanFull()
-                                ->label('来源链接')
-                                ->url()
-                                ->maxLength(2048)
-                                ->helperText('可选；来源平台请在分类中选择。'),
-                            Select::make('copyright_status')
-                                ->label('版权状态')
-                                ->options(Photo::COPYRIGHT_STATUSES)
-                                ->default('unknown')
-                                ->required(),
-                            Select::make('publish_mode')
-                                ->label('上传后的发布状态')
-                                ->options([
-                                    'draft' => '草稿（待整理）',
-                                    'publish_after_processing' => '处理完成后自动发布',
-                                ])
-                                ->default('publish_after_processing')
-                                ->live()
-                                ->required()
-                                ->helperText('默认处理完成后自动发布；仍会检查标题、版权状态和必选主分类，不满足条件时会保留为草稿。'),
-                        ])->columns(2)->columnSpanFull(),
+                        EventDate::field()
+                            ->required()
+                            ->validationMessages(['required' => '请填写事件日期，具体日期不详时至少填写年份。'])
+                            ->helperText('请填写图片内容发生的日期；具体日期不详时，至少填写年份。'),
+                        TextInput::make('source_url')
+                            ->label('来源链接')
+                            ->url()
+                            ->maxLength(2048)
+                            ->helperText('可选；来源平台请在分类中选择。'),
+                        Hidden::make('copyright_status')->default('unknown'),
+                        Hidden::make('publish_mode')->default('publish_after_processing'),
                     ])->columnSpanFull(),
                 ])
                 ->modalWidth('5xl')

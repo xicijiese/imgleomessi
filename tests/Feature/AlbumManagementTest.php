@@ -23,6 +23,16 @@ class AlbumManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_album_publication_date_is_required_and_accepts_date_without_time(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        Livewire::test(ManageAlbums::class)->callAction('create', ['title' => '日期测试', 'published_at' => null])
+            ->assertHasActionErrors(['published_at' => 'required']);
+        Livewire::test(ManageAlbums::class)->callAction('create', ['title' => '日期测试', 'published_at' => '2008-08-23'])
+            ->assertHasNoActionErrors();
+        $this->assertSame('2008-08-23', Album::sole()->published_at->toDateString());
+    }
+
     public function test_album_cover_can_only_be_selected_from_its_public_photos_and_is_shared_by_lists(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));

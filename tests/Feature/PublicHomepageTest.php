@@ -17,6 +17,19 @@ class PublicHomepageTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_homepage_topics_support_unlimited_and_counts_above_twelve(): void
+    {
+        $state = HomepageSettings::defaults();
+        $state['topic_module']['items'] = array_map(fn ($i) => [
+            'title' => '专题'.$i, 'url' => '/topics/topic-'.$i, 'enabled' => true,
+        ], range(1, 20));
+        foreach ([0 => 20, 15 => 15] as $count => $expected) {
+            $state['topic_module']['display_count'] = $count;
+            app(HomepageSettings::class)->save($state);
+            $this->get('/')->assertOk()->assertInertia(fn (Assert $page) => $page->has('home.topic_module.items', $expected));
+        }
+    }
+
     public function test_guest_can_visit_homepage_with_default_payload(): void
     {
         $this->get('/')

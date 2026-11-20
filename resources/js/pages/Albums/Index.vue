@@ -386,7 +386,11 @@ const removeChip = (key: string) => {
                     >
                 </p>
                 <label class="browser-sort-control"
-                    >排序<select v-model="form.sort" aria-label="相册排序">
+                    >排序<select
+                        v-model="form.sort"
+                        aria-label="相册排序"
+                        @change="applyFilters"
+                    >
                         <option
                             v-for="sort in albumIndex.filter_options.sorts"
                             :key="sort.value"

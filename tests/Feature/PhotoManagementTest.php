@@ -27,6 +27,27 @@ class PhotoManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_upload_requires_event_date_and_records_publisher(): void
+    {
+        Storage::fake('public');
+        Queue::fake();
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $this->actingAs($admin);
+        $album = Album::create(['title' => '日期测试相册', 'slug' => 'dated-upload']);
+        $data = ['files' => [UploadedFile::fake()->image('dated.jpg')], 'album_id' => $album->id];
+        Livewire::test(ManagePhotos::class)->callAction('bulkUpload', $data)
+            ->assertHasActionErrors(['event_date' => 'required']);
+        $this->assertDatabaseCount('photos', 0);
+        Livewire::test(ManagePhotos::class)->callAction('bulkUpload', [...$data, 'event_date' => '2008年'])
+            ->assertHasNoActionErrors();
+        $photo = Photo::sole();
+        $this->assertSame(2008, $photo->event_year);
+        $this->assertSame($admin->id, $photo->uploaded_by);
+        $this->assertSame('unknown', $photo->copyright_status);
+        $this->assertTrue($photo->publish_after_processing);
+        Livewire::test(ManagePhotos::class)->assertSee($admin->name);
+    }
+
     public function test_bulk_delete_removes_only_selected_unprotected_photos_and_reports_skips(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
@@ -168,7 +189,7 @@ class PhotoManagementTest extends TestCase
         Queue::fake();
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
         $component = Livewire::test(ManagePhotos::class)->mountAction('bulkUpload')
-            ->fillForm(['files' => [UploadedFile::fake()->image('one.jpg'), UploadedFile::fake()->image('two.jpg')], 'publish_mode' => 'draft', 'batch_title' => '庆祝']);
+            ->fillForm(['event_date' => '2022', 'files' => [UploadedFile::fake()->image('one.jpg'), UploadedFile::fake()->image('two.jpg')], 'publish_mode' => 'draft', 'batch_title' => '庆祝']);
         $component->callAction(TestAction::make('applyBatchNames')->schemaComponent())->assertHasNoActionErrors();
         $files = array_values($component->get('mountedActions.0.data.files'));
         $key = hash('sha256', $files[0]->getPathname());
@@ -183,7 +204,7 @@ class PhotoManagementTest extends TestCase
         Queue::fake();
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
         $component = Livewire::test(ManagePhotos::class)->mountAction('bulkUpload')
-            ->fillForm(['files' => [UploadedFile::fake()->image('same.jpg'), UploadedFile::fake()->image('same.jpg'), UploadedFile::fake()->image('removed.jpg')], 'publish_mode' => 'draft']);
+            ->fillForm(['event_date' => '2022', 'files' => [UploadedFile::fake()->image('same.jpg'), UploadedFile::fake()->image('same.jpg'), UploadedFile::fake()->image('removed.jpg')], 'publish_mode' => 'draft']);
         $files = array_values($component->get('mountedActions.0.data.files'));
         $first = hash('sha256', $files[0]->getPathname());
         $second = hash('sha256', $files[1]->getPathname());
@@ -235,7 +256,7 @@ class PhotoManagementTest extends TestCase
         Queue::fake();
         $this->seed(GalleryTaxonomySeeder::class);
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
-        $data = ['files' => [UploadedFile::fake()->image('multiple.jpg')], 'publish_mode' => 'publish_after_processing', 'copyright_status' => 'credited'];
+        $data = ['event_date' => '2022', 'files' => [UploadedFile::fake()->image('multiple.jpg')], 'publish_mode' => 'publish_after_processing', 'copyright_status' => 'credited'];
         $expected = [];
         foreach (Category::roots()->get() as $root) {
             $ids = $root->children()->pluck('id')->take(1)->all();
@@ -398,7 +419,7 @@ class PhotoManagementTest extends TestCase
         $tag = Tag::create(['name' => '上传测试标签']);
 
         Livewire::test(ManagePhotos::class)
-            ->callAction('bulkUpload', [
+            ->callAction('bulkUpload', ['event_date' => '2022',
                 'files' => [UploadedFile::fake()->image('layout-upload.jpg', 120, 80)],
                 'source_url' => 'https://example.com/source',
                 'publish_mode' => 'draft',
@@ -425,7 +446,7 @@ class PhotoManagementTest extends TestCase
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
 
         Livewire::test(ManagePhotos::class)
-            ->callAction('bulkUpload', [
+            ->callAction('bulkUpload', ['event_date' => '2022',
                 'files' => [
                     UploadedFile::fake()->image('first.jpg', 120, 80),
                     UploadedFile::fake()->image('second.png', 60, 90),
@@ -454,7 +475,7 @@ class PhotoManagementTest extends TestCase
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
 
         Livewire::test(ManagePhotos::class)
-            ->callAction('bulkUpload', [
+            ->callAction('bulkUpload', ['event_date' => '2022',
                 'files' => [],
                 'publish_mode' => 'draft',
                 'copyright_status' => 'unknown',

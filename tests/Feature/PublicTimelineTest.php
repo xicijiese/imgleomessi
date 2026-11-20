@@ -21,6 +21,19 @@ class PublicTimelineTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_timeline_includes_all_years_beyond_twelve_and_before_2008(): void
+    {
+        foreach (range(2000, 2026) as $year) {
+            $this->publicPhoto('年份'.$year, ['event_date' => $year.'-01-01']);
+        }
+
+        $this->get('/timeline')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('timeline.years', 27)
+            ->where('timeline.years.0.year', 2026)
+            ->where('timeline.years.19.year', 2007)
+            ->where('timeline.years.26.year', 2000));
+    }
+
     public function test_year_only_event_is_in_correct_year_without_inventing_month_or_using_publication_year(): void
     {
         $photo = $this->publicPhoto('历史年份图片', ['event_date' => '2008', 'published_at' => now()]);

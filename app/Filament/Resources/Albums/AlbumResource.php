@@ -12,7 +12,7 @@ use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -99,9 +99,12 @@ class AlbumResource extends Resource
                         ->default('published')
                         ->required(),
                     Hidden::make('sort_order')->default(0)->rules(['integer', 'min:0']),
-                    DateTimePicker::make('published_at')
+                    DatePicker::make('published_at')
                         ->label('发布时间')
-                        ->seconds(false),
+                        ->default(today())
+                        ->required()
+                        ->validationMessages(['required' => '请选择相册的发布日期。'])
+                        ->displayFormat('Y年m月d日'),
                 ])->columns(3)->columnSpanFull(),
                 Textarea::make('description')
                     ->label('说明')

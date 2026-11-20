@@ -78,7 +78,6 @@ const props = defineProps<{
 
 const imageFailures = ref<Record<string, boolean>>({});
 const hasYears = computed(() => props.timeline.years.length > 0);
-const topYears = computed(() => props.timeline.years.slice(0, 12));
 const formatDate = (date: string | null) => date ?? '日期待补充';
 
 import { useArchiveBrowserMotion } from '@/composables/useArchiveBrowserMotion';
@@ -117,12 +116,12 @@ useArchiveBrowserMotion(pageRoot);
                 </div>
             </section>
             <nav
-                v-if="topYears.length"
+                v-if="hasYears"
                 class="year-links"
                 aria-label="年份快捷入口"
             >
                 <Link
-                    v-for="year in topYears"
+                    v-for="year in timeline.years"
                     :key="year.year"
                     :href="year.url"
                     >{{ year.year }}</Link

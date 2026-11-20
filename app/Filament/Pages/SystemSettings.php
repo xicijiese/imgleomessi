@@ -293,10 +293,10 @@ class SystemSettings extends Page
                                             ->maxLength(120),
                                         TextInput::make('topic_module.display_count')
                                             ->label('首页显示数量')
-                                            ->helperText('仅限制首页专题模块；专题页面展示全部已启用且链接有效的专题。')
+                                            ->helperText('填写0表示不限制数量；仅作用于首页，专题页面始终展示全部有效专题。')
                                             ->numeric()
-                                            ->minValue(1)
-                                            ->maxValue(12)
+                                            ->integer()
+                                            ->minValue(0)
                                             ->required(),
                                     ])
                                     ->columns(3),

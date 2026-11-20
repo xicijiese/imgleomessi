@@ -61,7 +61,7 @@ class HomepageSettings
             'topic_module' => [
                 'enabled' => true,
                 'title' => '专题',
-                'display_count' => 6,
+                'display_count' => 0,
                 'items' => [],
             ],
             'footer' => [

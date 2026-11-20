@@ -249,6 +249,11 @@ class PhotoResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => Photo::STATUSES[$state] ?? $state)
                     ->sortable(),
+                TextColumn::make('uploader.name')
+                    ->label('发布者')
+                    ->placeholder('未记录')
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('copyright_status')
                     ->label('版权状态')
                     ->badge()

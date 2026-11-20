@@ -284,7 +284,8 @@ class PublicHomepage
         $module = Arr::get($settings, 'topic_module', []);
         $items = collect($module['items'] ?? [])
             ->filter(fn (array $item): bool => (bool) ($item['enabled'] ?? true))
-            ->take($this->intBetween($module['display_count'] ?? 6, 1, 12))
+            ->when((int) ($module['display_count'] ?? 0) > 0,
+                fn ($items) => $items->take((int) $module['display_count']))
             ->map(fn (array $item): array => [
                 'title' => (string) ($item['title'] ?? ''),
                 'url' => (string) ($item['url'] ?? '#'),
