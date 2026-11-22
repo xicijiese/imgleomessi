@@ -10,9 +10,6 @@ interface PhotoCard {
     alt: string;
     event_date: string | null;
     category_summary: string;
-    resolution_label: string;
-    orientation_label: string;
-    watermark_status_label: string;
     tags: Array<{ id: number; name: string }>;
 }
 
@@ -53,13 +50,6 @@ watch(
             <p class="browser-date">{{ photo.event_date ?? '日期待补充' }}</p>
             <p v-if="photo.category_summary" class="browser-category">
                 {{ photo.category_summary }}
-            </p>
-            <p class="browser-specs">
-                <span>{{ photo.resolution_label }}</span
-                ><span aria-hidden="true">·</span
-                ><span>{{ photo.orientation_label }}</span
-                ><span aria-hidden="true">·</span
-                ><span>水印{{ photo.watermark_status_label }}</span>
             </p>
             <div v-if="photo.tags.length" class="browser-tags">
                 <span v-for="tag in photo.tags.slice(0, 3)" :key="tag.id">{{

@@ -27,6 +27,59 @@ class PhotoManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_edit_hides_capture_time_and_preserves_historical_value(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $photo = Photo::create(['title' => '历史日期', 'taken_at' => '2022-12-18 20:30:00', 'event_date' => '2022']);
+        $page = Livewire::test(ManagePhotos::class)->mountAction(TestAction::make('edit')->table($photo));
+        $this->assertNull($page->instance()->getSchema('mountedActionSchema0')->getComponent('taken_at'));
+        $page->set('mountedActions.0.data.title', '修改标题')->callMountedAction()->assertHasNoActionErrors();
+        $this->assertSame('2022-12-18 20:30:00', $photo->fresh()->taken_at->format('Y-m-d H:i:s'));
+        $this->assertSame(2022, $photo->fresh()->event_year);
+    }
+
+    public function test_bulk_description_updates_only_selected_photos_and_can_clear(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $selected = Photo::create(['title' => '已选', 'description' => '旧说明']);
+        $other = Photo::create(['title' => '未选', 'description' => '保留']);
+        foreach (['新说明', null] as $description) {
+            Livewire::test(ManagePhotos::class)->selectTableRecords([$selected->id])
+                ->callAction(TestAction::make('bulkDescription')->table()->bulk(), ['description' => $description])
+                ->assertHasNoActionErrors();
+            $this->assertSame($description, $selected->fresh()->description);
+            $this->assertSame('保留', $other->fresh()->description);
+        }
+    }
+
+    public function test_default_avatar_is_shared_without_overwriting_custom_avatar(): void
+    {
+        $user = User::factory()->create(['avatar_url' => null]);
+        $this->assertSame(asset('images/default-avatar.png'), $user->avatar);
+        $this->assertSame($user->avatar, $user->getFilamentAvatarUrl());
+        $user->forceFill(['avatar_url' => 'avatars/custom.png'])->save();
+        $this->assertSame('/storage/avatars/custom.png', $user->fresh()->avatar);
+        $this->assertFileExists(public_path('images/default-avatar.png'));
+    }
+
+    public function test_category_tooltip_contains_all_selected_categories(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+        $photo = Photo::create(['title' => '完整分类提示']);
+        $root = Category::create(['name' => '场景', 'slug' => 'scene']);
+        foreach (['比赛', '训练', '庆祝', '颁奖典礼'] as $index => $name) {
+            $photo->categories()->attach($root->children()->create(['name' => $name, 'slug' => 'scene-tooltip-'.$index]));
+        }
+        $component = Livewire::test(ManagePhotos::class);
+        $column = $component->instance()->getTable()->getColumn('category_summary')->record($photo->fresh());
+        $expected = '场景 / 比赛、场景 / 训练、场景 / 庆祝、场景 / 颁奖典礼';
+        $this->assertSame($expected, $column->getState());
+        $this->assertSame($expected, $column->getTooltip($column->getState()));
+        $empty = Photo::create(['title' => '无分类']);
+        $column->record($empty);
+        $this->assertNull($column->getTooltip($column->getState()));
+    }
+
     public function test_standalone_edit_resolves_selected_season_and_year_labels(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));

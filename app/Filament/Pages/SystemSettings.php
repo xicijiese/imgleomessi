@@ -97,6 +97,15 @@ class SystemSettings extends Page
                                             ->maxLength(255),
                                     ])
                                     ->columns(2),
+                                Section::make('网站图标')
+                                    ->aside()
+                                    ->schema([
+                                        self::settingImageUpload('site.favicon_path', '网站 ICO 图标', 'settings/favicon')
+                                            ->image(false)
+                                            ->acceptedFileTypes(['image/x-icon', 'image/vnd.microsoft.icon', 'image/png'])
+                                            ->maxSize(1024)
+                                            ->helperText('支持 ICO、PNG，建议正方形。保存后刷新网站标签页生效。'),
+                                    ]),
                                 Section::make('导航 LOGO')
                                     ->aside()
                                     ->schema([

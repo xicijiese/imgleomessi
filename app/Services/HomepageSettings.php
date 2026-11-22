@@ -21,6 +21,7 @@ class HomepageSettings
     {
         return [
             'site' => [
+                'favicon_path' => null,
                 'name' => '梅西影像档案库',
                 'logo_path' => null,
                 'logo_light_path' => null,

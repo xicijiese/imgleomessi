@@ -17,6 +17,15 @@ class PublicHomepageTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_custom_favicon_replaces_default_icon_links(): void
+    {
+        $state = HomepageSettings::defaults();
+        $state['site']['favicon_path'] = 'settings/favicon/site.ico';
+        app(HomepageSettings::class)->save($state);
+        $this->get('/')->assertOk()->assertSee('/storage/settings/favicon/site.ico', false)
+            ->assertDontSee('href="/favicon.svg"', false);
+    }
+
     public function test_homepage_topics_support_unlimited_and_counts_above_twelve(): void
     {
         $state = HomepageSettings::defaults();

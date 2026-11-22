@@ -82,7 +82,6 @@ interface PhotoDetailCard {
     url: string;
     image_url: string | null;
     alt: string;
-    taken_at: string | null;
     event_date: string | null;
     published_at: string | null;
     copyright_status: {
@@ -223,7 +222,6 @@ const correctionStatus = ref<string | null>(null);
 const correctionFields = [
     { value: 'title', label: '标题' },
     { value: 'description', label: '说明' },
-    { value: 'taken_at', label: '拍摄时间' },
     { value: 'event_date', label: '事件日期' },
     { value: 'competition', label: '赛事' },
     { value: 'team', label: '球队' },
@@ -987,29 +985,6 @@ watch(
                         >
                             {{ photoDetail.photo.description }}
                         </p>
-                        <section aria-labelledby="photo-dates-heading">
-                            <h2 id="photo-dates-heading">日期</h2>
-                            <dl>
-                                <dt>事件日期</dt>
-                                <dd>
-                                    {{
-                                        formatDate(photoDetail.photo.event_date)
-                                    }}
-                                </dd>
-                                <dt>拍摄时间</dt>
-                                <dd>
-                                    {{ formatDate(photoDetail.photo.taken_at) }}
-                                </dd>
-                                <dt>发布时间</dt>
-                                <dd>
-                                    {{
-                                        formatDate(
-                                            photoDetail.photo.published_at,
-                                        )
-                                    }}
-                                </dd>
-                            </dl>
-                        </section>
                         <section
                             v-if="hasMeta"
                             aria-labelledby="photo-file-heading"
@@ -1045,6 +1020,25 @@ watch(
                                         >
                                     </dd></template
                                 >
+                            </dl>
+                        </section>
+                        <section aria-labelledby="photo-dates-heading">
+                            <h2 id="photo-dates-heading">日期</h2>
+                            <dl>
+                                <dt>事件日期</dt>
+                                <dd>
+                                    {{
+                                        formatDate(photoDetail.photo.event_date)
+                                    }}
+                                </dd>
+                                <dt>发布时间</dt>
+                                <dd>
+                                    {{
+                                        formatDate(
+                                            photoDetail.photo.published_at,
+                                        )
+                                    }}
+                                </dd>
                             </dl>
                         </section>
                         <section aria-labelledby="photo-source-heading">

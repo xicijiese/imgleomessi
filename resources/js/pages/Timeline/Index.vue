@@ -35,25 +35,6 @@ interface YearSummary {
     months: MonthSummary[];
 }
 
-interface TagPayload {
-    id: number;
-    name: string;
-    type: string;
-}
-
-interface PhotoCard {
-    id: number;
-    uuid: string;
-    title: string;
-    description: string;
-    url: string;
-    image_url: string | null;
-    alt: string;
-    event_date: string | null;
-    category_summary: string;
-    tags: TagPayload[];
-}
-
 interface TimelineIndexPayload {
     site: SitePayload;
     navigation: NavigationItem[];
@@ -69,7 +50,6 @@ interface TimelineIndexPayload {
         albums_count: number;
     };
     years: YearSummary[];
-    latest_photos: PhotoCard[];
 }
 
 const props = defineProps<{
@@ -78,7 +58,6 @@ const props = defineProps<{
 
 const imageFailures = ref<Record<string, boolean>>({});
 const hasYears = computed(() => props.timeline.years.length > 0);
-const formatDate = (date: string | null) => date ?? '日期待补充';
 
 import { useArchiveBrowserMotion } from '@/composables/useArchiveBrowserMotion';
 import '../../../css/archive-browser.css';
@@ -178,48 +157,6 @@ useArchiveBrowserMotion(pageRoot);
             <section v-else class="empty">
                 <h2>暂无可浏览的时间线</h2>
                 <p>时间线只展示已发布且已标注事件日期的公开图片。</p>
-            </section>
-            <section v-if="timeline.latest_photos.length">
-                <div class="section-heading">
-                    <h2>最新影像</h2>
-                    <Link href="/photos"
-                        >查看图库 <span aria-hidden="true">→</span></Link
-                    >
-                </div>
-                <div class="photo-grid">
-                    <article
-                        v-for="photo in timeline.latest_photos"
-                        :key="photo.uuid"
-                        class="photo"
-                    >
-                        <Link
-                            :href="photo.url"
-                            class="cover"
-                            :aria-label="`查看图片：${photo.title}`"
-                            ><img
-                                v-if="
-                                    photo.image_url &&
-                                    !imageFailures[`photo-${photo.id}`]
-                                "
-                                :src="photo.image_url"
-                                :alt="photo.alt"
-                                loading="lazy"
-                                @error="
-                                    imageFailures[`photo-${photo.id}`] = true
-                                "
-                            /><span v-else class="failed"
-                                >图片暂时无法显示</span
-                            ></Link
-                        >
-                        <h3>
-                            <Link :href="photo.url">{{ photo.title }}</Link>
-                        </h3>
-                        <p>{{ formatDate(photo.event_date) }}</p>
-                        <p v-if="photo.category_summary">
-                            {{ photo.category_summary }}
-                        </p>
-                    </article>
-                </div>
             </section>
         </div>
     </main>

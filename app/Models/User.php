@@ -133,7 +133,7 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
 
     public function getAvatarAttribute(): ?string
     {
-        return app(PhotoStorage::class)->url($this->avatar_url);
+        return app(PhotoStorage::class)->url($this->avatar_url) ?? asset('images/default-avatar.png');
     }
 
     public function getFilamentAvatarUrl(): ?string

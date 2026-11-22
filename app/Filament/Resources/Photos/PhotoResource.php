@@ -93,10 +93,7 @@ class PhotoResource extends Resource
                                         ->label('说明')
                                         ->rows(4)
                                         ->columnSpanFull(),
-                                    DateTimePicker::make('taken_at')
-                                        ->label('拍摄时间')
-                                        ->seconds(false),
-                                    EventDate::field(),                    TextInput::make('source_url')
+                                    EventDate::field()->columnSpanFull(),                    TextInput::make('source_url')
                                         ->columnSpanFull()
                                         ->label('来源链接')
                                         ->url()
@@ -240,9 +237,9 @@ class PhotoResource extends Resource
                     ->label('分类')
                     ->state(fn (Photo $record): string => $record->categories
                         ->map(fn (Category $category): string => $category->parent ? $category->parent->name.' / '.$category->name : $category->name)
-                        ->take(3)
                         ->implode('、'))
                     ->limit(32)
+                    ->tooltip(fn (?string $state): ?string => filled($state) ? $state : null)
                     ->placeholder('待补充'),
                 TextColumn::make('status')
                     ->label('发布状态')
@@ -305,6 +302,16 @@ class PhotoResource extends Resource
                             $result = $organizer->updateCommonFields($records, ['event_date' => $data['event_date']]);
                             Notification::make()->title('已更新 '.$result['updated'].' 张图片的事件日期')->success()->send();
                         }),
+                    BulkAction::make('bulkDescription')
+                        ->label('批量编辑图片说明')
+                        ->requiresConfirmation()
+                        ->modalDescription('将覆盖所选图片的说明；留空将清空说明。')
+                        ->schema([Textarea::make('description')->label('图片说明')->rows(5)->maxLength(10000)])
+                        ->action(function (Collection $records, array $data, PhotoBatchOrganizer $organizer): void {
+                            $result = $organizer->updateCommonFields($records, ['description' => $data['description'] ?? null]);
+                            Notification::make()->title('已更新 '.$result['updated'].' 张图片的说明')->success()->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                     BulkAction::make('bulkSourceUrl')
                         ->label('批量修改来源链接')
                         ->schema([
